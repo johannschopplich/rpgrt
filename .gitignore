@@ -1,0 +1,7 @@
+dist
+node_modules
+.DS_Store
+
+# Local-only fidelity corpus: real games are never committed.
+# Committed test files live in test/fixtures (self-authored only).
+test/corpus

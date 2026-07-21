@@ -1,0 +1,72 @@
+{
+  "name": "lcfkit",
+  "type": "module",
+  "version": "0.0.0",
+  "packageManager": "pnpm@11.10.0",
+  "description": "Read and write RPG Maker 2000/2003 LCF files in pure TypeScript – library and CLI",
+  "author": "Johann Schopplich <hello@johannschopplich.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/johannschopplich/lcfkit#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johannschopplich/lcfkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/johannschopplich/lcfkit/issues"
+  },
+  "keywords": [
+    "lcf",
+    "rpg-maker-2000",
+    "rpg-maker-2003",
+    "easyrpg",
+    "lmu",
+    "ldb",
+    "lmt",
+    "translation",
+    "cli"
+  ],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "types": "./dist/index.d.mts",
+  "bin": {
+    "lcfkit": "bin/lcfkit.mjs"
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node src/cli.ts",
+    "build": "tsdown",
+    "generate": "node scripts/generate.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest",
+    "test:types": "tsc --noEmit",
+    "release": "bumpp"
+  },
+  "dependencies": {
+    "ansis": "^4.3.1",
+    "citty": "^0.2.2",
+    "iconv-lite": "^0.7.3"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^9.1.0",
+    "@types/node": "^26.1.1",
+    "bumpp": "^11.1.0",
+    "eslint": "^10.7.0",
+    "eslint-flat-config-utils": "^3.2.0",
+    "fast-check": "^4.9.0",
+    "tsdown": "^0.22.12",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}
