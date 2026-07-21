@@ -30,6 +30,10 @@
     ".": {
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
+    },
+    "./encoding": {
+      "types": "./dist/encoding.d.mts",
+      "default": "./dist/encoding.mjs"
     }
   },
   "types": "./dist/index.d.mts",
@@ -55,6 +59,7 @@
   },
   "dependencies": {
     "ansis": "^4.3.1",
+    "chardet": "^2.2.0",
     "citty": "^0.2.2",
     "iconv-lite": "^0.7.3"
   },

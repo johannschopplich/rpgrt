@@ -1,0 +1,156 @@
+import type { Transcoder } from './codec/transcoder.ts'
+import { analyse } from 'chardet'
+import iconv from 'iconv-lite'
+import { LcfError } from './codec/errors.ts'
+
+interface SingleByteTable {
+  charForByte: string[]
+  byteForChar: Map<string, number>
+}
+
+const singleByteTableCache = new Map<string, SingleByteTable | undefined>()
+
+/**
+ * Derives a bijective byte↔char table for single-byte encodings. iconv-lite
+ * maps undefined slots (e.g. 0x81 in windows-1252) to U+FFFD, which would
+ * break byte-exact round trips; those slots pass through as their own code
+ * point instead. Returns undefined for multi-byte encodings.
+ */
+function singleByteTable(encoding: string): SingleByteTable | undefined {
+  if (singleByteTableCache.has(encoding))
+    return singleByteTableCache.get(encoding)
+  const knownEncoding = encoding as Parameters<typeof iconv.decode>[1]
+  const charForByte: string[] = []
+  let isSingleByte = true
+  for (let byte = 0; byte < 256 && isSingleByte; byte++) {
+    const char = iconv.decode(Uint8Array.of(byte), knownEncoding)
+    isSingleByte = char.length === 1 && iconv.decode(Uint8Array.of(byte, 0x41), knownEncoding) === `${char}A`
+    charForByte.push(char)
+  }
+  let table: SingleByteTable | undefined
+  if (isSingleByte) {
+    const byteForChar = new Map<string, number>()
+    for (let byte = 0; byte < 256; byte++) {
+      if (charForByte[byte] === '�' || byteForChar.has(charForByte[byte]!))
+        charForByte[byte] = String.fromCharCode(byte)
+      byteForChar.set(charForByte[byte]!, byte)
+    }
+    table = { charForByte, byteForChar }
+  }
+  singleByteTableCache.set(encoding, table)
+  return table
+}
+
+/** Creates a {@link Transcoder} backed by iconv-lite for the given encoding name. */
+export function createTranscoder(encoding: string): Transcoder {
+  if (!iconv.encodingExists(encoding))
+    throw new LcfError(`Unknown encoding ${JSON.stringify(encoding)}`)
+  const table = singleByteTable(encoding)
+  if (table !== undefined) {
+    return {
+      decode(bytes) {
+        let text = ''
+        for (const byte of bytes)
+          text += table.charForByte[byte]
+        return text
+      },
+      encode(text) {
+        const bytes = new Uint8Array(text.length)
+        for (let index = 0; index < text.length; index++)
+          bytes[index] = table.byteForChar.get(text[index]!) ?? 0x3F
+        return bytes
+      },
+    }
+  }
+  const knownEncoding = encoding as Parameters<typeof iconv.decode>[1]
+  return {
+    decode: bytes => iconv.decode(bytes, knownEncoding),
+    encode: text => iconv.encode(text, knownEncoding),
+  }
+}
+
+/** True when decoding and re-encoding reproduces the input byte for byte. */
+export function isLosslessFor(encoding: string, bytes: Uint8Array): boolean {
+  const transcoder = createTranscoder(encoding)
+  const reencodedBytes = transcoder.encode(transcoder.decode(bytes))
+  return reencodedBytes.length === bytes.length && reencodedBytes.every((byte, index) => byte === bytes[index])
+}
+
+/**
+ * Reads the `Encoding` key of the `[EasyRPG]` section from RPG_RT.ini contents.
+ * EasyRPG writes either an encoding name or a Windows code page number.
+ */
+export function encodingFromIni(iniText: string): string | undefined {
+  let isInEasyRpgSection = false
+  for (const line of iniText.split(/\r?\n/)) {
+    const trimmedLine = line.trim()
+    if (trimmedLine.startsWith('[')) {
+      isInEasyRpgSection = /^\[easyrpg\]$/i.test(trimmedLine)
+    }
+    else if (isInEasyRpgSection) {
+      const separatorIndex = trimmedLine.indexOf('=')
+      if (separatorIndex !== -1 && trimmedLine.slice(0, separatorIndex).trim().toLowerCase() === 'encoding') {
+        const hint = trimmedLine.slice(separatorIndex + 1).trim()
+        if (hint.length > 0)
+          return normalizeEncodingHint(hint)
+      }
+    }
+  }
+  return undefined
+}
+
+function normalizeEncodingHint(hint: string): string {
+  return /^\d+$/.test(hint) ? `cp${hint}` : hint
+}
+
+/**
+ * Runs charset detection over string bytes; returns an iconv-lite encoding
+ * name or undefined. Candidates are tried in confidence order, and one is
+ * accepted only if it reproduces the sample byte for byte – a confidently
+ * wrong guess (e.g. Shift_JIS for a Western game) must never corrupt data.
+ */
+export function detectEncoding(stringBytes: Uint8Array): string | undefined {
+  if (stringBytes.length === 0)
+    return undefined
+  for (const candidate of analyse(stringBytes)) {
+    // An ASCII verdict carries no information – every candidate encoding is an ASCII superset.
+    if (candidate.name === 'ASCII' || !iconv.encodingExists(candidate.name))
+      continue
+    if (isLosslessFor(candidate.name, stringBytes))
+      return candidate.name
+  }
+  return undefined
+}
+
+/**
+ * Collects the wire bytes of every string in a record decoded with the default
+ * transcoder (each code point is the original byte), as a detection sample.
+ */
+export function collectStringBytes(record: unknown): Uint8Array {
+  const stringValues: string[] = []
+  collectStrings(record, stringValues)
+  const byteLength = stringValues.reduce((total, text) => total + text.length + 1, 0)
+  const bytes = new Uint8Array(byteLength)
+  let offset = 0
+  for (const text of stringValues) {
+    for (let index = 0; index < text.length; index++)
+      bytes[offset++] = text.charCodeAt(index) & 0xFF
+    bytes[offset++] = 0x0A
+  }
+  return bytes
+}
+
+function collectStrings(value: unknown, stringValues: string[]): void {
+  if (typeof value === 'string') {
+    if (value.length > 0)
+      stringValues.push(value)
+  }
+  else if (Array.isArray(value)) {
+    for (const element of value)
+      collectStrings(element, stringValues)
+  }
+  else if (value !== null && typeof value === 'object' && !(value instanceof Uint8Array)) {
+    for (const element of Object.values(value))
+      collectStrings(element, stringValues)
+  }
+}

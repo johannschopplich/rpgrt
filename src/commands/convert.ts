@@ -1,0 +1,185 @@
+import type { ArgsDef, CommandDef } from 'citty'
+import type { LcfRecord } from '../codec/engine.ts'
+import type { Database, EngineVersion, MapUnit, TreeMap } from '../index.ts'
+import type { LcfFileKind, ResolvedEncoding, ResolvedEngine } from './resolve.ts'
+import { Buffer } from 'node:buffer'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { defineCommand } from 'citty'
+import { LcfError } from '../codec/errors.ts'
+import { createTranscoder } from '../encoding.ts'
+import { decodeDatabase, decodeMapTree, decodeMapUnit, encodeDatabase, encodeMapTree, encodeMapUnit } from '../index.ts'
+import { lcfFileKind, parseEngineFlag, resolveEncoding, resolveEngine } from './resolve.ts'
+
+/** The self-describing JSON document `convert` writes; converting back needs no flags. */
+interface JsonEnvelope {
+  format: LcfFileKind
+  engine: EngineVersion
+  encoding: string
+  data: LcfRecord
+}
+
+export interface ConvertResult {
+  outputPath: string
+  format: LcfFileKind
+  engine: EngineVersion
+  engineSource: ResolvedEngine['engineSource'] | 'envelope'
+  encoding: string
+  encodingSource: ResolvedEncoding['encodingSource'] | 'envelope'
+  /** Whether re-encoding the JSON document reproduces the source file byte for byte (LCF→JSON only). */
+  isByteIdentical?: boolean
+}
+
+export interface ConvertOptions {
+  output?: string
+  engine?: string
+  encoding?: string
+}
+
+function decodeLcf(bytes: Uint8Array, kind: LcfFileKind, engine: EngineVersion, encoding: string): LcfRecord {
+  const options = { engine, transcoder: createTranscoder(encoding) }
+  if (kind === 'lmu')
+    return decodeMapUnit(bytes, options) as unknown as LcfRecord
+  if (kind === 'ldb')
+    return decodeDatabase(bytes, options) as unknown as LcfRecord
+  return decodeMapTree(bytes, options) as unknown as LcfRecord
+}
+
+function encodeLcf(record: LcfRecord, kind: LcfFileKind, engine: EngineVersion, encoding: string): Uint8Array {
+  const options = { engine, transcoder: createTranscoder(encoding) }
+  if (kind === 'lmu')
+    return encodeMapUnit(record as unknown as MapUnit, options)
+  if (kind === 'ldb')
+    return encodeDatabase(record as unknown as Database, options)
+  return encodeMapTree(record as unknown as TreeMap, options)
+}
+
+function stringifyEnvelope(envelope: JsonEnvelope): string {
+  const json = JSON.stringify(
+    envelope,
+    (_key, value: unknown) => value instanceof Uint8Array ? Buffer.from(value).toString('base64') : value,
+    2,
+  )
+  return `${json}\n`
+}
+
+function parseEnvelope(jsonText: string, filePath: string): JsonEnvelope {
+  let parsedValue: unknown
+  try {
+    parsedValue = JSON.parse(jsonText)
+  }
+  catch (error) {
+    throw new LcfError(`${filePath} is not valid JSON: ${(error as Error).message}`)
+  }
+  const envelope = parsedValue as Partial<JsonEnvelope>
+  const hasValidShape = envelope !== null && typeof envelope === 'object'
+    && (envelope.format === 'lmu' || envelope.format === 'ldb' || envelope.format === 'lmt')
+    && (envelope.engine === '2k' || envelope.engine === '2k3')
+    && typeof envelope.encoding === 'string'
+    && envelope.data !== null && typeof envelope.data === 'object'
+  if (!hasValidShape)
+    throw new LcfError(`${filePath} is not an lcfkit JSON document (expected format, engine, encoding, and data keys)`)
+  reviveUnknownChunks(envelope.data)
+  return envelope as JsonEnvelope
+}
+
+/** JSON carries `_unknown` chunk bytes as base64 strings; restore them to Uint8Array. */
+function reviveUnknownChunks(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (const element of value)
+      reviveUnknownChunks(element)
+  }
+  else if (value !== null && typeof value === 'object') {
+    const record = value as LcfRecord
+    if (Array.isArray(record._unknown)) {
+      record._unknown = record._unknown.map((chunk: { id: number, bytes: string }) => ({
+        id: chunk.id,
+        bytes: new Uint8Array(Buffer.from(chunk.bytes, 'base64')),
+      }))
+    }
+    for (const [key, element] of Object.entries(record)) {
+      if (key !== '_unknown')
+        reviveUnknownChunks(element)
+    }
+  }
+}
+
+function lcfOutputPath(inputPath: string, format: LcfFileKind): string {
+  const strippedPath = inputPath.replace(/\.json$/i, '')
+  return lcfFileKind(strippedPath) === format ? strippedPath : `${strippedPath}.${format}`
+}
+
+export function convertFile(inputPath: string, options: ConvertOptions = {}): ConvertResult {
+  if (/\.json$/i.test(inputPath)) {
+    const envelope = parseEnvelope(readFileSync(inputPath, 'utf8'), inputPath)
+    const engine = options.engine === undefined ? envelope.engine : parseEngineFlag(options.engine)
+    const encoding = options.encoding ?? envelope.encoding
+    const outputPath = options.output ?? lcfOutputPath(inputPath, envelope.format)
+    writeFileSync(outputPath, encodeLcf(envelope.data, envelope.format, engine, encoding))
+    return {
+      outputPath,
+      format: envelope.format,
+      engine,
+      engineSource: options.engine === undefined ? 'envelope' : 'flag',
+      encoding,
+      encodingSource: options.encoding === undefined ? 'envelope' : 'flag',
+    }
+  }
+
+  const kind = lcfFileKind(inputPath)
+  if (kind === undefined)
+    throw new LcfError(`Unsupported file extension – expected .lmu, .ldb, .lmt, or .json: ${inputPath}`)
+  const bytes = new Uint8Array(readFileSync(inputPath))
+  const { engine, engineSource } = resolveEngine(inputPath, bytes, kind, options.engine)
+  const { encoding, encodingSource } = resolveEncoding(inputPath, bytes, kind, engine, options.encoding)
+  const envelope: JsonEnvelope = { format: kind, engine, encoding, data: decodeLcf(bytes, kind, engine, encoding) }
+  const outputPath = options.output ?? `${inputPath}.json`
+  writeFileSync(outputPath, stringifyEnvelope(envelope))
+  const reencodedBytes = encodeLcf(envelope.data, kind, engine, encoding)
+  const isByteIdentical = reencodedBytes.length === bytes.length && reencodedBytes.every((byte, index) => byte === bytes[index])
+  return { outputPath, format: kind, engine, engineSource, encoding, encodingSource, isByteIdentical }
+}
+
+const ENGINE_SOURCE_LABELS: Record<ConvertResult['engineSource'], string> = {
+  flag: 'from --engine',
+  database: 'detected from RPG_RT.ldb',
+  roundTrip: 'detected by re-encoding',
+  fallback: 'fallback – pass --engine if wrong',
+  envelope: 'from the JSON document',
+}
+
+const ENCODING_SOURCE_LABELS: Record<ConvertResult['encodingSource'], string> = {
+  flag: 'from --encoding',
+  ini: 'from RPG_RT.ini',
+  detected: 'detected',
+  fallback: 'fallback – pass --encoding if wrong',
+  envelope: 'from the JSON document',
+}
+
+export interface ConvertArgs extends ArgsDef {
+  input: { type: 'positional', description: string, required: true }
+  output: { type: 'string', alias: string, description: string }
+  engine: { type: 'string', description: string }
+  encoding: { type: 'string', description: string }
+}
+
+const convertArgs: ConvertArgs = {
+  input: { type: 'positional', description: 'Path to a .lmu/.ldb/.lmt or .json file', required: true },
+  output: { type: 'string', alias: 'o', description: 'Output path (defaults next to the input)' },
+  engine: { type: 'string', description: 'Engine version: 2k or 2k3 (overrides detection)' },
+  encoding: { type: 'string', description: 'Text encoding, e.g. Shift_JIS or 1252 (overrides detection)' },
+}
+
+export const convertCommand: CommandDef<ConvertArgs> = defineCommand({
+  meta: {
+    name: 'convert',
+    description: 'Convert an LCF file (.lmu/.ldb/.lmt) to JSON, or a JSON document back to LCF',
+  },
+  args: convertArgs,
+  run({ args }) {
+    const result = convertFile(args.input, { output: args.output, engine: args.engine, encoding: args.encoding })
+    console.error(`${args.input} → ${result.outputPath}`)
+    console.error(`  engine ${result.engine} (${ENGINE_SOURCE_LABELS[result.engineSource]}), encoding ${result.encoding} (${ENCODING_SOURCE_LABELS[result.encodingSource]})`)
+    if (result.isByteIdentical === false)
+      console.error('  warning: converting back will not reproduce the source byte for byte – check --engine and --encoding')
+  },
+})

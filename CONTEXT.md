@@ -77,3 +77,7 @@ The legacy code page (Shift-JIS, Windows-1252, …) of a game's strings and file
 **Transcoder**:
 The codec's pluggable converter between wire bytes and strings. The default maps each byte to the code point of the same value – lossless, so round trips stay byte-exact even before the real encoding is known.
 _Avoid_: encoder, decoder (both overloaded)
+
+**Envelope**:
+The self-describing JSON document `convert` writes: `format`, `engine`, and `encoding` alongside the decoded record in `data`. Converting back to LCF needs no flags because the envelope carries its own context.
+_Avoid_: dump (that's the extract output)
