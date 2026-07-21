@@ -27,6 +27,10 @@ A named group of booleans bit-packed LSB-first into a single chunk (e.g. terrain
 A decoded, typed object such as `Actor` or `EventPage` – the in-memory counterpart of one struct's chunk stream.
 _Avoid_: struct, model, entity
 
+**Map unit**:
+The decoded record of one `.lmu` file (`MapUnit`) – liblcf calls it `Map`.
+_Avoid_: Map (shadows the ES built-in)
+
 **Raw record**:
 A record serialized as a fixed field sequence without chunk framing (`EventCommand`, `MoveCommand`, `Parameters`, `Equipment`, `Rect`, `TreeMap`). Cannot skip unknown data because there are no IDs.
 
@@ -69,3 +73,7 @@ _Avoid_: escape sequence, formatting code
 
 **Encoding**:
 The legacy code page (Shift-JIS, Windows-1252, …) of a game's strings and filenames. Detected per game (ini hint, then charset detection), recorded in the dump, and reused verbatim on inject.
+
+**Transcoder**:
+The codec's pluggable converter between wire bytes and strings. The default maps each byte to the code point of the same value – lossless, so round trips stay byte-exact even before the real encoding is known.
+_Avoid_: encoder, decoder (both overloaded)

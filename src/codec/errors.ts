@@ -1,0 +1,36 @@
+export interface LcfErrorContext {
+  /** Record path such as `Database.actors[3].stateRanks`. */
+  path?: string
+  /** Byte offset into the file being decoded. */
+  offset?: number
+}
+
+export class LcfError extends Error {
+  readonly rawMessage: string
+  readonly path: string | undefined
+  readonly offset: number | undefined
+
+  constructor(message: string, context: LcfErrorContext = {}) {
+    const location = [
+      context.path,
+      context.offset === undefined ? undefined : `byte ${context.offset}`,
+    ].filter(part => part !== undefined).join(', ')
+    super(location === '' ? message : `${message} (${location})`)
+    this.name = 'LcfError'
+    this.rawMessage = message
+    this.path = context.path
+    this.offset = context.offset
+  }
+}
+
+/** Re-throws low-level errors with the record path attached. */
+export function inPath<T>(path: string, run: () => T): T {
+  try {
+    return run()
+  }
+  catch (error) {
+    if (error instanceof LcfError && error.path === undefined)
+      throw new LcfError(error.rawMessage, { path, offset: error.offset })
+    throw error
+  }
+}

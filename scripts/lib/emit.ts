@@ -9,6 +9,13 @@ const GENERATED_HEADER = '// Generated from vendor/liblcf-csv by `pnpm run gener
 /** Raw structs that appear as chunk payloads (all other raw structs only occur inside vectors or at top level). */
 const EMBEDDABLE_RAW_STRUCTS = new Set(['Parameters', 'Equipment', 'Rect'])
 
+/** liblcf's `Map` would shadow the ES built-in in every consumer file. */
+const RECORD_NAME_OVERRIDES: Record<string, string> = { Map: 'MapUnit' }
+
+function toRecordName(structName: string): string {
+  return RECORD_NAME_OVERRIDES[structName] ?? structName
+}
+
 const SCALAR_BY_PRIMITIVE: Record<string, FieldCodec> = {
   Int32: { kind: 'scalar', scalar: 'berInt' },
   UInt32: { kind: 'scalar', scalar: 'uint32' },
@@ -82,13 +89,13 @@ export function buildModel(tables: LcfTables, selected: StructDef[]): GeneratedM
         isSizePersistedIfDefault: field.sizeIsPersistedIfDefault,
         codec,
         enumRef,
-        refRecord: field.type.kind === 'ref' ? field.type.targetStruct : undefined,
+        refRecord: field.type.kind === 'ref' ? toRecordName(field.type.targetStruct) : undefined,
         default: parseDefaultCell(field.rawDefault, codec),
         isPersistedIfDefault: field.isPersistedIfDefault,
         is2k3Only: field.is2k3Only,
       }
     })
-    return { name: struct.name, framing: struct.framing, fields }
+    return { name: toRecordName(struct.name), framing: struct.framing, fields }
   })
 
   return {
@@ -112,14 +119,14 @@ function resolveFieldCodec(tables: LcfTables, type: TypeExpression): FieldCodec 
           throw new Error(`Raw struct ${type.name} is not expected as a chunk payload`)
         return { kind: 'rawField', record: type.name }
       }
-      return { kind: 'record', record: type.name }
+      return { kind: 'record', record: toRecordName(type.name) }
     }
     case 'enum':
       return { kind: 'scalar', scalar: 'berInt' }
     case 'ref':
       return { kind: 'scalar', scalar: type.storage === 'Int16' ? 'int16' : 'berInt' }
     case 'array':
-      return { kind: 'array', record: type.elementStruct }
+      return { kind: 'array', record: toRecordName(type.elementStruct) }
     case 'vector':
       return resolveVectorCodec(tables, type.element)
     case 'dbArray':
@@ -149,7 +156,11 @@ function resolveVectorCodec(tables: LcfTables, element: TypeExpression): FieldCo
 }
 
 export function emitStructs(model: GeneratedModel): string {
-  const lines: string[] = [GENERATED_HEADER]
+  const lines: string[] = [
+    GENERATED_HEADER,
+    'import type { UnknownChunk } from \'../codec/descriptors.ts\'',
+    '',
+  ]
 
   for (const flagSet of model.flagSets) {
     lines.push(`export interface ${flagSet.structName}Flags {`)
@@ -167,6 +178,8 @@ export function emitStructs(model: GeneratedModel): string {
         continue
       lines.push(`  ${toObjectKey(field.key)}: ${fieldTsType(field.codec)}`)
     }
+    if (struct.framing !== 'raw')
+      lines.push('  _unknown?: UnknownChunk[]')
     lines.push('}', '')
   }
 

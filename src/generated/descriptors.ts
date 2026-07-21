@@ -174,7 +174,7 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
       { key: 'windowSize', id: 0x14, codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'BattleCommandsWindowSize', default: 0 },
       { key: 'transparency', id: 0x18, codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'BattleCommandsTransparency', default: 0 },
       { key: 'deathTeleport', id: 0x19, codec: { kind: 'scalar', scalar: 'boolean' }, default: false },
-      { key: 'deathTeleportId', id: 0x1A, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'Map', default: 1 },
+      { key: 'deathTeleportId', id: 0x1A, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'MapUnit', default: 1 },
       { key: 'deathTeleportX', id: 0x1B, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
       { key: 'deathTeleportY', id: 0x1C, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
       { key: 'deathTeleportFace', id: 0x1D, codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'BattleCommandsFacing', default: 0 },
@@ -848,7 +848,7 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
       { key: 'pages', id: 0x05, codec: { kind: 'array', record: 'EventPage' }, isPersistedIfDefault: true },
     ],
   },
-  Map: {
+  MapUnit: {
     framing: 'chunked',
     fields: [
       { key: 'chipsetId', id: 0x01, codec: { kind: 'scalar', scalar: 'berInt' }, default: 1 },
@@ -904,7 +904,7 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
-      { key: 'parentMap', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'Map', default: 0 },
+      { key: 'parentMap', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'MapUnit', default: 0 },
       { key: 'indentation', id: 0x03, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
       { key: 'type', id: 0x04, codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'TreeMapMapType', default: -1 },
       { key: 'scrollbarX', id: 0x05, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
@@ -925,16 +925,16 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
   Start: {
     framing: 'chunked',
     fields: [
-      { key: 'partyMapId', id: 0x01, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'Map', default: 0 },
+      { key: 'partyMapId', id: 0x01, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'MapUnit', default: 0 },
       { key: 'partyX', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
       { key: 'partyY', id: 0x03, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
-      { key: 'boatMapId', id: 0x0B, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'Map', default: 0 },
+      { key: 'boatMapId', id: 0x0B, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'MapUnit', default: 0 },
       { key: 'boatX', id: 0x0C, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
       { key: 'boatY', id: 0x0D, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
-      { key: 'shipMapId', id: 0x15, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'Map', default: 0 },
+      { key: 'shipMapId', id: 0x15, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'MapUnit', default: 0 },
       { key: 'shipX', id: 0x16, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
       { key: 'shipY', id: 0x17, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
-      { key: 'airshipMapId', id: 0x1F, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'Map', default: 0 },
+      { key: 'airshipMapId', id: 0x1F, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'MapUnit', default: 0 },
       { key: 'airshipX', id: 0x20, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
       { key: 'airshipY', id: 0x21, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
     ],

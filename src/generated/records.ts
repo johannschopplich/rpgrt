@@ -1,5 +1,7 @@
 // Generated from vendor/liblcf-csv by `pnpm run generate` – do not edit.
 
+import type { UnknownChunk } from '../codec/descriptors.ts'
+
 export interface TroopPageConditionFlags {
   switchA: boolean
   switchB: boolean
@@ -66,6 +68,7 @@ export interface Learning {
   id: number
   level: number
   skillId: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface Actor {
@@ -101,6 +104,7 @@ export interface Actor {
   stateRanks: number[]
   attributeRanks: number[]
   battleCommands: number[]
+  _unknown?: UnknownChunk[]
 }
 
 export interface Sound {
@@ -108,6 +112,7 @@ export interface Sound {
   volume: number
   tempo: number
   balance: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface AnimationTiming {
@@ -120,6 +125,7 @@ export interface AnimationTiming {
   flashBlue: number
   flashPower: number
   screenShake: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface AnimationCellData {
@@ -134,11 +140,13 @@ export interface AnimationCellData {
   toneBlue: number
   toneGray: number
   transparency: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface AnimationFrame {
   id: number
   cells: AnimationCellData[]
+  _unknown?: UnknownChunk[]
 }
 
 export interface Animation {
@@ -150,6 +158,7 @@ export interface Animation {
   scope: number
   position: number
   frames: AnimationFrame[]
+  _unknown?: UnknownChunk[]
 }
 
 export interface Attribute {
@@ -161,12 +170,14 @@ export interface Attribute {
   cRate: number
   dRate: number
   eRate: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface BattleCommand {
   id: number
   name: string
   type: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface BattleCommands {
@@ -185,6 +196,7 @@ export interface BattleCommands {
   deathTeleportX: number
   deathTeleportY: number
   deathTeleportFace: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface BattlerAnimation {
@@ -193,6 +205,7 @@ export interface BattlerAnimation {
   speed: number
   poses: BattlerAnimationPose[]
   weapons: BattlerAnimationWeapon[]
+  _unknown?: UnknownChunk[]
 }
 
 export interface BattlerAnimationItemSkill {
@@ -208,6 +221,7 @@ export interface BattlerAnimationItemSkill {
   rangedSpeed: number
   battleAnimationId: number
   pose: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface BattlerAnimationPose {
@@ -217,6 +231,7 @@ export interface BattlerAnimationPose {
   battlerIndex: number
   animationType: number
   battleAnimationId: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface BattlerAnimationWeapon {
@@ -224,6 +239,7 @@ export interface BattlerAnimationWeapon {
   name: string
   weaponName: string
   weaponIndex: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface Chipset {
@@ -235,6 +251,7 @@ export interface Chipset {
   passableDataUpper: number[]
   animationType: number
   animationSpeed: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface Class {
@@ -253,6 +270,7 @@ export interface Class {
   stateRanks: number[]
   attributeRanks: number[]
   battleCommands: number[]
+  _unknown?: UnknownChunk[]
 }
 
 export interface CommonEvent {
@@ -262,6 +280,7 @@ export interface CommonEvent {
   switchFlag: boolean
   switchId: number
   eventCommands: EventCommand[]
+  _unknown?: UnknownChunk[]
 }
 
 export interface Skill {
@@ -300,6 +319,7 @@ export interface Skill {
   affectAttrDefence: boolean
   battlerAnimation: number
   battlerAnimationData: BattlerAnimationItemSkill[]
+  _unknown?: UnknownChunk[]
 }
 
 export interface Item {
@@ -356,6 +376,7 @@ export interface Item {
   classSet: boolean[]
   rangedTrajectory: number
   rangedTarget: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface EnemyAction {
@@ -373,6 +394,7 @@ export interface EnemyAction {
   switchOff: boolean
   switchOffId: number
   rating: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface Enemy {
@@ -398,6 +420,7 @@ export interface Enemy {
   stateRanks: number[]
   attributeRanks: number[]
   actions: EnemyAction[]
+  _unknown?: UnknownChunk[]
 }
 
 export interface TroopMember {
@@ -406,6 +429,7 @@ export interface TroopMember {
   x: number
   y: number
   invisible: boolean
+  _unknown?: UnknownChunk[]
 }
 
 export interface TroopPageCondition {
@@ -432,12 +456,14 @@ export interface TroopPageCondition {
   turnActorB: number
   commandActorId: number
   commandId: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface TroopPage {
   id: number
   condition: TroopPageCondition
   eventCommands: EventCommand[]
+  _unknown?: UnknownChunk[]
 }
 
 export interface Troop {
@@ -448,6 +474,7 @@ export interface Troop {
   terrainSet: boolean[]
   appearRandomly: boolean
   pages: TroopPage[]
+  _unknown?: UnknownChunk[]
 }
 
 export interface Terrain {
@@ -484,6 +511,7 @@ export interface Terrain {
   gridTopY: number
   gridElongation: number
   gridInclination: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface State {
@@ -530,6 +558,7 @@ export interface State {
   spChangeVal: number
   spChangeMapSteps: number
   spChangeMapVal: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface Terms {
@@ -660,6 +689,7 @@ export interface Terms {
   exitGameMessage: string
   yes: string
   no: string
+  _unknown?: UnknownChunk[]
 }
 
 export interface Music {
@@ -668,6 +698,7 @@ export interface Music {
   volume: number
   tempo: number
   balance: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface TestBattler {
@@ -679,6 +710,7 @@ export interface TestBattler {
   armorId: number
   helmetId: number
   accessoryId: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface System {
@@ -737,16 +769,19 @@ export interface System {
   frameName: string
   invertAnimations: boolean
   showTitle: boolean
+  _unknown?: UnknownChunk[]
 }
 
 export interface Switch {
   id: number
   name: string
+  _unknown?: UnknownChunk[]
 }
 
 export interface Variable {
   id: number
   name: string
+  _unknown?: UnknownChunk[]
 }
 
 export interface Database {
@@ -769,6 +804,7 @@ export interface Database {
   battlecommands: BattleCommands
   classes: Class[]
   battleranimations: BattlerAnimation[]
+  _unknown?: UnknownChunk[]
 }
 
 export interface EventPageCondition {
@@ -782,12 +818,14 @@ export interface EventPageCondition {
   timerSec: number
   timer2Sec: number
   compareOperator: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface MoveRoute {
   moveCommands: MoveCommand[]
   repeat: boolean
   skippable: boolean
+  _unknown?: UnknownChunk[]
 }
 
 export interface EventPage {
@@ -807,6 +845,7 @@ export interface EventPage {
   moveSpeed: number
   moveRoute: MoveRoute
   eventCommands: EventCommand[]
+  _unknown?: UnknownChunk[]
 }
 
 export interface Event {
@@ -815,9 +854,10 @@ export interface Event {
   x: number
   y: number
   pages: EventPage[]
+  _unknown?: UnknownChunk[]
 }
 
-export interface Map {
+export interface MapUnit {
   chipsetId: number
   width: number
   height: number
@@ -850,6 +890,7 @@ export interface Map {
   events: Event[]
   saveCount2k3e: number
   saveCount: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface Rect {
@@ -862,6 +903,7 @@ export interface Rect {
 export interface Encounter {
   id: number
   troopId: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface MapInfo {
@@ -883,6 +925,7 @@ export interface MapInfo {
   encounters: Encounter[]
   encounterSteps: number
   areaRect: Rect
+  _unknown?: UnknownChunk[]
 }
 
 export interface Start {
@@ -898,6 +941,7 @@ export interface Start {
   airshipMapId: number
   airshipX: number
   airshipY: number
+  _unknown?: UnknownChunk[]
 }
 
 export interface TreeMap {

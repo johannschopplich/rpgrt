@@ -75,3 +75,9 @@ export interface FlagBitDescriptor {
   key: string
   is2k3Only?: boolean
 }
+
+/** A chunk no descriptor claims – preserved verbatim so it survives a round trip. */
+export interface UnknownChunk {
+  id: number
+  bytes: Uint8Array
+}
