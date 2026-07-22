@@ -75,7 +75,7 @@ describe.each(engines)('semantic round trip (%s)', (engine) => {
     expect(decodeMapTree(encodeMapTree(treeMap, { engine }), { engine })).toStrictEqual(treeMap)
   })
 
-  it('raw records: actor parameters, equipment, and map area rects', () => {
+  it('keeps non-default raw records through a round trip: parameters, equipment, area rect', () => {
     const actor = { ...defaultRecord('Actor', engine), id: 1 } as unknown as Actor
     actor.parameters = {
       maxhp: [10, 20, 30],

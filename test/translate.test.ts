@@ -119,6 +119,7 @@ describe('inject', () => {
     const dumpPath = join(createDirectory(), 'strings.json')
     extractGame(gameDirectory, { output: dumpPath })
     const databaseBytesBefore = readFileSync(join(gameDirectory, 'RPG_RT.ldb'))
+    const fileNamesBefore = readdirSync(gameDirectory).sort()
 
     const dump = readDump(dumpPath)
     setTranslation(dump, 'lmu/1/events/1/pages/1/commands/0', 'Welcome')
@@ -131,7 +132,7 @@ describe('inject', () => {
     expect(result.appliedCount).toBe(4)
     expect(result.writtenFileNames).toEqual(['Map0001.lmu', 'RPG_RT.lmt'])
     expect(readFileSync(join(gameDirectory, 'RPG_RT.ldb'))).toEqual(databaseBytesBefore)
-    expect(readdirSync(gameDirectory).some(name => name.endsWith('.lcfkit-tmp'))).toBe(false)
+    expect(readdirSync(gameDirectory).sort()).toEqual(fileNamesBefore)
 
     const transcoder = createTranscoder('cp1252')
     const mapUnit = decodeMapUnit(new Uint8Array(readFileSync(join(gameDirectory, 'Map0001.lmu'))), { engine: '2k', transcoder })

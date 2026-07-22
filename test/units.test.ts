@@ -158,7 +158,7 @@ describe('injection planning', () => {
     return { address, source, info: [], fileName: 'RPG_RT.ldb', catalog: 'terms', expectedLineCount: 1, applyTranslation: () => {} }
   }
 
-  it('pairs dump units to collected units and validates them purely', () => {
+  it('pairs dump units to collected units and validates them', () => {
     const plan = planInjection([collected('ldb/actors/1/name', 'Käthe'), collected('ldb/terms/victory', 'Sieg!')], [
       { address: 'ldb/actors/1/name', source: 'Käthe', translation: 'Kate', info: [] },
       { address: 'ldb/terms/victory', source: 'Sieg!', translation: '', info: [] },

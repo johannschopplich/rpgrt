@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ByteReader } from '../src/codec/reader.ts'
 import { ByteWriter } from '../src/codec/writer.ts'
 
-describe('ber varint', () => {
+describe('ber integer', () => {
   const cases: [value: number, bytes: number[]][] = [
     [0, [0x00]],
     [1, [0x01]],
@@ -27,11 +27,12 @@ describe('ber varint', () => {
 })
 
 describe('fixed-width primitives', () => {
-  it('round-trips int16, uint32, and double', () => {
+  it('encodes int16, uint32, and double little-endian', () => {
     const writer = new ByteWriter()
     writer.writeInt16(-1234)
     writer.writeUint32(0xDEADBEEF)
     writer.writeDouble(1.5)
+    expect([...writer.toBytes()]).toEqual([0x2E, 0xFB, 0xEF, 0xBE, 0xAD, 0xDE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0x3F])
     const reader = new ByteReader(writer.toBytes())
     expect(reader.readInt16()).toBe(-1234)
     expect(reader.readUint32()).toBe(0xDEADBEEF)
