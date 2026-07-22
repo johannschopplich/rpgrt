@@ -1,6 +1,6 @@
 import type { ArgsDef, CommandDef } from 'citty'
 import type { LcfRecord } from '../codec/engine.ts'
-import type { Database, EngineVersion, MapUnit, TreeMap } from '../index.ts'
+import type { EngineVersion } from '../index.ts'
 import type { LcfFileKind, ResolvedEncoding, ResolvedEngine } from './resolve.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -8,8 +8,7 @@ import { defineCommand } from 'citty'
 import { bytesEqual } from '../codec/bytes.ts'
 import { LcfError } from '../codec/errors.ts'
 import { createTranscoder } from '../encoding.ts'
-import { decodeDatabase, decodeMapTree, decodeMapUnit, encodeDatabase, encodeMapTree, encodeMapUnit } from '../index.ts'
-import { lcfFileKind, parseEngineFlag, resolveEncoding, resolveEngine } from './resolve.ts'
+import { LCF_CODECS, lcfFileKind, parseEngineFlag, resolveEncoding, resolveEngine } from './resolve.ts'
 
 /** The self-describing JSON document `convert` writes; converting back needs no flags. */
 interface JsonEnvelope {
@@ -37,21 +36,11 @@ export interface ConvertOptions {
 }
 
 function decodeLcf(bytes: Uint8Array, kind: LcfFileKind, engine: EngineVersion, encoding: string): LcfRecord {
-  const options = { engine, transcoder: createTranscoder(encoding) }
-  if (kind === 'lmu')
-    return decodeMapUnit(bytes, options) as unknown as LcfRecord
-  if (kind === 'ldb')
-    return decodeDatabase(bytes, options) as unknown as LcfRecord
-  return decodeMapTree(bytes, options) as unknown as LcfRecord
+  return LCF_CODECS[kind].decode(bytes, { engine, transcoder: createTranscoder(encoding) })
 }
 
 function encodeLcf(record: LcfRecord, kind: LcfFileKind, engine: EngineVersion, encoding: string): Uint8Array {
-  const options = { engine, transcoder: createTranscoder(encoding) }
-  if (kind === 'lmu')
-    return encodeMapUnit(record as unknown as MapUnit, options)
-  if (kind === 'ldb')
-    return encodeDatabase(record as unknown as Database, options)
-  return encodeMapTree(record as unknown as TreeMap, options)
+  return LCF_CODECS[kind].encode(record, { engine, transcoder: createTranscoder(encoding) })
 }
 
 function stringifyEnvelope(envelope: JsonEnvelope): string {

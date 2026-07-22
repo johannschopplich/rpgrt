@@ -1,6 +1,9 @@
 import type { Database, EventCommand, TreeMap } from '../src/index.ts'
+import type { CollectedUnit } from '../src/translation/units.ts'
 import { describe, expect, it } from 'vitest'
 import { defaultRecord } from '../src/codec/defaults.ts'
+import { createTranscoder } from '../src/encoding.ts'
+import { planInjection } from '../src/translation/inject.ts'
 import { formatPoCatalog } from '../src/translation/po.ts'
 import { collectDatabaseUnits, collectMapUnits, collectTreeMapUnits } from '../src/translation/units.ts'
 
@@ -70,6 +73,32 @@ describe('map command units', () => {
     ])
   })
 
+  it('applies translations in any order', () => {
+    const commands = [
+      command(10110, 'Msg'),
+      command(10140, 'A/B'),
+      command(20140, 'A', 0, [0]),
+      command(10110, 'Inner', 1),
+      command(20140, 'B', 0, [1]),
+      command(20141, '', 0, [4]),
+    ]
+    const units = collectMapUnits(mapUnitWithCommands(commands), 1, 'Map0001.lmu')
+    expect(units.map(unit => unit.source)).toEqual(['Msg', 'A\nB', 'Inner'])
+    units[0]!.applyTranslation(['M1', 'M2'])
+    units[1]!.applyTranslation(['X', 'Y'])
+    units[2]!.applyTranslation(['Deep', 'Deeper'])
+    expect(commands.map(entry => [entry.code, entry.string])).toEqual([
+      [10110, 'M1'],
+      [20110, 'M2'],
+      [10140, 'X/Y'],
+      [20140, 'X'],
+      [10110, 'Deep'],
+      [20110, 'Deeper'],
+      [20140, 'Y'],
+      [20141, ''],
+    ])
+  })
+
   it('grows and shrinks message command lists on apply', () => {
     const commands = [
       command(10110, 'One'),
@@ -119,6 +148,34 @@ describe('map tree units', () => {
     treeMap.maps = [mapInfo(0, 'Game', 0), mapInfo(1, 'Stadt', 1), mapInfo(2, 'Zone', 2)]
     const units = collectTreeMapUnits(treeMap, 'RPG_RT.lmt')
     expect(units.map(unit => [unit.address, unit.source])).toEqual([['lmt/maps/1/name', 'Stadt']])
+  })
+})
+
+describe('injection planning', () => {
+  const context = { transcoder: createTranscoder('cp1252'), encoding: 'cp1252' }
+
+  function collected(address: string, source: string): CollectedUnit {
+    return { address, source, info: [], fileName: 'RPG_RT.ldb', catalog: 'terms', expectedLineCount: 1, applyTranslation: () => {} }
+  }
+
+  it('pairs dump units to collected units and validates them purely', () => {
+    const plan = planInjection([collected('ldb/actors/1/name', 'Käthe'), collected('ldb/terms/victory', 'Sieg!')], [
+      { address: 'ldb/actors/1/name', source: 'Käthe', translation: 'Kate', info: [] },
+      { address: 'ldb/terms/victory', source: 'Sieg!', translation: '', info: [] },
+      { address: 'ldb/ghost/9/name', source: 'x', translation: 'y', info: [] },
+    ], context)
+    expect(plan.untranslatedCount).toBe(1)
+    expect(plan.applications.map(application => application.collected.address)).toEqual(['ldb/actors/1/name'])
+    expect(plan.abortReasons).toEqual(['ldb/ghost/9/name: no such unit in the game'])
+  })
+
+  it('collects every abort reason instead of stopping at the first', () => {
+    const plan = planInjection([collected('ldb/actors/1/name', 'Käthe')], [
+      { address: 'ldb/actors/1/name', source: 'Somebody', translation: 'Kate', info: [] },
+      { address: 'ldb/missing', source: 'x', translation: 'y', info: [] },
+    ], context)
+    expect(plan.applications).toEqual([])
+    expect(plan.abortReasons).toHaveLength(2)
   })
 })
 

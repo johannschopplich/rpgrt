@@ -4,7 +4,6 @@ import type { FlagBitDescriptor, RecordDescriptor } from '../codec/descriptors.t
 
 export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
   Parameters: {
-    framing: 'raw',
     fields: [
       { key: 'maxhp', codec: { kind: 'vector', element: 'int16' }, isPersistedIfDefault: true },
       { key: 'maxsp', codec: { kind: 'vector', element: 'int16' }, isPersistedIfDefault: true },
@@ -15,7 +14,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Equipment: {
-    framing: 'raw',
     fields: [
       { key: 'weaponId', codec: { kind: 'scalar', scalar: 'int16' }, refRecord: 'Item', default: 0 },
       { key: 'shieldId', codec: { kind: 'scalar', scalar: 'int16' }, refRecord: 'Item', default: 0 },
@@ -25,7 +23,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   EventCommand: {
-    framing: 'raw',
     fields: [
       { key: 'code', codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'EventCommandCode', default: 0 },
       { key: 'indent', codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
@@ -34,7 +31,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   MoveCommand: {
-    framing: 'raw',
     fields: [
       { key: 'commandId', codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'MoveCommandCode', default: 0 },
       { key: 'parameterString', codec: { kind: 'string' } },
@@ -44,14 +40,12 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Learning: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'level', id: 0x01, codec: { kind: 'scalar', scalar: 'berInt' }, default: 1 },
       { key: 'skillId', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'Skill', default: 1 },
     ],
   },
   Actor: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
       { key: 'title', id: 0x02, codec: { kind: 'string' } },
@@ -87,7 +81,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Sound: {
-    framing: 'chunked',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' }, default: '(OFF)', isPersistedIfDefault: true },
       { key: 'volume', id: 0x03, codec: { kind: 'scalar', scalar: 'berInt' }, default: 100 },
@@ -96,7 +89,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   AnimationTiming: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'frame', id: 0x01, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
       { key: 'se', id: 0x02, codec: { kind: 'record', record: 'Sound' }, isPersistedIfDefault: true },
@@ -109,7 +101,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   AnimationCellData: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'valid', id: 0x01, codec: { kind: 'scalar', scalar: 'berInt' }, default: 1 },
       { key: 'cellId', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
@@ -124,13 +115,11 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   AnimationFrame: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'cells', id: 0x01, codec: { kind: 'array', record: 'AnimationCellData' }, isPersistedIfDefault: true },
     ],
   },
   Animation: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
       { key: 'animationName', id: 0x02, codec: { kind: 'string' } },
@@ -142,7 +131,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Attribute: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
       { key: 'type', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'AttributeType', default: 0, isPersistedIfDefault: true },
@@ -154,14 +142,12 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   BattleCommand: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' }, isPersistedIfDefault: true },
       { key: 'type', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'BattleCommandType', default: 0 },
     ],
   },
   BattleCommands: {
-    framing: 'chunked',
     fields: [
       { key: 'placement', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'BattleCommandsPlacement', default: 0 },
       { key: 'deathHandlerUnused', id: 0x04, codec: { kind: 'scalar', scalar: 'boolean' }, default: false, is2k3Only: true },
@@ -181,7 +167,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   BattlerAnimation: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' }, is2k3Only: true },
       { key: 'speed', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'BattlerAnimationSpeed', default: 20, is2k3Only: true },
@@ -190,7 +175,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   BattlerAnimationItemSkill: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'unknown02', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0, is2k3Only: true },
       { key: 'type', id: 0x03, codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'BattlerAnimationItemSkillAnimType', default: 0, is2k3Only: true },
@@ -206,7 +190,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   BattlerAnimationPose: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' }, is2k3Only: true },
       { key: 'battlerName', id: 0x02, codec: { kind: 'string' }, is2k3Only: true },
@@ -216,7 +199,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   BattlerAnimationWeapon: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' }, is2k3Only: true },
       { key: 'weaponName', id: 0x02, codec: { kind: 'string' }, is2k3Only: true },
@@ -224,7 +206,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Chipset: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
       { key: 'chipsetName', id: 0x02, codec: { kind: 'string' } },
@@ -236,7 +217,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Class: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
       { key: 'twoWeapon', id: 0x15, codec: { kind: 'scalar', scalar: 'boolean' }, default: false },
@@ -255,7 +235,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   CommonEvent: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
       { key: 'trigger', id: 0x0B, codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'CommonEventTrigger', default: 5, isPersistedIfDefault: true },
@@ -265,7 +244,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Skill: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
       { key: 'description', id: 0x02, codec: { kind: 'string' } },
@@ -304,7 +282,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Item: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
       { key: 'description', id: 0x02, codec: { kind: 'string' } },
@@ -361,7 +338,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   EnemyAction: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'kind', id: 0x01, codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'EnemyActionKind', default: 0, isPersistedIfDefault: true },
       { key: 'basic', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'EnemyActionBasic', default: 1, isPersistedIfDefault: true },
@@ -379,7 +355,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Enemy: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
       { key: 'battlerName', id: 0x02, codec: { kind: 'string' } },
@@ -405,7 +380,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   TroopMember: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'enemyId', id: 0x01, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'Enemy', default: 1 },
       { key: 'x', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
@@ -414,7 +388,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   TroopPageCondition: {
-    framing: 'chunked',
     fields: [
       { key: 'flags', id: 0x01, codec: { kind: 'flags', flagSet: 'TroopPageCondition' }, isPersistedIfDefault: true },
       { key: 'switchAId', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'Switch', default: 1 },
@@ -442,14 +415,12 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   TroopPage: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'condition', id: 0x02, codec: { kind: 'record', record: 'TroopPageCondition' }, isPersistedIfDefault: true },
       { key: 'eventCommands', id: 0x0C, sizeId: 0x0B, sizeKind: 'byteLength', isSizePersistedIfDefault: true, codec: { kind: 'eventCommands' }, isPersistedIfDefault: true },
     ],
   },
   Troop: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
       { key: 'members', id: 0x02, codec: { kind: 'array', record: 'TroopMember' }, isPersistedIfDefault: true },
@@ -460,7 +431,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Terrain: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
       { key: 'damage', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
@@ -497,7 +467,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   State: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
       { key: 'type', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, enumRef: 'StatePersistence', default: 0, isPersistedIfDefault: true },
@@ -544,7 +513,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Terms: {
-    framing: 'chunked',
     fields: [
       { key: 'encounter', id: 0x01, codec: { kind: 'string' }, isPersistedIfDefault: true },
       { key: 'specialCombat', id: 0x02, codec: { kind: 'string' }, isPersistedIfDefault: true },
@@ -676,7 +644,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Music: {
-    framing: 'chunked',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' }, default: '(OFF)', isPersistedIfDefault: true },
       { key: 'fadein', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
@@ -686,7 +653,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   TestBattler: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'actorId', id: 0x01, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'Actor', default: 1 },
       { key: 'level', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, default: 1 },
@@ -698,7 +664,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   System: {
-    framing: 'chunked',
     fields: [
       { key: 'ldbId', id: 0x0A, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
       { key: 'boatName', id: 0x0B, codec: { kind: 'string' } },
@@ -758,19 +723,16 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Switch: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
     ],
   },
   Variable: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
     ],
   },
   Database: {
-    framing: 'chunked',
     fields: [
       { key: 'actors', id: 0x0B, codec: { kind: 'array', record: 'Actor' }, isPersistedIfDefault: true },
       { key: 'skills', id: 0x0C, codec: { kind: 'array', record: 'Skill' }, isPersistedIfDefault: true },
@@ -797,7 +759,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   EventPageCondition: {
-    framing: 'chunked',
     fields: [
       { key: 'flags', id: 0x01, codec: { kind: 'flags', flagSet: 'EventPageCondition' }, isPersistedIfDefault: true },
       { key: 'switchAId', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'Switch', default: 1 },
@@ -812,7 +773,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   MoveRoute: {
-    framing: 'chunked',
     fields: [
       { key: 'moveCommands', id: 0x0C, sizeId: 0x0B, sizeKind: 'byteLength', codec: { kind: 'moveCommands' }, isPersistedIfDefault: true },
       { key: 'repeat', id: 0x15, codec: { kind: 'scalar', scalar: 'boolean' }, default: true },
@@ -820,7 +780,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   EventPage: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'condition', id: 0x02, codec: { kind: 'record', record: 'EventPageCondition' }, isPersistedIfDefault: true },
       { key: 'characterName', id: 0x15, codec: { kind: 'string' } },
@@ -840,7 +799,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Event: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
       { key: 'x', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
@@ -849,7 +807,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   MapUnit: {
-    framing: 'chunked',
     fields: [
       { key: 'chipsetId', id: 0x01, codec: { kind: 'scalar', scalar: 'berInt' }, default: 1 },
       { key: 'width', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, default: 20 },
@@ -886,7 +843,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Rect: {
-    framing: 'raw',
     fields: [
       { key: 'l', codec: { kind: 'scalar', scalar: 'uint32' }, default: 0 },
       { key: 't', codec: { kind: 'scalar', scalar: 'uint32' }, default: 0 },
@@ -895,13 +851,11 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Encounter: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'troopId', id: 0x01, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'Troop', default: 0 },
     ],
   },
   MapInfo: {
-    framing: 'chunkedIdIndexed',
     fields: [
       { key: 'name', id: 0x01, codec: { kind: 'string' } },
       { key: 'parentMap', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'MapUnit', default: 0 },
@@ -923,7 +877,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   Start: {
-    framing: 'chunked',
     fields: [
       { key: 'partyMapId', id: 0x01, codec: { kind: 'scalar', scalar: 'berInt' }, refRecord: 'MapUnit', default: 0 },
       { key: 'partyX', id: 0x02, codec: { kind: 'scalar', scalar: 'berInt' }, default: 0 },
@@ -940,7 +893,6 @@ export const RECORD_DESCRIPTORS: Record<string, RecordDescriptor> = {
     ],
   },
   TreeMap: {
-    framing: 'raw',
     fields: [
       { key: 'maps', codec: { kind: 'array', record: 'MapInfo' }, isPersistedIfDefault: true },
       { key: 'treeOrder', codec: { kind: 'vector', element: 'int32' }, isPersistedIfDefault: true },

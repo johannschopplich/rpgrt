@@ -1,9 +1,63 @@
-import type { Database, EngineVersion, EventPage, MapUnit, TreeMap } from '../src/index.ts'
+import type { Actor, Database, EngineVersion, EventPage, MapInfo, MapUnit, TreeMap } from '../src/index.ts'
 import { describe, expect, it } from 'vitest'
 import { defaultRecord } from '../src/codec/defaults.ts'
+import { ByteReader } from '../src/codec/reader.ts'
 import { decodeDatabase, decodeMapTree, decodeMapUnit, encodeDatabase, encodeMapTree, encodeMapUnit } from '../src/index.ts'
 
 const engines: EngineVersion[] = ['2k', '2k3']
+
+/** Chunk IDs of one chunk stream, ignoring payloads. */
+function chunkIds(payload: Uint8Array): number[] {
+  const reader = new ByteReader(payload)
+  const ids: number[] = []
+  while (!reader.isAtEnd) {
+    const id = reader.readBerUnsigned()
+    if (id === 0)
+      break
+    ids.push(id)
+    reader.skip(reader.readBerUnsigned())
+  }
+  return ids
+}
+
+function termsChunkIds(databaseBytes: Uint8Array): number[] {
+  const reader = new ByteReader(databaseBytes)
+  reader.skip(reader.readBerUnsigned())
+  while (!reader.isAtEnd) {
+    const id = reader.readBerUnsigned()
+    if (id === 0)
+      break
+    const length = reader.readBerUnsigned()
+    if (id === 0x15)
+      return chunkIds(reader.readBytes(length))
+    reader.skip(length)
+  }
+  throw new Error('No Terms chunk in the encoded database')
+}
+
+describe('terms omission quirk (docs/serialization.md §8)', () => {
+  it('omits default encounter and escape_success chunks in 2k3 only', () => {
+    const database = defaultRecord('Database', '2k3') as unknown as Database
+    const ids = termsChunkIds(encodeDatabase(database, { engine: '2k3' }))
+    expect(ids).not.toContain(0x01)
+    expect(ids).not.toContain(0x03)
+    expect(ids).toContain(0x04)
+  })
+
+  it('persists all default terms chunks in 2k', () => {
+    const database = defaultRecord('Database', '2k') as unknown as Database
+    const ids = termsChunkIds(encodeDatabase(database, { engine: '2k' }))
+    expect(ids).toEqual(expect.arrayContaining([0x01, 0x03, 0x04]))
+  })
+
+  it('keeps non-default 2k3 terms values through a round trip', () => {
+    const database = defaultRecord('Database', '2k3') as unknown as Database
+    database.terms = { ...database.terms, encounter: 'Kampf!', escapeSuccess: 'Entkommen!' }
+    const decoded = decodeDatabase(encodeDatabase(database, { engine: '2k3' }), { engine: '2k3' })
+    expect(decoded.terms.encounter).toBe('Kampf!')
+    expect(decoded.terms.escapeSuccess).toBe('Entkommen!')
+  })
+})
 
 describe.each(engines)('semantic round trip (%s)', (engine) => {
   it('default map unit', () => {
@@ -18,6 +72,29 @@ describe.each(engines)('semantic round trip (%s)', (engine) => {
 
   it('default map tree', () => {
     const treeMap = defaultRecord('TreeMap', engine) as unknown as TreeMap
+    expect(decodeMapTree(encodeMapTree(treeMap, { engine }), { engine })).toStrictEqual(treeMap)
+  })
+
+  it('raw records: actor parameters, equipment, and map area rects', () => {
+    const actor = { ...defaultRecord('Actor', engine), id: 1 } as unknown as Actor
+    actor.parameters = {
+      maxhp: [10, 20, 30],
+      maxsp: [5, 6, 7],
+      attack: [1, 2, 3],
+      defense: [4, 5, 6],
+      spirit: [7, 8, 9],
+      agility: [2, 4, 6],
+    }
+    actor.initialEquipment = { weaponId: 1, shieldId: 2, armorId: 3, helmetId: 4, accessoryId: 5 }
+    const database = defaultRecord('Database', engine) as unknown as Database
+    database.actors = [actor]
+    expect(decodeDatabase(encodeDatabase(database, { engine }), { engine })).toStrictEqual(database)
+
+    const mapInfo = { ...defaultRecord('MapInfo', engine), id: 1 } as unknown as MapInfo
+    mapInfo.areaRect = { l: 16, t: 32, r: 48, b: 64 }
+    const treeMap = defaultRecord('TreeMap', engine) as unknown as TreeMap
+    treeMap.maps = [mapInfo]
+    treeMap.treeOrder = [1]
     expect(decodeMapTree(encodeMapTree(treeMap, { engine }), { engine })).toStrictEqual(treeMap)
   })
 

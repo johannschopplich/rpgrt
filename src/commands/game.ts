@@ -1,10 +1,12 @@
 import type { Database, EngineVersion, MapUnit, Transcoder, TreeMap } from '../index.ts'
+import type { CollectedUnit } from '../translation/units.ts'
 import type { ResolvedEncoding, ResolvedEngine } from './resolve.ts'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { LcfError } from '../codec/errors.ts'
 import { createTranscoder } from '../encoding.ts'
 import { decodeDatabase, decodeMapTree, decodeMapUnit } from '../index.ts'
+import { collectDatabaseUnits, collectMapUnits, collectTreeMapUnits } from '../translation/units.ts'
 import { resolveEncoding, resolveEngine } from './resolve.ts'
 
 export interface LoadedMap {
@@ -32,6 +34,15 @@ export interface LoadedGame {
 export interface GameLoadOptions {
   engine?: string
   encoding?: string
+}
+
+export function collectGameUnits(game: LoadedGame): CollectedUnit[] {
+  const units = collectDatabaseUnits(game.database, game.databaseFileName)
+  if (game.treeMap !== undefined)
+    units.push(...collectTreeMapUnits(game.treeMap, game.treeMapFileName!))
+  for (const map of game.maps)
+    units.push(...collectMapUnits(map.mapUnit, map.mapId, map.fileName))
+  return units
 }
 
 export function loadGame(directory: string, options: GameLoadOptions = {}): LoadedGame {

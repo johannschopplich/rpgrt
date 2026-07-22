@@ -59,15 +59,7 @@ export interface FieldDescriptor {
   is2k3Only?: boolean
 }
 
-/**
- * Raw records are bare sequential fields without chunk framing;
- * `chunkedIdIndexed` records additionally carry a BER ID when stored in an
- * ID-indexed array.
- */
-export type RecordFraming = 'raw' | 'chunked' | 'chunkedIdIndexed'
-
 export interface RecordDescriptor {
-  framing: RecordFraming
   fields: FieldDescriptor[]
 }
 

@@ -21,9 +21,61 @@ const TERMS_2K3_OMITTED_CHUNK_IDS = new Set([0x01, 0x03])
 
 const VECTOR_ELEMENT_BYTE_WIDTH = { boolean: 1, uint8: 1, int16: 2, int32: 4, uint32: 4 } as const
 
-const PARAMETERS_SERIES_KEYS = ['maxhp', 'maxsp', 'attack', 'defense', 'spirit', 'agility'] as const
-const EQUIPMENT_SLOT_KEYS = ['weaponId', 'shieldId', 'armorId', 'helmetId', 'accessoryId'] as const
-const RECT_EDGE_KEYS = ['l', 't', 'r', 'b'] as const
+type RawScalarKind = 'uint8' | 'int16' | 'uint32' | 'double'
+
+const RAW_SCALAR_BYTE_WIDTHS: Record<RawScalarKind, number> = { uint8: 1, int16: 2, uint32: 4, double: 8 }
+
+const RAW_SCALAR_READERS: Record<RawScalarKind, (reader: ByteReader) => number> = {
+  uint8: reader => reader.readByte(),
+  int16: reader => reader.readInt16(),
+  uint32: reader => reader.readUint32(),
+  double: reader => reader.readDouble(),
+}
+
+const RAW_SCALAR_WRITERS: Record<RawScalarKind, (writer: ByteWriter, value: number) => void> = {
+  uint8: (writer, value) => writer.writeByte(value),
+  int16: (writer, value) => writer.writeInt16(value),
+  uint32: (writer, value) => writer.writeUint32(value),
+  double: (writer, value) => writer.writeDouble(value),
+}
+
+interface ScalarRawLayout {
+  slots: { key: string, scalar: RawScalarKind }[]
+  byteLength: number
+}
+
+const scalarRawLayoutByRecord = new Map<string, ScalarRawLayout>()
+
+/**
+ * Raw records have no chunk framing, so descriptor field order is the wire
+ * byte order. Throws on a non-fixed-width field – a regeneration that changes
+ * a raw record's shape must fail loudly, never desync silently.
+ */
+function scalarRawLayout(recordName: string): ScalarRawLayout {
+  let layout = scalarRawLayoutByRecord.get(recordName)
+  if (layout === undefined) {
+    const slots: ScalarRawLayout['slots'] = []
+    let byteLength = 0
+    for (const field of RECORD_DESCRIPTORS[recordName]!.fields) {
+      const scalar = field.codec.kind === 'scalar' && field.codec.scalar in RAW_SCALAR_BYTE_WIDTHS
+        ? field.codec.scalar as RawScalarKind
+        : undefined
+      if (scalar === undefined)
+        throw new LcfError(`Raw record ${recordName} field ${field.key} is not a fixed-width scalar`)
+      slots.push({ key: field.key, scalar })
+      byteLength += RAW_SCALAR_BYTE_WIDTHS[scalar]
+    }
+    layout = { slots, byteLength }
+    scalarRawLayoutByRecord.set(recordName, layout)
+  }
+  return layout
+}
+
+// Parameters is a transposed series-of-arrays, which the scalar walker cannot
+// express – the one hand-coded raw layout. Its series keys and int16 stride
+// still derive from the descriptor.
+const PARAMETERS_SERIES_KEYS: string[] = RECORD_DESCRIPTORS.Parameters!.fields.map(field => field.key)
+const PARAMETERS_STRIDE = PARAMETERS_SERIES_KEYS.length * VECTOR_ELEMENT_BYTE_WIDTH.int16
 
 interface ChunkOwner {
   field: FieldDescriptor
@@ -185,38 +237,26 @@ export function decodeArray(recordName: string, reader: ByteReader, context: Cod
 }
 
 function decodeRawField(recordName: string, byteLength: number, reader: ByteReader, path: string): LcfRecord {
-  switch (recordName) {
-    case 'Parameters': {
-      if (byteLength % 12 !== 0)
-        throw new LcfError(`Parameters payload of ${byteLength} bytes is not a multiple of 12`, { path, offset: reader.offset })
-      const elementCount = byteLength / 12
-      const record: LcfRecord = {}
-      for (const key of PARAMETERS_SERIES_KEYS) {
-        const series: number[] = []
-        for (let index = 0; index < elementCount; index++)
-          series.push(reader.readInt16())
-        record[key] = series
-      }
-      return record
+  if (recordName === 'Parameters') {
+    if (byteLength % PARAMETERS_STRIDE !== 0)
+      throw new LcfError(`Parameters payload of ${byteLength} bytes is not a multiple of ${PARAMETERS_STRIDE}`, { path, offset: reader.offset })
+    const elementCount = byteLength / PARAMETERS_STRIDE
+    const record: LcfRecord = {}
+    for (const key of PARAMETERS_SERIES_KEYS) {
+      const series: number[] = []
+      for (let index = 0; index < elementCount; index++)
+        series.push(reader.readInt16())
+      record[key] = series
     }
-    case 'Equipment': {
-      if (byteLength !== 10)
-        throw new LcfError(`Equipment payload must be 10 bytes, got ${byteLength}`, { path, offset: reader.offset })
-      const record: LcfRecord = {}
-      for (const key of EQUIPMENT_SLOT_KEYS)
-        record[key] = reader.readInt16()
-      return record
-    }
-    case 'Rect': {
-      if (byteLength !== 16)
-        throw new LcfError(`Rect payload must be 16 bytes, got ${byteLength}`, { path, offset: reader.offset })
-      const record: LcfRecord = {}
-      for (const key of RECT_EDGE_KEYS)
-        record[key] = reader.readUint32()
-      return record
-    }
+    return record
   }
-  throw new LcfError(`Raw record ${recordName} cannot appear as a chunk payload`, { path })
+  const layout = scalarRawLayout(recordName)
+  if (byteLength !== layout.byteLength)
+    throw new LcfError(`${recordName} payload must be ${layout.byteLength} bytes, got ${byteLength}`, { path, offset: reader.offset })
+  const record: LcfRecord = {}
+  for (const slot of layout.slots)
+    record[slot.key] = RAW_SCALAR_READERS[slot.scalar](reader)
+  return record
 }
 
 function decodeEventCommands(byteLength: number, reader: ByteReader, context: CodecContext, path: string): LcfRecord[] {
@@ -467,30 +507,19 @@ export function encodeArray(recordName: string, elements: LcfRecord[], writer: B
 }
 
 function encodeRawField(recordName: string, record: LcfRecord, writer: ByteWriter, path: string): void {
-  switch (recordName) {
-    case 'Parameters': {
-      const seriesLength = (record[PARAMETERS_SERIES_KEYS[0]] as number[]).length
-      for (const key of PARAMETERS_SERIES_KEYS) {
-        const series = record[key] as number[]
-        if (series.length !== seriesLength)
-          throw new LcfError(`Parameters series ${key} has ${series.length} entries, expected ${seriesLength}`, { path })
-        for (const value of series)
-          writer.writeInt16(value)
-      }
-      return
+  if (recordName === 'Parameters') {
+    const seriesLength = (record[PARAMETERS_SERIES_KEYS[0]!] as number[]).length
+    for (const key of PARAMETERS_SERIES_KEYS) {
+      const series = record[key] as number[]
+      if (series.length !== seriesLength)
+        throw new LcfError(`Parameters series ${key} has ${series.length} entries, expected ${seriesLength}`, { path })
+      for (const value of series)
+        writer.writeInt16(value)
     }
-    case 'Equipment': {
-      for (const key of EQUIPMENT_SLOT_KEYS)
-        writer.writeInt16(record[key] as number)
-      return
-    }
-    case 'Rect': {
-      for (const key of RECT_EDGE_KEYS)
-        writer.writeUint32(record[key] as number)
-      return
-    }
+    return
   }
-  throw new LcfError(`Raw record ${recordName} cannot be encoded as a chunk payload`, { path })
+  for (const slot of scalarRawLayout(recordName).slots)
+    RAW_SCALAR_WRITERS[slot.scalar](writer, record[slot.key] as number)
 }
 
 function encodeEventCommands(commands: LcfRecord[], writer: ByteWriter, context: CodecContext, path: string): void {

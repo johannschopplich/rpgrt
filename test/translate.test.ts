@@ -1,6 +1,6 @@
 import type { Dump } from '../src/commands/extract.ts'
 import type { Database, EventCommand, MapUnit, TreeMap } from '../src/index.ts'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -131,6 +131,7 @@ describe('inject', () => {
     expect(result.appliedCount).toBe(4)
     expect(result.writtenFileNames).toEqual(['Map0001.lmu', 'RPG_RT.lmt'])
     expect(readFileSync(join(gameDirectory, 'RPG_RT.ldb'))).toEqual(databaseBytesBefore)
+    expect(readdirSync(gameDirectory).some(name => name.endsWith('.lcfkit-tmp'))).toBe(false)
 
     const transcoder = createTranscoder('cp1252')
     const mapUnit = decodeMapUnit(new Uint8Array(readFileSync(join(gameDirectory, 'Map0001.lmu'))), { engine: '2k', transcoder })

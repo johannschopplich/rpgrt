@@ -1,4 +1,4 @@
-import type { Database, EventCommand, MapUnit, TreeMap } from '../index.ts'
+import type { Database, EngineVersion, EventCommand, MapUnit, TreeMap } from '../index.ts'
 import { RECORD_DESCRIPTORS } from '../generated/descriptors.ts'
 import { TreeMapMapType } from '../generated/enums.ts'
 
@@ -21,10 +21,20 @@ export interface CollectedUnit extends TextUnit {
   catalog: UnitCatalog
   /** Exact number of translation lines required; undefined means any count. */
   expectedLineCount?: number
-  /** Backing command list for ordering write-backs; splices must run back to front. */
-  commands?: EventCommand[]
-  startIndex?: number
+  /** Applies in any order – each write-back locates its commands at apply time. */
   applyTranslation: (lines: string[]) => void
+}
+
+/** A text unit as persisted in strings.json – translation starts empty. */
+export interface DumpUnit extends TextUnit {
+  translation: string
+}
+
+/** The extract output: dump metadata plus every text unit of one or all files. */
+export interface Dump {
+  engine: EngineVersion
+  encoding: string
+  units: DumpUnit[]
 }
 
 const SHOW_MESSAGE = 10110
@@ -195,23 +205,26 @@ function collectCommandUnits(
     if (message !== undefined && message.lines.some(line => line.length > 0)) {
       const { startIndex, indent, lines } = message
       const lineCount = lines.length
+      // Earlier applies can splice this list, so every position is recomputed
+      // from the ShowMessage object at apply time. No apply ever removes it:
+      // a shrink only splices continuation commands behind the anchor.
+      const anchorCommand = commands[startIndex]!
       units.push({
         address: `${addressPrefix}/commands/${startIndex}`,
         source: lines.join('\n'),
         info: [lineInfo(startIndex), ...message.info],
         fileName,
         catalog,
-        commands,
-        startIndex,
         applyTranslation: (translatedLines) => {
+          const anchorIndex = commands.indexOf(anchorCommand)
           for (let offset = 0; offset < Math.min(lineCount, translatedLines.length); offset++)
-            commands[startIndex + offset]!.string = translatedLines[offset]!
+            commands[anchorIndex + offset]!.string = translatedLines[offset]!
           if (translatedLines.length > lineCount) {
             const addedCommands = translatedLines.slice(lineCount).map(line => ({ code: SHOW_MESSAGE_CONTINUATION, indent, string: line, parameters: [] }))
-            commands.splice(startIndex + lineCount, 0, ...addedCommands)
+            commands.splice(anchorIndex + lineCount, 0, ...addedCommands)
           }
           else if (translatedLines.length < lineCount) {
-            commands.splice(startIndex + translatedLines.length, lineCount - translatedLines.length)
+            commands.splice(anchorIndex + translatedLines.length, lineCount - translatedLines.length)
           }
         },
       })
@@ -230,8 +243,6 @@ function collectCommandUnits(
       info: [lineInfo(index), extraInfo],
       fileName,
       catalog,
-      commands,
-      startIndex: index,
       expectedLineCount: 1,
       applyTranslation: lines => (command.string = lines[0]!),
     })
@@ -268,13 +279,11 @@ function collectCommandUnits(
             info: [lineInfo(index), isEmbedded ? `Choice (${options.length} options, embedded in a message)` : `Choice (${options.length} options)`],
             fileName,
             catalog,
-            commands,
-            startIndex: index,
             expectedLineCount: options.length,
-            // Translated messages inside the choice branches can shift command
-            // indices, so the option positions are re-scanned when applying.
+            // Other applies can shift command indices, so the choice position
+            // and its option positions are re-scanned when applying.
             applyTranslation: (lines) => {
-              const currentIndices = scanChoiceOptionIndices(commands, index)
+              const currentIndices = scanChoiceOptionIndices(commands, commands.indexOf(command))
               currentIndices.forEach((optionIndex, optionOffset) => (commands[optionIndex]!.string = lines[optionOffset]!))
               // RPG_RT also stores the options slash-joined on the ShowChoice command itself.
               if (command.string === originalJoined)
@@ -313,8 +322,6 @@ function collectCommandUnits(
               info: [lineInfo(index), 'Show String Picture'],
               fileName,
               catalog,
-              commands,
-              startIndex: index,
               applyTranslation: (translatedLines) => {
                 const currentTokens = command.string.split('\x01')
                 currentTokens[1] = translatedLines.join('\n')

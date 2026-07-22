@@ -1,14 +1,13 @@
 import type { ArgsDef, CommandDef } from 'citty'
-import type { CollectedUnit } from '../translation/units.ts'
-import type { Dump, DumpUnit } from './extract.ts'
+import type { Dump } from '../translation/units.ts'
 import type { LoadedGame } from './game.ts'
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { defineCommand } from 'citty'
 import { LcfError } from '../codec/errors.ts'
 import { encodeDatabase, encodeMapTree, encodeMapUnit } from '../index.ts'
-import { collectGameUnits } from './extract.ts'
-import { loadGame } from './game.ts'
+import { planInjection } from '../translation/inject.ts'
+import { collectGameUnits, loadGame } from './game.ts'
 
 export interface InjectOptions {
   engine?: string
@@ -47,69 +46,29 @@ function readDumps(dumpPath: string): Dump[] {
   return dumps
 }
 
-function validateTranslation(unit: DumpUnit, collected: CollectedUnit, game: LoadedGame): string | undefined {
-  if (unit.source !== collected.source)
-    return `${unit.address}: source text differs from the game – the dump is stale, re-extract and merge`
-  const lines = unit.translation.split('\n')
-  if (collected.expectedLineCount !== undefined && lines.length !== collected.expectedLineCount)
-    return `${unit.address}: translation has ${lines.length} lines but exactly ${collected.expectedLineCount} required`
-  for (const line of lines) {
-    if (game.transcoder.decode(game.transcoder.encode(line)) !== line)
-      return `${unit.address}: translation is not representable in ${game.encoding}`
-  }
-  return undefined
-}
-
 export function injectDump(directory: string, dumpPath: string, options: InjectOptions = {}): InjectResult {
   const dumps = readDumps(dumpPath)
   const engine = options.engine ?? dumps[0]!.engine
   const encoding = options.encoding ?? dumps[0]!.encoding
   const game = loadGame(directory, { engine, encoding })
 
-  const unitsByAddress = new Map<string, CollectedUnit>()
-  for (const collected of collectGameUnits(game)) {
-    if (unitsByAddress.has(collected.address))
-      throw new LcfError(`Duplicate unit address ${collected.address} – this is a bug in lcfkit`)
-    unitsByAddress.set(collected.address, collected)
+  const plan = planInjection(collectGameUnits(game), dumps.flatMap(dump => dump.units), {
+    transcoder: game.transcoder,
+    encoding: game.encoding,
+  })
+  if (plan.abortReasons.length > 0) {
+    const shownAbortReasons = plan.abortReasons.slice(0, 20)
+    if (plan.abortReasons.length > shownAbortReasons.length)
+      shownAbortReasons.push(`… and ${plan.abortReasons.length - shownAbortReasons.length} more`)
+    throw new LcfError(`Nothing was written – ${plan.abortReasons.length} translation(s) failed validation:\n${shownAbortReasons.join('\n')}`)
   }
 
-  const abortReasons: string[] = []
-  const applications: { collected: CollectedUnit, lines: string[] }[] = []
-  let untranslatedCount = 0
-  for (const dump of dumps) {
-    for (const unit of dump.units) {
-      if (unit.translation === undefined || unit.translation === '') {
-        untranslatedCount++
-        continue
-      }
-      const collected = unitsByAddress.get(unit.address)
-      if (collected === undefined) {
-        abortReasons.push(`${unit.address}: no such unit in the game`)
-        continue
-      }
-      const abortReason = validateTranslation(unit, collected, game)
-      if (abortReason !== undefined)
-        abortReasons.push(abortReason)
-      else
-        applications.push({ collected, lines: unit.translation.split('\n') })
-    }
-  }
-  if (abortReasons.length > 0) {
-    const shownAbortReasons = abortReasons.slice(0, 20)
-    if (abortReasons.length > shownAbortReasons.length)
-      shownAbortReasons.push(`… and ${abortReasons.length - shownAbortReasons.length} more`)
-    throw new LcfError(`Nothing was written – ${abortReasons.length} translation(s) failed validation:\n${shownAbortReasons.join('\n')}`)
-  }
-
-  // Splices shift the indices of everything behind them, so command-backed
-  // units are applied back to front within each command list.
-  applications.sort((a, b) => (b.collected.startIndex ?? 0) - (a.collected.startIndex ?? 0))
-  for (const { collected, lines } of applications)
+  for (const { collected, lines } of plan.applications)
     collected.applyTranslation(lines)
 
-  const dirtyFileNames = new Set(applications.map(({ collected }) => collected.fileName))
+  const dirtyFileNames = new Set(plan.applications.map(({ collected }) => collected.fileName))
   const codecOptions = { engine: game.engine, transcoder: game.transcoder }
-  const pendingWrites: { filePath: string, bytes: Uint8Array }[] = []
+  const pendingWrites: { filePath: string, tempPath: string, bytes: Uint8Array }[] = []
   for (const fileName of [...dirtyFileNames].sort()) {
     let bytes: Uint8Array
     if (fileName === game.databaseFileName)
@@ -118,14 +77,27 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
       bytes = encodeMapTree(game.treeMap!, codecOptions)
     else
       bytes = encodeMapUnit(game.maps.find(map => map.fileName === fileName)!.mapUnit, codecOptions)
-    pendingWrites.push({ filePath: join(directory, fileName), bytes })
+    const filePath = join(directory, fileName)
+    pendingWrites.push({ filePath, tempPath: `${filePath}.lcfkit-tmp`, bytes })
   }
-  for (const { filePath, bytes } of pendingWrites)
-    writeFileSync(filePath, bytes)
+  // Two-phase write: stage every payload beside its target (same volume), then
+  // swap them in with atomic renames – a mid-batch error can truncate a staged
+  // temp file but never a game file.
+  try {
+    for (const { tempPath, bytes } of pendingWrites)
+      writeFileSync(tempPath, bytes)
+    for (const { filePath, tempPath } of pendingWrites)
+      renameSync(tempPath, filePath)
+  }
+  catch (error) {
+    for (const { tempPath } of pendingWrites)
+      rmSync(tempPath, { force: true })
+    throw error
+  }
 
   return {
-    appliedCount: applications.length,
-    untranslatedCount,
+    appliedCount: plan.applications.length,
+    untranslatedCount: plan.untranslatedCount,
     writtenFileNames: [...dirtyFileNames].sort(),
     engine: game.engine,
     encoding: game.encoding,

@@ -226,7 +226,6 @@ export function emitDescriptors(model: GeneratedModel): string {
 
   for (const struct of model.structs) {
     lines.push(`  ${toObjectKey(struct.name)}: {`)
-    lines.push(`    framing: '${struct.framing}',`)
     lines.push('    fields: [')
     for (const field of struct.fields)
       lines.push(`      { ${printField(field)} },`)

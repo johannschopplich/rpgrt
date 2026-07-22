@@ -1,4 +1,5 @@
-import type { EngineVersion } from '../index.ts'
+import type { LcfRecord } from '../codec/engine.ts'
+import type { CodecOptions, EngineVersion } from '../index.ts'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { bytesEqual } from '../codec/bytes.ts'
@@ -9,6 +10,21 @@ import { RECORD_DESCRIPTORS } from '../generated/descriptors.ts'
 import { decodeDatabase, decodeMapTree, decodeMapUnit, encodeDatabase, encodeMapTree, encodeMapUnit } from '../index.ts'
 
 export type LcfFileKind = 'lmu' | 'ldb' | 'lmt'
+
+export interface KindCodec {
+  decode: (bytes: Uint8Array, options: CodecOptions) => LcfRecord
+  encode: (record: LcfRecord, options: CodecOptions) => Uint8Array
+}
+
+/**
+ * The generated record interfaces carry no index signature, so their codec
+ * pairs are not assignable to the uniform LcfRecord shape without this cast.
+ */
+export const LCF_CODECS: Record<LcfFileKind, KindCodec> = {
+  lmu: { decode: decodeMapUnit, encode: encodeMapUnit },
+  ldb: { decode: decodeDatabase, encode: encodeDatabase },
+  lmt: { decode: decodeMapTree, encode: encodeMapTree },
+} as unknown as Record<LcfFileKind, KindCodec>
 
 export interface ResolvedEngine {
   engine: EngineVersion
@@ -66,15 +82,9 @@ export function scanDatabaseEngine(databaseBytes: Uint8Array): EngineVersion {
 
 function reencodesIdentically(bytes: Uint8Array, kind: LcfFileKind, engine: EngineVersion): boolean {
   const options = { engine }
+  const { decode, encode } = LCF_CODECS[kind]
   try {
-    let encoded: Uint8Array
-    if (kind === 'lmu')
-      encoded = encodeMapUnit(decodeMapUnit(bytes, options), options)
-    else if (kind === 'ldb')
-      encoded = encodeDatabase(decodeDatabase(bytes, options), options)
-    else
-      encoded = encodeMapTree(decodeMapTree(bytes, options), options)
-    return bytesEqual(encoded, bytes)
+    return bytesEqual(encode(decode(bytes, options), options), bytes)
   }
   catch {
     return false
@@ -136,9 +146,7 @@ function detectionSample(filePath: string, bytes: Uint8Array, kind: LcfFileKind,
       const databaseBytes = new Uint8Array(readFileSync(databasePath))
       return collectStringBytes(decodeDatabase(databaseBytes, { engine: scanDatabaseEngine(databaseBytes) }))
     }
-    if (kind === 'lmu')
-      return collectStringBytes(decodeMapUnit(bytes, { engine }))
-    return collectStringBytes(decodeMapTree(bytes, { engine }))
+    return collectStringBytes(LCF_CODECS[kind].decode(bytes, { engine }))
   }
   catch {
     return undefined

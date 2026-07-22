@@ -1,26 +1,15 @@
 import type { ArgsDef, CommandDef } from 'citty'
 import type { EngineVersion } from '../index.ts'
-import type { CollectedUnit, TextUnit } from '../translation/units.ts'
+import type { CollectedUnit, Dump, DumpUnit } from '../translation/units.ts'
 import type { LoadedGame } from './game.ts'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { defineCommand } from 'citty'
 import { LcfError } from '../codec/errors.ts'
 import { formatPoCatalog } from '../translation/po.ts'
-import { collectDatabaseUnits, collectMapUnits, collectTreeMapUnits } from '../translation/units.ts'
-import { loadGame } from './game.ts'
+import { collectGameUnits, loadGame } from './game.ts'
 
-/** A text unit as persisted in strings.json – translation starts empty. */
-export interface DumpUnit extends TextUnit {
-  translation: string
-}
-
-/** The extract output: dump metadata plus every text unit of one or all files. */
-export interface Dump {
-  engine: EngineVersion
-  encoding: string
-  units: DumpUnit[]
-}
+export type { Dump, DumpUnit } from '../translation/units.ts'
 
 export interface ExtractOptions {
   output?: string
@@ -38,15 +27,6 @@ export interface ExtractResult {
   encoding: string
   encodingSource: LoadedGame['encodingSource']
   skippedFileNames: string[]
-}
-
-export function collectGameUnits(game: LoadedGame): CollectedUnit[] {
-  const units = collectDatabaseUnits(game.database, game.databaseFileName)
-  if (game.treeMap !== undefined)
-    units.push(...collectTreeMapUnits(game.treeMap, game.treeMapFileName!))
-  for (const map of game.maps)
-    units.push(...collectMapUnits(map.mapUnit, map.mapId, map.fileName))
-  return units
 }
 
 function toDumpUnit(unit: CollectedUnit): DumpUnit {
