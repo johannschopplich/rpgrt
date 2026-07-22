@@ -32,7 +32,7 @@ function readDumps(dumpPath: string): Dump[] {
     : [dumpPath]
   if (filePaths.length === 0)
     throw new LcfError(`No .json dumps in ${dumpPath}`)
-  return filePaths.map((filePath) => {
+  const dumps = filePaths.map((filePath) => {
     const dump = JSON.parse(readFileSync(filePath, 'utf8')) as Partial<Dump>
     const hasValidShape = (dump.engine === '2k' || dump.engine === '2k3')
       && typeof dump.encoding === 'string' && Array.isArray(dump.units)
@@ -40,6 +40,11 @@ function readDumps(dumpPath: string): Dump[] {
       throw new LcfError(`${filePath} is not an lcfkit dump (expected engine, encoding, and units keys)`)
     return dump as Dump
   })
+  for (const dump of dumps) {
+    if (dump.engine !== dumps[0]!.engine || dump.encoding !== dumps[0]!.encoding)
+      throw new LcfError(`Dumps in ${dumpPath} disagree on engine or encoding (${dumps[0]!.engine}/${dumps[0]!.encoding} vs ${dump.engine}/${dump.encoding}) – re-extract them together`)
+  }
+  return dumps
 }
 
 function validateTranslation(unit: DumpUnit, collected: CollectedUnit, game: LoadedGame): string | undefined {
@@ -68,7 +73,7 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
     unitsByAddress.set(collected.address, collected)
   }
 
-  const problems: string[] = []
+  const abortReasons: string[] = []
   const applications: { collected: CollectedUnit, lines: string[] }[] = []
   let untranslatedCount = 0
   for (const dump of dumps) {
@@ -79,21 +84,21 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
       }
       const collected = unitsByAddress.get(unit.address)
       if (collected === undefined) {
-        problems.push(`${unit.address}: no such unit in the game`)
+        abortReasons.push(`${unit.address}: no such unit in the game`)
         continue
       }
-      const problem = validateTranslation(unit, collected, game)
-      if (problem !== undefined)
-        problems.push(problem)
+      const abortReason = validateTranslation(unit, collected, game)
+      if (abortReason !== undefined)
+        abortReasons.push(abortReason)
       else
         applications.push({ collected, lines: unit.translation.split('\n') })
     }
   }
-  if (problems.length > 0) {
-    const shownProblems = problems.slice(0, 20)
-    if (problems.length > shownProblems.length)
-      shownProblems.push(`… and ${problems.length - shownProblems.length} more`)
-    throw new LcfError(`Nothing was written – ${problems.length} translation(s) failed validation:\n${shownProblems.join('\n')}`)
+  if (abortReasons.length > 0) {
+    const shownAbortReasons = abortReasons.slice(0, 20)
+    if (abortReasons.length > shownAbortReasons.length)
+      shownAbortReasons.push(`… and ${abortReasons.length - shownAbortReasons.length} more`)
+    throw new LcfError(`Nothing was written – ${abortReasons.length} translation(s) failed validation:\n${shownAbortReasons.join('\n')}`)
   }
 
   // Splices shift the indices of everything behind them, so command-backed

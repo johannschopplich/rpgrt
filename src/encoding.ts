@@ -1,6 +1,7 @@
 import type { Transcoder } from './codec/transcoder.ts'
 import { analyse } from 'chardet'
 import iconv from 'iconv-lite'
+import { bytesEqual } from './codec/bytes.ts'
 import { LcfError } from './codec/errors.ts'
 
 interface SingleByteTable {
@@ -72,8 +73,7 @@ export function createTranscoder(encoding: string): Transcoder {
 /** True when decoding and re-encoding reproduces the input byte for byte. */
 export function isLosslessFor(encoding: string, bytes: Uint8Array): boolean {
   const transcoder = createTranscoder(encoding)
-  const reencodedBytes = transcoder.encode(transcoder.decode(bytes))
-  return reencodedBytes.length === bytes.length && reencodedBytes.every((byte, index) => byte === bytes[index])
+  return bytesEqual(transcoder.encode(transcoder.decode(bytes)), bytes)
 }
 
 /**

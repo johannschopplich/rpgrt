@@ -74,7 +74,7 @@ export class ByteReader {
     this.offset += byteCount
   }
 
-  /** BER varint as an unsigned 32-bit value (chunk IDs, lengths, counts). */
+  /** BER integer as an unsigned 32-bit value (chunk IDs, lengths, counts). */
   readBerUnsigned(): number {
     let value = 0
     for (let index = 0; index < 5; index++) {
@@ -86,7 +86,7 @@ export class ByteReader {
     throw new LcfError('BER integer exceeds 32 bits', { offset: this.offset })
   }
 
-  /** BER varint reinterpreted as a signed 32-bit value (scalar Int32 fields). */
+  /** BER integer reinterpreted as a signed 32-bit value (scalar Int32 fields). */
   readBer(): number {
     return this.readBerUnsigned() | 0
   }

@@ -48,7 +48,7 @@ export class ByteWriter {
       this.buffer[this.byteLength++] = this.scratch.getUint8(index)
   }
 
-  /** BER varint; negative values are written as their unsigned 32-bit form. */
+  /** BER integer; negative values are written as their unsigned 32-bit form. */
   writeBer(value: number): void {
     let unsigned = value >>> 0
     if (unsigned < 0x80) {

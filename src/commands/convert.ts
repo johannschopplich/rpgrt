@@ -5,6 +5,7 @@ import type { LcfFileKind, ResolvedEncoding, ResolvedEngine } from './resolve.ts
 import { Buffer } from 'node:buffer'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { defineCommand } from 'citty'
+import { bytesEqual } from '../codec/bytes.ts'
 import { LcfError } from '../codec/errors.ts'
 import { createTranscoder } from '../encoding.ts'
 import { decodeDatabase, decodeMapTree, decodeMapUnit, encodeDatabase, encodeMapTree, encodeMapUnit } from '../index.ts'
@@ -134,8 +135,7 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
   const envelope: JsonEnvelope = { format: kind, engine, encoding, data: decodeLcf(bytes, kind, engine, encoding) }
   const outputPath = options.output ?? `${inputPath}.json`
   writeFileSync(outputPath, stringifyEnvelope(envelope))
-  const reencodedBytes = encodeLcf(envelope.data, kind, engine, encoding)
-  const isByteIdentical = reencodedBytes.length === bytes.length && reencodedBytes.every((byte, index) => byte === bytes[index])
+  const isByteIdentical = bytesEqual(encodeLcf(envelope.data, kind, engine, encoding), bytes)
   return { outputPath, format: kind, engine, engineSource, encoding, encodingSource, isByteIdentical }
 }
 

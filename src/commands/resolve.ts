@@ -1,6 +1,7 @@
 import type { EngineVersion } from '../index.ts'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { bytesEqual } from '../codec/bytes.ts'
 import { LcfError } from '../codec/errors.ts'
 import { ByteReader } from '../codec/reader.ts'
 import { collectStringBytes, createTranscoder, detectEncoding, encodingFromIni } from '../encoding.ts'
@@ -73,7 +74,7 @@ function reencodesIdentically(bytes: Uint8Array, kind: LcfFileKind, engine: Engi
       encoded = encodeDatabase(decodeDatabase(bytes, options), options)
     else
       encoded = encodeMapTree(decodeMapTree(bytes, options), options)
-    return encoded.length === bytes.length && encoded.every((byte, index) => byte === bytes[index])
+    return bytesEqual(encoded, bytes)
   }
   catch {
     return false

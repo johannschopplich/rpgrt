@@ -4,7 +4,7 @@ import type { EngineVersion } from '../index.ts'
  * Serialization kinds, mirroring liblcf's wire behavior (derivation with
  * liblcf source references: docs/serialization.md):
  *
- * - `berInt` is the BER varint used by scalar Int32, enums, and refs.
+ * - `berInt` is the BER integer used by scalar Int32, enums, and refs.
  * - Vector elements are always fixed-width little-endian – including `int32`,
  *   even though the scalar of the same CSV type is BER.
  * - `dbBitArray` stores one whole byte per boolean, despite the name.
