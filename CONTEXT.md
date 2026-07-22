@@ -64,7 +64,7 @@ Writing translated text units from a dump back into the game's LCF files. Valida
 _Avoid_: import, patch
 
 **Text unit**:
-One translatable entry: stable address (map/event/page/line), source text with control codes verbatim, and derivable context (event name, coordinates, resolved speaker).
+One translatable entry: stable address (e.g. `lmu/42/events/12/pages/1/commands/57`), source text with control codes verbatim, and derivable context (IDs, coordinates, lcftrans-style msgctxt).
 _Avoid_: string, message (both overloaded)
 
 **Control code**:
