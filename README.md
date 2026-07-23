@@ -177,8 +177,8 @@ function decodeMapUnit(bytes: Uint8Array, options: CodecOptions): MapUnit
 function encodeMapUnit(mapUnit: MapUnit, options: CodecOptions): Uint8Array
 function decodeDatabase(bytes: Uint8Array, options: CodecOptions): Database
 function encodeDatabase(database: Database, options: CodecOptions): Uint8Array
-function decodeMapTree(bytes: Uint8Array, options: CodecOptions): TreeMap
-function encodeMapTree(treeMap: TreeMap, options: CodecOptions): Uint8Array
+function decodeTreeMap(bytes: Uint8Array, options: CodecOptions): TreeMap
+function encodeTreeMap(treeMap: TreeMap, options: CodecOptions): Uint8Array
 function decodeSave(bytes: Uint8Array, options: CodecOptions): Save
 function encodeSave(save: Save, options: CodecOptions): Uint8Array
 

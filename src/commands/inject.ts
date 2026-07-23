@@ -6,7 +6,7 @@ import { readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync 
 import { basename, join } from 'node:path'
 import { defineCommand } from 'citty'
 import { LcfError } from '../codec/errors.ts'
-import { encodeDatabase, encodeMapTree, encodeMapUnit } from '../index.ts'
+import { encodeDatabase, encodeMapUnit, encodeTreeMap } from '../index.ts'
 import { planInjection, resolvePoDumps } from '../translation/inject.ts'
 import { parsePoCatalog } from '../translation/po.ts'
 import { collectGameUnits, loadGame, toCatalogContext } from './game.ts'
@@ -146,7 +146,7 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
     if (fileName === game.databaseFileName)
       bytes = encodeDatabase(game.database, codecOptions)
     else if (fileName === game.treeMapFileName)
-      bytes = encodeMapTree(game.treeMap!, codecOptions)
+      bytes = encodeTreeMap(game.treeMap!, codecOptions)
     else
       bytes = encodeMapUnit(game.maps.find(map => map.fileName === fileName)!.mapUnit, codecOptions)
     const filePath = join(directory, fileName)

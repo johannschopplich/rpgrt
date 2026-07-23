@@ -1,7 +1,7 @@
 import type { LcfRecord } from './codec/engine.ts'
 import type { Transcoder } from './codec/transcoder.ts'
 import type { Database, MapUnit, Save, TreeMap } from './generated/records.ts'
-import { decodeChunkStream, decodeTreeMap, encodeChunkStream, encodeTreeMap } from './codec/engine.ts'
+import { decodeChunkStream, decodeTreeMap as decodeTreeMapRecord, encodeChunkStream, encodeTreeMap as encodeTreeMapRecord } from './codec/engine.ts'
 import { LcfError } from './codec/errors.ts'
 import { ByteReader } from './codec/reader.ts'
 import { latin1Transcoder } from './codec/transcoder.ts'
@@ -98,17 +98,17 @@ export function encodeSave(save: Save, options: CodecOptions): Uint8Array {
   return writer.toBytes()
 }
 
-export function decodeMapTree(bytes: Uint8Array, options: CodecOptions): TreeMap {
+export function decodeTreeMap(bytes: Uint8Array, options: CodecOptions): TreeMap {
   const reader = new ByteReader(bytes)
   readHeader(reader, MAP_TREE_MAGIC)
-  const record = decodeTreeMap(reader, createContext(options), 'TreeMap')
+  const record = decodeTreeMapRecord(reader, createContext(options), 'TreeMap')
   expectEndOfData(reader, 'TreeMap')
   return record as unknown as TreeMap
 }
 
-export function encodeMapTree(treeMap: TreeMap, options: CodecOptions): Uint8Array {
+export function encodeTreeMap(treeMap: TreeMap, options: CodecOptions): Uint8Array {
   const writer = new ByteWriter()
   writeHeader(writer, MAP_TREE_MAGIC)
-  encodeTreeMap(treeMap as unknown as LcfRecord, writer, createContext(options), 'TreeMap')
+  encodeTreeMapRecord(treeMap as unknown as LcfRecord, writer, createContext(options), 'TreeMap')
   return writer.toBytes()
 }

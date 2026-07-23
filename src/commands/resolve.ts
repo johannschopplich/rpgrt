@@ -7,7 +7,7 @@ import { LcfError } from '../codec/errors.ts'
 import { ByteReader, readChunkStream } from '../codec/reader.ts'
 import { collectStringBytes, createTranscoder, detectEncoding, encodingFromIni } from '../encoding.ts'
 import { RECORD_DESCRIPTORS } from '../generated/descriptors.ts'
-import { decodeDatabase, decodeMapTree, decodeMapUnit, decodeSave, encodeDatabase, encodeMapTree, encodeMapUnit, encodeSave } from '../index.ts'
+import { decodeDatabase, decodeMapUnit, decodeSave, decodeTreeMap, encodeDatabase, encodeMapUnit, encodeSave, encodeTreeMap } from '../index.ts'
 
 export type LcfFileKind = 'lmu' | 'ldb' | 'lmt' | 'lsd'
 
@@ -23,7 +23,7 @@ export interface KindCodec {
 export const LCF_CODECS: Record<LcfFileKind, KindCodec> = {
   lmu: { decode: decodeMapUnit, encode: encodeMapUnit },
   ldb: { decode: decodeDatabase, encode: encodeDatabase },
-  lmt: { decode: decodeMapTree, encode: encodeMapTree },
+  lmt: { decode: decodeTreeMap, encode: encodeTreeMap },
   lsd: { decode: decodeSave, encode: encodeSave },
 } as unknown as Record<LcfFileKind, KindCodec>
 

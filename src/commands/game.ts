@@ -6,7 +6,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { LcfError } from '../codec/errors.ts'
 import { createTranscoder } from '../encoding.ts'
-import { decodeDatabase, decodeMapTree, decodeMapUnit } from '../index.ts'
+import { decodeDatabase, decodeMapUnit, decodeTreeMap } from '../index.ts'
 import { collectDatabaseUnits, collectMapUnits, collectTreeMapUnits } from '../translation/units.ts'
 import { resolveFileContext } from './resolve.ts'
 
@@ -73,7 +73,7 @@ export function loadGame(directory: string, options: GameLoadOptions = {}): Load
   const treeMapFileName = entryNames.find(name => name.toLowerCase() === 'rpg_rt.lmt')
   const treeMap = treeMapFileName === undefined
     ? undefined
-    : decodeMapTree(new Uint8Array(readFileSync(join(directory, treeMapFileName))), codecOptions)
+    : decodeTreeMap(new Uint8Array(readFileSync(join(directory, treeMapFileName))), codecOptions)
 
   const maps: LoadedMap[] = []
   const skippedFileNames: string[] = []

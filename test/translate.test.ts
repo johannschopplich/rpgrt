@@ -8,7 +8,7 @@ import { defaultRecord } from '../src/codec/defaults.ts'
 import { extractGame } from '../src/commands/extract.ts'
 import { injectDump } from '../src/commands/inject.ts'
 import { createTranscoder } from '../src/encoding.ts'
-import { decodeMapUnit, encodeDatabase, encodeMapTree, encodeMapUnit } from '../src/index.ts'
+import { decodeMapUnit, encodeDatabase, encodeMapUnit, encodeTreeMap } from '../src/index.ts'
 
 const temporaryDirectories: string[] = []
 
@@ -48,7 +48,7 @@ function createGameDirectory(options: { duplicateActorName?: boolean } = {}): st
     { ...defaultRecord('MapInfo', '2k'), id: 1, name: 'Dorf', type: 1 } as never,
   ]
   treeMap.treeOrder = [0, 1]
-  writeFileSync(join(directory, 'RPG_RT.lmt'), encodeMapTree(treeMap, codecOptions))
+  writeFileSync(join(directory, 'RPG_RT.lmt'), encodeTreeMap(treeMap, codecOptions))
 
   const page = { id: 1, ...defaultRecord('EventPage', '2k') } as never as { eventCommands: EventCommand[] }
   page.eventCommands = [

@@ -31,6 +31,10 @@ _Avoid_: struct, model, entity
 The decoded record of one `.lmu` file (`MapUnit`) – liblcf calls it `Map`.
 _Avoid_: Map (shadows the ES built-in)
 
+**Tree map**:
+The decoded record of one `.lmt` file (`TreeMap`) – the map hierarchy plus start positions. The codec pair follows the record name (`decodeTreeMap`); "map tree" names the file itself.
+_Avoid_: map tree (for the record), MapTree
+
 **Save data**:
 The decoded record of one `.lsd` file (`Save`) – RPG_RT's in-progress player state. Player state, never authored text, so `convert` handles it but `extract`/`inject` do not.
 _Avoid_: savegame, save state

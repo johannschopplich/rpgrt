@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { decodeDatabase, decodeMapTree, decodeMapUnit, decodeSave, encodeDatabase, encodeMapTree, encodeMapUnit, encodeSave } from '../src/index.ts'
+import { decodeDatabase, decodeMapUnit, decodeSave, decodeTreeMap, encodeDatabase, encodeMapUnit, encodeSave, encodeTreeMap } from '../src/index.ts'
 
 // Real game files, never committed – the suite skips itself when absent.
 const corpusDirectory = fileURLToPath(new URL('corpus', import.meta.url))
@@ -19,7 +19,7 @@ function reencode(bytes: Uint8Array, fileName: string, engine: EngineVersion): U
     return encodeDatabase(decodeDatabase(bytes, options), options)
   if (fileName.toLowerCase().endsWith('.lsd'))
     return encodeSave(decodeSave(bytes, options), options)
-  return encodeMapTree(decodeMapTree(bytes, options), options)
+  return encodeTreeMap(decodeTreeMap(bytes, options), options)
 }
 
 function firstDifference(expected: Uint8Array, actual: Uint8Array): number {

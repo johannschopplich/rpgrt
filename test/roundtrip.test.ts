@@ -2,7 +2,7 @@ import type { Actor, Database, EngineVersion, EventPage, MapInfo, MapUnit, TreeM
 import { describe, expect, it } from 'vitest'
 import { defaultRecord } from '../src/codec/defaults.ts'
 import { ByteReader, readChunkStream } from '../src/codec/reader.ts'
-import { decodeDatabase, decodeMapTree, decodeMapUnit, encodeDatabase, encodeMapTree, encodeMapUnit } from '../src/index.ts'
+import { decodeDatabase, decodeMapUnit, decodeTreeMap, encodeDatabase, encodeMapUnit, encodeTreeMap } from '../src/index.ts'
 
 const engines: EngineVersion[] = ['2k', '2k3']
 
@@ -101,7 +101,7 @@ describe.each(engines)('semantic round trip (%s)', (engine) => {
 
   it('default map tree', () => {
     const treeMap = defaultRecord('TreeMap', engine) as unknown as TreeMap
-    expect(decodeMapTree(encodeMapTree(treeMap, { engine }), { engine })).toStrictEqual(treeMap)
+    expect(decodeTreeMap(encodeTreeMap(treeMap, { engine }), { engine })).toStrictEqual(treeMap)
   })
 
   it('keeps non-default raw records through a round trip: parameters, equipment, area rect', () => {
@@ -124,7 +124,7 @@ describe.each(engines)('semantic round trip (%s)', (engine) => {
     const treeMap = defaultRecord('TreeMap', engine) as unknown as TreeMap
     treeMap.maps = [mapInfo]
     treeMap.treeOrder = [1]
-    expect(decodeMapTree(encodeMapTree(treeMap, { engine }), { engine })).toStrictEqual(treeMap)
+    expect(decodeTreeMap(encodeTreeMap(treeMap, { engine }), { engine })).toStrictEqual(treeMap)
   })
 
   it('map unit with an event, commands, and a move route', () => {
