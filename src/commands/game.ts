@@ -1,4 +1,5 @@
 import type { Database, EngineVersion, MapUnit, Transcoder, TreeMap } from '../index.ts'
+import type { CatalogContext } from '../translation/po.ts'
 import type { CollectedUnit } from '../translation/units.ts'
 import type { ResolvedEncoding, ResolvedEngine } from './resolve.ts'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -34,6 +35,14 @@ export interface LoadedGame {
 export interface GameLoadOptions {
   engine?: string
   encoding?: string
+}
+
+export function toCatalogContext(game: LoadedGame): CatalogContext {
+  return {
+    databaseFileName: game.databaseFileName,
+    treeMapFileName: game.treeMapFileName,
+    mapFileNames: game.maps.map(map => map.fileName),
+  }
 }
 
 export function collectGameUnits(game: LoadedGame): CollectedUnit[] {

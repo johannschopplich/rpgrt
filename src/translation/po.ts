@@ -1,5 +1,38 @@
-import type { TextUnit } from './units.ts'
+import type { CollectedUnit, TextUnit } from './units.ts'
 import { LcfError } from '../codec/errors.ts'
+
+/**
+ * The `(context, source)` match key shared by catalog grouping and inject fallback.
+ * `\x01` between the two fields keeps `(ctx, '')` and `('', ctx)` from colliding.
+ */
+export function fallbackMatchKey(context: string | undefined, source: string): string {
+  return `${context ?? ''}\x01${source}`
+}
+
+/** The narrow `LoadedGame` slice `poCatalogs` reads, so no command type crosses into `translation/`. */
+export interface CatalogContext {
+  databaseFileName: string
+  treeMapFileName?: string
+  mapFileNames: string[]
+}
+
+/** PO catalogs follow lcftrans's naming so its tooling and EasyRPG Player match up. */
+export function poCatalogs(units: CollectedUnit[], context: CatalogContext): Map<string, CollectedUnit[]> {
+  const catalogs = new Map<string, CollectedUnit[]>([
+    [`${context.databaseFileName}.po`, units.filter(unit => unit.catalog === 'terms')],
+    [`${context.databaseFileName}.common.po`, units.filter(unit => unit.catalog === 'common')],
+    [`${context.databaseFileName}.battle.po`, units.filter(unit => unit.catalog === 'battle')],
+  ])
+  const treeMapUnits = units.filter(unit => unit.catalog === 'lmt')
+  if (context.treeMapFileName !== undefined && treeMapUnits.length > 0)
+    catalogs.set(`${context.treeMapFileName}.po`, treeMapUnits)
+  for (const fileName of context.mapFileNames) {
+    const mapUnits = units.filter(unit => unit.fileName === fileName)
+    if (mapUnits.length > 0)
+      catalogs.set(`${fileName.replace(/\.lmu$/i, '')}.po`, mapUnits)
+  }
+  return catalogs
+}
 
 /** Only quote and backslash are escaped – newlines are structural in PO. */
 function escapePoText(text: string): string {
@@ -36,7 +69,7 @@ function formatPoHeader(projectName: string): string {
 export function formatPoCatalog(units: TextUnit[], projectName: string): string {
   const groups = new Map<string, TextUnit[]>()
   for (const unit of units) {
-    const key = `${unit.context ?? ''}\x01${unit.source}`
+    const key = fallbackMatchKey(unit.context, unit.source)
     const group = groups.get(key)
     if (group === undefined)
       groups.set(key, [unit])

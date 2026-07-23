@@ -1,4 +1,5 @@
 import type { ArgsDef, CommandDef } from 'citty'
+import type { ParsedCatalog } from '../translation/inject.ts'
 import type { CollectedUnit, Dump, DumpUnit } from '../translation/units.ts'
 import type { LoadedGame } from './game.ts'
 import { readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -6,10 +7,9 @@ import { basename, join } from 'node:path'
 import { defineCommand } from 'citty'
 import { LcfError } from '../codec/errors.ts'
 import { encodeDatabase, encodeMapTree, encodeMapUnit } from '../index.ts'
-import { planInjection } from '../translation/inject.ts'
+import { planInjection, resolvePoDumps } from '../translation/inject.ts'
 import { parsePoCatalog } from '../translation/po.ts'
-import { poCatalogs } from './extract.ts'
-import { collectGameUnits, loadGame } from './game.ts'
+import { collectGameUnits, loadGame, toCatalogContext } from './game.ts'
 
 export interface InjectOptions {
   engine?: string
@@ -71,93 +71,24 @@ function readJsonDumps(filePaths: string[], dumpPath: string): Dump[] {
   return dumps
 }
 
-interface PoDumpResult {
-  units: DumpUnit[]
-  fuzzySkippedCount: number
-  untranslatedCount: number
-  abortReasons: string[]
-}
-
-/**
- * Turns PO catalogs into dump units keyed by game address. Each entry resolves
- * to addresses by its `#:` references, or – for foreign PO without them – by
- * exact `(msgctxt, source)` matching scoped to the catalog filename, fanning the
- * translation out to every matching address. Identical (address, translation)
- * pairs collapse; a conflicting one aborts, guarding the non-idempotent splice.
- */
-function readPoDumps(filePaths: string[], collectedUnits: CollectedUnit[], game: LoadedGame): PoDumpResult {
-  const catalogs = poCatalogs(collectedUnits, game)
-  const abortReasons: string[] = []
-  const emittedByAddress = new Map<string, DumpUnit>()
-  let fuzzySkippedCount = 0
-  let untranslatedCount = 0
-
-  for (const filePath of filePaths) {
-    const fileName = basename(filePath)
-    let entries
-    try {
-      entries = parsePoCatalog(readFileSync(filePath, 'utf8'))
-    }
-    catch (error) {
-      if (error instanceof LcfError)
-        throw new LcfError(`${fileName}: ${error.rawMessage}`)
-      throw error
-    }
-
-    const scopeUnitsByKey = new Map<string, CollectedUnit[]>()
-    for (const unit of catalogs.get(fileName) ?? []) {
-      const key = `${unit.context ?? ''}\x01${unit.source}`
-      const bucket = scopeUnitsByKey.get(key)
-      if (bucket === undefined)
-        scopeUnitsByKey.set(key, [unit])
-      else
-        bucket.push(unit)
-    }
-
-    for (const entry of entries) {
-      // A foreign catalog may write msgctxt "" where lcfkit units carry no context.
-      const context = entry.context === '' ? undefined : entry.context
-      if (entry.isFuzzy) {
-        if (entry.translation !== '')
-          fuzzySkippedCount++
-        continue
-      }
-      if (entry.translation === '') {
-        // A merged entry stands for every occurrence – count remaining work in
-        // game units, mirroring the JSON path's per-unit count.
-        untranslatedCount += entry.addresses.length > 0
-          ? entry.addresses.length
-          : (scopeUnitsByKey.get(`${context ?? ''}\x01${entry.source}`)?.length ?? 1)
-        continue
-      }
-      let addresses: string[]
-      if (entry.addresses.length > 0) {
-        addresses = entry.addresses
-      }
-      else {
-        const matches = scopeUnitsByKey.get(`${context ?? ''}\x01${entry.source}`)
-        if (matches === undefined) {
-          abortReasons.push(`${fileName}: no game text matches msgctxt=${context ?? '(none)'} msgid=${JSON.stringify(entry.source)}`)
-          continue
-        }
-        addresses = matches.map(unit => unit.address)
-      }
-      for (const address of addresses) {
-        const existing = emittedByAddress.get(address)
-        if (existing === undefined)
-          emittedByAddress.set(address, { address, source: entry.source, translation: entry.translation, context, info: [] })
-        else if (existing.translation !== entry.translation)
-          abortReasons.push(`${fileName}: address ${address} received conflicting translations`)
-      }
-    }
+/** Reads and parses one PO catalog, wrapping parse aborts with the filename. */
+function parsePoCatalogFile(filePath: string): ParsedCatalog {
+  const fileName = basename(filePath)
+  try {
+    return { fileName, entries: parsePoCatalog(readFileSync(filePath, 'utf8')) }
   }
-  return { units: [...emittedByAddress.values()], fuzzySkippedCount, untranslatedCount, abortReasons }
+  catch (error) {
+    if (error instanceof LcfError)
+      throw new LcfError(`${fileName}: ${error.rawMessage}`)
+    throw error
+  }
 }
 
 export function injectDump(directory: string, dumpPath: string, options: InjectOptions = {}): InjectResult {
   const source = classifyDumpSource(dumpPath)
 
   let game: LoadedGame
+  let collectedUnits: CollectedUnit[]
   let dumpUnits: DumpUnit[]
   let untranslatedCount = 0
   let fuzzySkippedCount = 0
@@ -166,12 +97,13 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
     // PO carries no engine/encoding, and fallback matching needs the collected
     // units, so the game must load before parsing.
     game = loadGame(directory, { engine: options.engine, encoding: options.encoding })
-    const collectedUnits = collectGameUnits(game)
-    const poDumps = readPoDumps(source.filePaths, collectedUnits, game)
-    dumpUnits = poDumps.units
-    untranslatedCount = poDumps.untranslatedCount
-    fuzzySkippedCount = poDumps.fuzzySkippedCount
-    extraAbortReasons = poDumps.abortReasons
+    collectedUnits = collectGameUnits(game)
+    const parsedCatalogs = source.filePaths.map(parsePoCatalogFile)
+    const resolution = resolvePoDumps(parsedCatalogs, collectedUnits, toCatalogContext(game))
+    dumpUnits = resolution.units
+    untranslatedCount = resolution.untranslatedCount
+    fuzzySkippedCount = resolution.fuzzySkippedCount
+    extraAbortReasons = resolution.abortReasons
   }
   else {
     const dumps = readJsonDumps(source.filePaths, dumpPath)
@@ -179,12 +111,13 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
       engine: options.engine ?? dumps[0]!.engine,
       encoding: options.encoding ?? dumps[0]!.encoding,
     })
+    collectedUnits = collectGameUnits(game)
     dumpUnits = dumps.flatMap(dump => dump.units)
     fuzzySkippedCount = 0
     extraAbortReasons = []
   }
 
-  const plan = planInjection(collectGameUnits(game), dumpUnits, {
+  const plan = planInjection(collectedUnits, dumpUnits, {
     transcoder: game.transcoder,
     encoding: game.encoding,
   })

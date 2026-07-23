@@ -6,8 +6,8 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { defineCommand } from 'citty'
 import { LcfError } from '../codec/errors.ts'
-import { formatPoCatalog } from '../translation/po.ts'
-import { collectGameUnits, loadGame } from './game.ts'
+import { formatPoCatalog, poCatalogs } from '../translation/po.ts'
+import { collectGameUnits, loadGame, toCatalogContext } from './game.ts'
 
 export type { Dump, DumpUnit } from '../translation/units.ts'
 
@@ -44,24 +44,6 @@ function writeDump(filePath: string, engine: EngineVersion, encoding: string, un
   writeFileSync(filePath, `${JSON.stringify(dump, undefined, 2)}\n`)
 }
 
-/** PO catalogs follow lcftrans's naming so its tooling and EasyRPG Player match up. */
-export function poCatalogs(units: CollectedUnit[], game: LoadedGame): Map<string, CollectedUnit[]> {
-  const catalogs = new Map<string, CollectedUnit[]>([
-    [`${game.databaseFileName}.po`, units.filter(unit => unit.catalog === 'terms')],
-    [`${game.databaseFileName}.common.po`, units.filter(unit => unit.catalog === 'common')],
-    [`${game.databaseFileName}.battle.po`, units.filter(unit => unit.catalog === 'battle')],
-  ])
-  const treeMapUnits = units.filter(unit => unit.catalog === 'lmt')
-  if (treeMapUnits.length > 0)
-    catalogs.set(`${game.treeMapFileName}.po`, treeMapUnits)
-  for (const map of game.maps) {
-    const mapUnits = units.filter(unit => unit.fileName === map.fileName)
-    if (mapUnits.length > 0)
-      catalogs.set(`${map.fileName.replace(/\.lmu$/i, '')}.po`, mapUnits)
-  }
-  return catalogs
-}
-
 export function extractGame(directory: string, options: ExtractOptions = {}): ExtractResult {
   if (options.isSplit === true && options.isPo === true)
     throw new LcfError('--split and --po are mutually exclusive – PO output is always per file')
@@ -74,7 +56,7 @@ export function extractGame(directory: string, options: ExtractOptions = {}): Ex
     const outputDirectory = options.output ?? 'po'
     mkdirSync(outputDirectory, { recursive: true })
     const projectName = basename(directory)
-    for (const [catalogFileName, catalogUnits] of poCatalogs(units, game)) {
+    for (const [catalogFileName, catalogUnits] of poCatalogs(units, toCatalogContext(game))) {
       const outputPath = join(outputDirectory, catalogFileName)
       writeFileSync(outputPath, formatPoCatalog(catalogUnits, projectName))
       outputPaths.push(outputPath)

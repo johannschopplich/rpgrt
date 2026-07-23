@@ -1,6 +1,87 @@
 import type { Transcoder } from '../codec/transcoder.ts'
+import type { CatalogContext, ParsedPoEntry } from './po.ts'
 import type { CollectedUnit, DumpUnit } from './units.ts'
 import { LcfError } from '../codec/errors.ts'
+import { fallbackMatchKey, poCatalogs } from './po.ts'
+
+/** One parsed PO catalog; its `fileName` doubles as the scope key for fallback matching. */
+export interface ParsedCatalog {
+  fileName: string
+  entries: ParsedPoEntry[]
+}
+
+/** The dump units a set of PO catalogs resolve to, plus the counts inject reports. */
+export interface PoResolution {
+  units: DumpUnit[]
+  fuzzySkippedCount: number
+  untranslatedCount: number
+  abortReasons: string[]
+}
+
+/**
+ * Turns parsed PO catalogs into dump units keyed by game address. Each entry
+ * resolves to addresses by its `#:` references, or – for foreign PO without them
+ * – by exact `(msgctxt, source)` matching scoped to the catalog filename, fanning
+ * the translation out to every matching address. Identical (address, translation)
+ * pairs collapse; a conflicting one aborts, guarding the non-idempotent splice.
+ */
+export function resolvePoDumps(catalogs: ParsedCatalog[], collectedUnits: CollectedUnit[], catalogContext: CatalogContext): PoResolution {
+  const scopeUnitsByFileName = poCatalogs(collectedUnits, catalogContext)
+  const abortReasons: string[] = []
+  const emittedByAddress = new Map<string, DumpUnit>()
+  let fuzzySkippedCount = 0
+  let untranslatedCount = 0
+
+  for (const { fileName, entries } of catalogs) {
+    const scopeUnitsByKey = new Map<string, CollectedUnit[]>()
+    for (const unit of scopeUnitsByFileName.get(fileName) ?? []) {
+      const key = fallbackMatchKey(unit.context, unit.source)
+      const bucket = scopeUnitsByKey.get(key)
+      if (bucket === undefined)
+        scopeUnitsByKey.set(key, [unit])
+      else
+        bucket.push(unit)
+    }
+
+    for (const entry of entries) {
+      // A foreign catalog may write msgctxt "" where lcfkit units carry no context.
+      const context = entry.context === '' ? undefined : entry.context
+      if (entry.isFuzzy) {
+        if (entry.translation !== '')
+          fuzzySkippedCount++
+        continue
+      }
+      if (entry.translation === '') {
+        // A merged entry stands for every occurrence – count remaining work in
+        // game units, mirroring the JSON path's per-unit count.
+        untranslatedCount += entry.addresses.length > 0
+          ? entry.addresses.length
+          : (scopeUnitsByKey.get(fallbackMatchKey(context, entry.source))?.length ?? 1)
+        continue
+      }
+      let addresses: string[]
+      if (entry.addresses.length > 0) {
+        addresses = entry.addresses
+      }
+      else {
+        const matches = scopeUnitsByKey.get(fallbackMatchKey(context, entry.source))
+        if (matches === undefined) {
+          abortReasons.push(`${fileName}: no game text matches msgctxt=${context ?? '(none)'} msgid=${JSON.stringify(entry.source)}`)
+          continue
+        }
+        addresses = matches.map(unit => unit.address)
+      }
+      for (const address of addresses) {
+        const existing = emittedByAddress.get(address)
+        if (existing === undefined)
+          emittedByAddress.set(address, { address, source: entry.source, translation: entry.translation, context, info: [] })
+        else if (existing.translation !== entry.translation)
+          abortReasons.push(`${fileName}: address ${address} received conflicting translations`)
+      }
+    }
+  }
+  return { units: [...emittedByAddress.values()], fuzzySkippedCount, untranslatedCount, abortReasons }
+}
 
 export interface InjectionContext {
   transcoder: Transcoder
