@@ -2,7 +2,7 @@
 
 # lcfkit
 
-Read and write RPG Maker 2000/2003 LCF files in pure TypeScript – library and CLI.
+Turn RPG Maker 2000/2003 games into diffable JSON and back – byte for byte, in pure TypeScript.
 
 [When to Use](#when-to-use) •
 [Installation](#installation) •

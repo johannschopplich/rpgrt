@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "packageManager": "pnpm@11.10.0",
-  "description": "Read and write RPG Maker 2000/2003 LCF files in pure TypeScript – library and CLI",
+  "description": "Turn RPG Maker 2000/2003 games into diffable JSON and back – byte for byte, in pure TypeScript",
   "author": "Johann Schopplich <hello@johannschopplich.com>",
   "license": "MIT",
   "homepage": "https://github.com/johannschopplich/lcfkit#readme",
