@@ -42,7 +42,7 @@ function singleByteTable(encoding: string): SingleByteTable | undefined {
   return table
 }
 
-/** Creates a {@link Transcoder} backed by iconv-lite for the given encoding name. */
+/** The encoding name follows iconv-lite naming. */
 export function createTranscoder(encoding: string): Transcoder {
   if (!iconv.encodingExists(encoding))
     throw new LcfError(`Unknown encoding ${JSON.stringify(encoding)}`)

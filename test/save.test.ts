@@ -10,7 +10,7 @@ function makeSave(engine: EngineVersion): Save {
   return defaultRecord('Save', engine) as unknown as Save
 }
 
-/** Walk the top-level chunk stream past the magic header; the return is its chunk IDs. */
+/** Walk the top-level chunk stream past the magic header. */
 function topLevelChunkIds(bytes: Uint8Array): number[] {
   const reader = new ByteReader(bytes)
   reader.skip(reader.readBerUnsigned())
