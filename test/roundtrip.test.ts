@@ -86,6 +86,50 @@ describe('database version framing (docs/serialization.md §DatabaseVersion)', (
   })
 })
 
+// The LcfMapUnit header is a BER length 10 followed by the 10 magic bytes
+// (docs/serialization.md §9), so the chunk stream starts at byte 11.
+const MAP_UNIT_HEADER_LENGTH = 11
+
+describe('map unit wire bytes (docs/serialization.md)', () => {
+  it('encodes a default map unit as the header magic and its persist-if-default chunks', () => {
+    // Header (§9): BER length 0x0A then "LcfMapUnit". Body carries only the
+    // persist-if-default chunks in ascending id order (§8), each framed as
+    // [BER id][BER length][payload]: scrollType 0x0B = BER 0, lowerLayer 0x47
+    // and upperLayer 0x48 as empty vectors, events 0x51 as an array of count 0,
+    // then the trailing 0x00 that terminates a Map struct stream.
+    const header = [0x0A, 0x4C, 0x63, 0x66, 0x4D, 0x61, 0x70, 0x55, 0x6E, 0x69, 0x74]
+    const scrollType = [0x0B, 0x01, 0x00]
+    const lowerLayer = [0x47, 0x00]
+    const upperLayer = [0x48, 0x00]
+    const events = [0x51, 0x01, 0x00]
+    const terminator = [0x00]
+    const expected = [...header, ...scrollType, ...lowerLayer, ...upperLayer, ...events, ...terminator]
+    for (const engine of engines) {
+      const mapUnit = defaultRecord('MapUnit', engine) as unknown as MapUnit
+      expect([...encodeMapUnit(mapUnit, { engine })]).toEqual(expected)
+    }
+  })
+
+  it('frames a non-default scalar chunk as id, BER length, then payload', () => {
+    // chipsetId is chunk id 0x01 (src/generated/descriptors.ts); 7 fits one BER
+    // byte (§0). Being the lowest id, its chunk leads the body.
+    const mapUnit = defaultRecord('MapUnit', '2k') as unknown as MapUnit
+    mapUnit.chipsetId = 7
+    const bytes = encodeMapUnit(mapUnit, { engine: '2k' })
+    expect([...bytes.slice(MAP_UNIT_HEADER_LENGTH, MAP_UNIT_HEADER_LENGTH + 3)]).toEqual([0x01, 0x01, 0x07])
+  })
+
+  it('encodes a BER integer of 300 with a continuation byte', () => {
+    // height is chunk id 0x03 (src/generated/descriptors.ts). 300 = 2 * 128 + 44,
+    // so the BER int (§0) is two bytes: 0x82 (high group 2, continuation bit set)
+    // then 0x2C (low group 44). The chunk length is therefore 2.
+    const mapUnit = defaultRecord('MapUnit', '2k') as unknown as MapUnit
+    mapUnit.height = 300
+    const bytes = encodeMapUnit(mapUnit, { engine: '2k' })
+    expect([...bytes.slice(MAP_UNIT_HEADER_LENGTH, MAP_UNIT_HEADER_LENGTH + 4)]).toEqual([0x03, 0x02, 0x82, 0x2C])
+  })
+})
+
 describe.each(engines)('semantic round trip (%s)', (engine) => {
   it('default map unit', () => {
     const mapUnit = defaultRecord('MapUnit', engine) as unknown as MapUnit
