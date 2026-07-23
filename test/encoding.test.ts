@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { collectStringBytes } from '../src/codec/detection-sample.ts'
 import { LcfError } from '../src/codec/errors.ts'
 import { latin1Transcoder } from '../src/codec/transcoder.ts'
-import { collectStringBytes, createTranscoder, detectEncoding, encodingFromIni, isLosslessFor } from '../src/encoding.ts'
+import { createTranscoder, detectEncoding, encodingFromIni } from '../src/encoding.ts'
 
 describe('createTranscoder', () => {
   it('round-trips windows-1252 text', () => {
@@ -23,8 +24,10 @@ describe('createTranscoder', () => {
 
   it('round-trips every byte value through a single-byte encoding', () => {
     const allBytes = Uint8Array.from({ length: 256 }, (_, index) => index)
-    for (const encoding of ['windows-1252', 'ISO-8859-2', 'cp1250'])
-      expect(isLosslessFor(encoding, allBytes), encoding).toBe(true)
+    for (const encoding of ['windows-1252', 'ISO-8859-2', 'cp1250']) {
+      const transcoder = createTranscoder(encoding)
+      expect([...transcoder.encode(transcoder.decode(allBytes))], encoding).toEqual([...allBytes])
+    }
   })
 })
 
