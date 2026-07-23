@@ -13,7 +13,7 @@ Read and write RPG Maker 2000/2003 LCF files in pure TypeScript – library and 
 
 </div>
 
-RPG Maker 2000/2003 games – *Yume Nikki*, *OFF*, *Ib*, and thousands of freeware classics – store everything in the binary LCF format: maps (`Map0001.lmu`), the database (`RPG_RT.ldb`), the map tree (`RPG_RT.lmt`). The only production-grade implementation has been [EasyRPG's liblcf](https://github.com/EasyRPG/liblcf) – C++, a native build toolchain between you and the data, and XML as the only text output. lcfkit reimplements the format in isomorphic TypeScript (`Uint8Array` core, browser-safe, no native builds): LCF in, typed records or diffable JSON out, and the *same bytes* back.
+RPG Maker 2000/2003 games – *Yume Nikki*, *OFF*, *Ib*, and thousands of freeware classics – store everything in the binary LCF format: maps (`Map0001.lmu`), the database (`RPG_RT.ldb`), the map tree (`RPG_RT.lmt`), and save files (`Save01.lsd`). The only production-grade implementation has been [EasyRPG's liblcf](https://github.com/EasyRPG/liblcf) – C++, a native build toolchain between you and the data, and XML as the only text output. lcfkit reimplements the format in isomorphic TypeScript (`Uint8Array` core, browser-safe, no native builds): LCF in, typed records or diffable JSON out, and the *same bytes* back.
 
 It's built for translation work – including the step no open tool covers: writing translations back. [lcftrans](https://easyrpg.org/player/guide/game_translation/) extracts to PO, but those catalogs are only loaded at runtime by EasyRPG Player – the game files themselves stay untranslated. lcfkit closes the loop: `extract` pulls every message, choice, hero name, and database string into one dump with stable addresses, and `inject` validates the translated dump in memory – line counts, encodability, staleness – and writes it into the actual `.lmu`/`.ldb`/`.lmt` files, all-or-nothing. PO export follows lcftrans catalog naming, so gettext editors and EasyRPG Player's translation workflow line up.
 
@@ -23,6 +23,7 @@ It's built for translation work – including the step no open tool covers: writ
 | --- | --- |
 | Turn an LCF file into readable, diffable JSON | `convert Map0001.lmu` |
 | Turn edited JSON back into a game file | `convert Map0001.lmu.json` |
+| Inspect or edit a save file | `convert Save01.lsd` |
 | Dump every translatable string of a game | `extract ./game` |
 | Get one dump per game file instead of one big one | `extract --split` |
 | Translate with Poedit/Weblate or lcftrans tooling | `extract --po` |
@@ -51,7 +52,7 @@ npx lcfkit convert Map0001.lmu.json
 ```
 
 ```text
-lcfkit convert <file> [options]         # .lmu/.ldb/.lmt → JSON, or .json → LCF
+lcfkit convert <file> [options]         # .lmu/.ldb/.lmt/.lsd → JSON, or .json → LCF
 lcfkit extract <game> [options]         # game directory → translatable text dump
 lcfkit inject  <game> <dump> [options]  # JSON or PO dump → game files, all-or-nothing
 
@@ -149,11 +150,11 @@ LCF predates Unicode – text is stored in a legacy codepage with no marker in t
 
 ## Safety & limits
 
-**Round trips are byte-identical.** Decoding and re-encoding an untouched file reproduces it byte for byte – defaults, chunk order, size chunks, engine quirks, and unknown chunks included. This is verified against a corpus of real 2k/2k3 games and is the foundation everything else stands on: a diff between source and converted game shows *your* edits, nothing else.
+**Round trips are byte-identical.** Decoding and re-encoding an untouched file reproduces it byte for byte – defaults, chunk order, size chunks, engine quirks, and unknown chunks included. This is verified against a corpus of real 2k/2k3 games and is the foundation everything else stands on: a diff between source and converted game shows *your* edits, nothing else. The one documented exception is a save-file double holding a non-canonical NaN bit pattern: re-encoding normalizes it to a canonical NaN, because `DataView` canonicalizes NaN payloads – real save data never stores such a value.
 
 **`inject` is all-or-nothing.** Every translation is validated in memory first – unknown addresses, source text that drifted since extraction (stale dump), wrong choice line counts, characters the game's codepage can't represent. One failure means nothing is written, with every reason listed. The writes themselves are staged and atomically renamed, so even a crash mid-inject never leaves a truncated game file.
 
-Limits, so you don't discover them the hard way: lcfkit reads and writes maps, database, and map tree – not save files (`.lsd`) and not `RPG_RT.exe`. Maps without the canonical `MapNNNN` filename are skipped during extract (their units would have no stable address; `extract` reports each skip).
+Limits, so you don't discover them the hard way: lcfkit reads and writes maps, database, map tree, and save files (`.lsd`) – not `RPG_RT.exe`. `convert` handles save files, but `extract`/`inject` do not: saves are player state, not authored text. Maps without the canonical `MapNNNN` filename are skipped during extract (their units would have no stable address; `extract` reports each skip).
 
 ## Programmatic API
 
@@ -178,6 +179,8 @@ function decodeDatabase(bytes: Uint8Array, options: CodecOptions): Database
 function encodeDatabase(database: Database, options: CodecOptions): Uint8Array
 function decodeMapTree(bytes: Uint8Array, options: CodecOptions): TreeMap
 function encodeMapTree(treeMap: TreeMap, options: CodecOptions): Uint8Array
+function decodeSave(bytes: Uint8Array, options: CodecOptions): Save
+function encodeSave(save: Save, options: CodecOptions): Uint8Array
 
 interface CodecOptions {
   engine: '2k' | '2k3'

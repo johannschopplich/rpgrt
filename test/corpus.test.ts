@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { decodeDatabase, decodeMapTree, decodeMapUnit, encodeDatabase, encodeMapTree, encodeMapUnit } from '../src/index.ts'
+import { decodeDatabase, decodeMapTree, decodeMapUnit, decodeSave, encodeDatabase, encodeMapTree, encodeMapUnit, encodeSave } from '../src/index.ts'
 
 // Real game files, never committed – the suite skips itself when absent.
 const corpusDirectory = fileURLToPath(new URL('corpus', import.meta.url))
@@ -17,6 +17,8 @@ function reencode(bytes: Uint8Array, fileName: string, engine: EngineVersion): U
     return encodeMapUnit(decodeMapUnit(bytes, options), options)
   if (fileName.toLowerCase().endsWith('.ldb'))
     return encodeDatabase(decodeDatabase(bytes, options), options)
+  if (fileName.toLowerCase().endsWith('.lsd'))
+    return encodeSave(decodeSave(bytes, options), options)
   return encodeMapTree(decodeMapTree(bytes, options), options)
 }
 
@@ -33,7 +35,7 @@ describe.skipIf(gameNames.length === 0)('corpus byte identity', () => {
   for (const gameName of gameNames) {
     const gameDirectory = join(corpusDirectory, gameName)
     const fileNames = readdirSync(gameDirectory)
-      .filter(name => /\.(?:lmu|ldb|lmt)$/i.test(name))
+      .filter(name => /\.(?:lmu|ldb|lmt|lsd)$/i.test(name))
       .sort()
 
     describe(gameName, () => {

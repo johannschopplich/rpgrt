@@ -34,6 +34,16 @@ export interface EventPageConditionFlags {
   timer2: boolean
 }
 
+export interface SavePictureFlags {
+  eraseOnMapChange: boolean
+  eraseOnBattleEnd: boolean
+  unusedBit: boolean
+  unusedBit2: boolean
+  affectedByTint: boolean
+  affectedByFlash: boolean
+  affectedByShake: boolean
+}
+
 export interface Parameters {
   maxhp: number[]
   maxsp: number[]
@@ -892,6 +902,508 @@ export interface MapUnit {
   events: Event[]
   saveCount2k3e: number
   saveCount: number
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveTitle {
+  timestamp: number
+  heroName: string
+  heroLevel: number
+  heroHp: number
+  face1Name: string
+  face1Id: number
+  face2Name: string
+  face2Id: number
+  face3Name: string
+  face3Id: number
+  face4Name: string
+  face4Id: number
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveSystem {
+  scene: number
+  frameCount: number
+  graphicsName: string
+  messageStretch: number
+  fontId: number
+  switches: boolean[]
+  variables: number[]
+  messageTransparent: number
+  messagePosition: number
+  messagePreventOverlap: number
+  messageContinueEvents: number
+  faceName: string
+  faceId: number
+  faceRight: boolean
+  faceFlip: boolean
+  eventMessageActive: boolean
+  musicStopping: boolean
+  titleMusic: Music
+  battleMusic: Music
+  battleEndMusic: Music
+  innMusic: Music
+  currentMusic: Music
+  beforeVehicleMusic: Music
+  beforeBattleMusic: Music
+  storedMusic: Music
+  boatMusic: Music
+  shipMusic: Music
+  airshipMusic: Music
+  gameoverMusic: Music
+  cursorSe: Sound
+  decisionSe: Sound
+  cancelSe: Sound
+  buzzerSe: Sound
+  battleSe: Sound
+  escapeSe: Sound
+  enemyAttackSe: Sound
+  enemyDamagedSe: Sound
+  actorDamagedSe: Sound
+  dodgeSe: Sound
+  enemyDeathSe: Sound
+  itemSe: Sound
+  transitionOut: number
+  transitionIn: number
+  battleStartFadeout: number
+  battleStartFadein: number
+  battleEndFadeout: number
+  battleEndFadein: number
+  teleportAllowed: boolean
+  escapeAllowed: boolean
+  saveAllowed: boolean
+  menuAllowed: boolean
+  background: string
+  saveCount: number
+  saveSlot: number
+  atbMode: number
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveScreen {
+  tintFinishRed: number
+  tintFinishGreen: number
+  tintFinishBlue: number
+  tintFinishSat: number
+  tintCurrentRed: number
+  tintCurrentGreen: number
+  tintCurrentBlue: number
+  tintCurrentSat: number
+  tintTimeLeft: number
+  flashContinuous: boolean
+  flashRed: number
+  flashGreen: number
+  flashBlue: number
+  flashCurrentLevel: number
+  flashTimeLeft: number
+  shakeContinuous: boolean
+  shakeStrength: number
+  shakeSpeed: number
+  shakePosition: number
+  shakePositionY: number
+  shakeTimeLeft: number
+  panX: number
+  panY: number
+  battleanimId: number
+  battleanimTarget: number
+  battleanimFrame: number
+  battleanimActive: boolean
+  battleanimGlobal: boolean
+  weather: number
+  weatherStrength: number
+  _unknown?: UnknownChunk[]
+}
+
+export interface SavePicture {
+  id: number
+  name: string
+  startX: number
+  startY: number
+  currentX: number
+  currentY: number
+  fixedToMap: boolean
+  currentMagnify: number
+  currentTopTrans: number
+  useTransparentColor: boolean
+  currentRed: number
+  currentGreen: number
+  currentBlue: number
+  currentSat: number
+  effectMode: number
+  currentEffectPower: number
+  currentBotTrans: number
+  spritesheetCols: number
+  spritesheetRows: number
+  spritesheetFrame: number
+  spritesheetSpeed: number
+  frames: number
+  spritesheetPlayOnce: boolean
+  mapLayer: number
+  battleLayer: number
+  flags: SavePictureFlags
+  finishX: number
+  finishY: number
+  finishMagnify: number
+  finishTopTrans: number
+  finishBotTrans: number
+  finishRed: number
+  finishGreen: number
+  finishBlue: number
+  finishSat: number
+  finishEffectPower: number
+  timeLeft: number
+  currentRotation: number
+  currentWaver: number
+  _unknown?: UnknownChunk[]
+}
+
+export interface SavePartyLocation {
+  active: boolean
+  mapId: number
+  positionX: number
+  positionY: number
+  direction: number
+  facing: number
+  animFrame: number
+  transparency: number
+  remainingStep: number
+  moveFrequency: number
+  layer: number
+  overlapForbidden: boolean
+  animationType: number
+  lockFacing: boolean
+  moveSpeed: number
+  moveRoute: MoveRoute
+  moveRouteOverwrite: boolean
+  moveRouteIndex: number
+  moveRouteFinished: boolean
+  spriteHidden: boolean
+  moveRouteThrough: boolean
+  animPaused: number
+  through: boolean
+  stopCount: number
+  animCount: number
+  maxStopCount: number
+  jumping: boolean
+  beginJumpX: number
+  beginJumpY: number
+  pause: boolean
+  flying: boolean
+  spriteName: string
+  spriteId: number
+  processed: boolean
+  flashRed: number
+  flashGreen: number
+  flashBlue: number
+  flashCurrentLevel: number
+  flashTimeLeft: number
+  boarding: boolean
+  aboard: boolean
+  vehicle: number
+  unboarding: boolean
+  preboardMoveSpeed: number
+  menuCalling: boolean
+  panState: number
+  panCurrentX: number
+  panCurrentY: number
+  panFinishX: number
+  panFinishY: number
+  panSpeed: number
+  totalEncounterRate: number
+  encounterCalling: boolean
+  mapSaveCount: number
+  databaseSaveCount: number
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveVehicleLocation {
+  active: boolean
+  mapId: number
+  positionX: number
+  positionY: number
+  direction: number
+  facing: number
+  animFrame: number
+  transparency: number
+  remainingStep: number
+  moveFrequency: number
+  layer: number
+  overlapForbidden: boolean
+  animationType: number
+  lockFacing: boolean
+  moveSpeed: number
+  moveRoute: MoveRoute
+  moveRouteOverwrite: boolean
+  moveRouteIndex: number
+  moveRouteFinished: boolean
+  spriteHidden: boolean
+  moveRouteThrough: boolean
+  animPaused: number
+  through: boolean
+  stopCount: number
+  animCount: number
+  maxStopCount: number
+  jumping: boolean
+  beginJumpX: number
+  beginJumpY: number
+  pause: boolean
+  flying: boolean
+  spriteName: string
+  spriteId: number
+  processed: boolean
+  flashRed: number
+  flashGreen: number
+  flashBlue: number
+  flashCurrentLevel: number
+  flashTimeLeft: number
+  vehicle: number
+  remainingAscent: number
+  remainingDescent: number
+  origSpriteName: string
+  origSpriteId: number
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveActor {
+  id: number
+  name: string
+  title: string
+  spriteName: string
+  spriteId: number
+  transparency: number
+  faceName: string
+  faceId: number
+  level: number
+  exp: number
+  hpMod: number
+  spMod: number
+  attackMod: number
+  defenseMod: number
+  spiritMod: number
+  agilityMod: number
+  skills: number[]
+  equipped: number[]
+  currentHp: number
+  currentSp: number
+  battleCommands: number[]
+  status: number[]
+  changedBattleCommands: boolean
+  classId: number
+  row: number
+  twoWeapon: boolean
+  lockEquipment: boolean
+  autoBattle: boolean
+  superGuard: boolean
+  battlerAnimation: number
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveInventory {
+  party: number[]
+  itemIds: number[]
+  itemCounts: number[]
+  itemUsage: number[]
+  gold: number
+  timer1Frames: number
+  timer1Active: boolean
+  timer1Visible: boolean
+  timer1Battle: boolean
+  timer2Frames: number
+  timer2Active: boolean
+  timer2Visible: boolean
+  timer2Battle: boolean
+  battles: number
+  defeats: number
+  escapes: number
+  victories: number
+  turns: number
+  steps: number
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveTarget {
+  id: number
+  mapId: number
+  mapX: number
+  mapY: number
+  switchOn: boolean
+  switchId: number
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveEventExecFrame {
+  id: number
+  commands: EventCommand[]
+  currentCommand: number
+  eventId: number
+  triggeredByDecisionKey: boolean
+  subcommandPath: number[]
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveEventExecState {
+  stack: SaveEventExecFrame[]
+  showMessage: boolean
+  abortOnEscape: boolean
+  waitMovement: boolean
+  keyinputWait: boolean
+  keyinputVariable: number
+  keyinputAllDirections: boolean
+  keyinputDecision: number
+  keyinputCancel: number
+  keyinput2kshift2k3numbers: number
+  keyinput2kdown2k3operators: number
+  keyinput2kleft2k3shift: number
+  keyinput2kright: number
+  keyinput2kup: number
+  waitTime: number
+  keyinputTimeVariable: number
+  keyinput2k3down: number
+  keyinput2k3left: number
+  keyinput2k3right: number
+  keyinput2k3up: number
+  keyinputTimed: boolean
+  waitKeyEnter: boolean
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveMapEventBase {
+  active: boolean
+  mapId: number
+  positionX: number
+  positionY: number
+  direction: number
+  facing: number
+  animFrame: number
+  transparency: number
+  remainingStep: number
+  moveFrequency: number
+  layer: number
+  overlapForbidden: boolean
+  animationType: number
+  lockFacing: boolean
+  moveSpeed: number
+  moveRoute: MoveRoute
+  moveRouteOverwrite: boolean
+  moveRouteIndex: number
+  moveRouteFinished: boolean
+  spriteHidden: boolean
+  moveRouteThrough: boolean
+  animPaused: number
+  through: boolean
+  stopCount: number
+  animCount: number
+  maxStopCount: number
+  jumping: boolean
+  beginJumpX: number
+  beginJumpY: number
+  pause: boolean
+  flying: boolean
+  spriteName: string
+  spriteId: number
+  processed: boolean
+  flashRed: number
+  flashGreen: number
+  flashBlue: number
+  flashCurrentLevel: number
+  flashTimeLeft: number
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveMapEvent {
+  id: number
+  active: boolean
+  mapId: number
+  positionX: number
+  positionY: number
+  direction: number
+  facing: number
+  animFrame: number
+  transparency: number
+  remainingStep: number
+  moveFrequency: number
+  layer: number
+  overlapForbidden: boolean
+  animationType: number
+  lockFacing: boolean
+  moveSpeed: number
+  moveRoute: MoveRoute
+  moveRouteOverwrite: boolean
+  moveRouteIndex: number
+  moveRouteFinished: boolean
+  spriteHidden: boolean
+  moveRouteThrough: boolean
+  animPaused: number
+  through: boolean
+  stopCount: number
+  animCount: number
+  maxStopCount: number
+  jumping: boolean
+  beginJumpX: number
+  beginJumpY: number
+  pause: boolean
+  flying: boolean
+  spriteName: string
+  spriteId: number
+  processed: boolean
+  flashRed: number
+  flashGreen: number
+  flashBlue: number
+  flashCurrentLevel: number
+  flashTimeLeft: number
+  waitingExecution: boolean
+  originalMoveRouteIndex: number
+  triggeredByDecisionKey: boolean
+  parallelEventExecstate: SaveEventExecState
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveMapInfo {
+  positionX: number
+  positionY: number
+  encounterSteps: number
+  chipsetId: number
+  events: SaveMapEvent[]
+  lowerTiles: number[]
+  upperTiles: number[]
+  parallaxName: string
+  parallaxHorz: boolean
+  parallaxVert: boolean
+  parallaxHorzAuto: boolean
+  parallaxHorzSpeed: number
+  parallaxVertAuto: boolean
+  parallaxVertSpeed: number
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveCommonEvent {
+  id: number
+  parallelEventExecstate: SaveEventExecState
+  _unknown?: UnknownChunk[]
+}
+
+export interface SavePanorama {
+  panX: number
+  panY: number
+  _unknown?: UnknownChunk[]
+}
+
+export interface Save {
+  title: SaveTitle
+  system: SaveSystem
+  screen: SaveScreen
+  pictures: SavePicture[]
+  partyLocation: SavePartyLocation
+  boatLocation: SaveVehicleLocation
+  shipLocation: SaveVehicleLocation
+  airshipLocation: SaveVehicleLocation
+  actors: SaveActor[]
+  inventory: SaveInventory
+  targets: SaveTarget[]
+  mapInfo: SaveMapInfo
+  panorama: SavePanorama
+  foregroundEventExecstate: SaveEventExecState
+  commonEvents: SaveCommonEvent[]
   _unknown?: UnknownChunk[]
 }
 

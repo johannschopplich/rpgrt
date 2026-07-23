@@ -1,6 +1,6 @@
 import type { LcfRecord } from './codec/engine.ts'
 import type { Transcoder } from './codec/transcoder.ts'
-import type { Database, MapUnit, TreeMap } from './generated/records.ts'
+import type { Database, MapUnit, Save, TreeMap } from './generated/records.ts'
 import { decodeChunkStream, decodeTreeMap, encodeChunkStream, encodeTreeMap } from './codec/engine.ts'
 import { LcfError } from './codec/errors.ts'
 import { ByteReader } from './codec/reader.ts'
@@ -26,6 +26,7 @@ export interface CodecOptions {
 const DATABASE_MAGIC = 'LcfDataBase'
 const MAP_UNIT_MAGIC = 'LcfMapUnit'
 const MAP_TREE_MAGIC = 'LcfMapTree'
+const SAVE_DATA_MAGIC = 'LcfSaveData'
 
 function createContext(options: CodecOptions): { engine: EngineVersion, transcoder: Transcoder } {
   return { engine: options.engine, transcoder: options.transcoder ?? latin1Transcoder }
@@ -77,6 +78,23 @@ export function encodeDatabase(database: Database, options: CodecOptions): Uint8
   const writer = new ByteWriter()
   writeHeader(writer, DATABASE_MAGIC)
   encodeChunkStream('Database', database as unknown as LcfRecord, writer, createContext(options), 'Database', false)
+  return writer.toBytes()
+}
+
+export function decodeSave(bytes: Uint8Array, options: CodecOptions): Save {
+  const reader = new ByteReader(bytes)
+  readHeader(reader, SAVE_DATA_MAGIC)
+  // Like a database, a save ends at end of file – RPG_RT writes no terminator.
+  const record = decodeChunkStream('Save', reader, createContext(options), 'Save', true)
+  expectEndOfData(reader, 'Save')
+  return record as unknown as Save
+}
+
+export function encodeSave(save: Save, options: CodecOptions): Uint8Array {
+  const writer = new ByteWriter()
+  writeHeader(writer, SAVE_DATA_MAGIC)
+  // A trailing 0x00 after a top-level Save breaks RPG_RT (liblcf @ 666e6c0).
+  encodeChunkStream('Save', save as unknown as LcfRecord, writer, createContext(options), 'Save', false)
   return writer.toBytes()
 }
 

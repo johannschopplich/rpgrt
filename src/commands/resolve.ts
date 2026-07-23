@@ -7,9 +7,9 @@ import { LcfError } from '../codec/errors.ts'
 import { ByteReader } from '../codec/reader.ts'
 import { collectStringBytes, createTranscoder, detectEncoding, encodingFromIni } from '../encoding.ts'
 import { RECORD_DESCRIPTORS } from '../generated/descriptors.ts'
-import { decodeDatabase, decodeMapTree, decodeMapUnit, encodeDatabase, encodeMapTree, encodeMapUnit } from '../index.ts'
+import { decodeDatabase, decodeMapTree, decodeMapUnit, decodeSave, encodeDatabase, encodeMapTree, encodeMapUnit, encodeSave } from '../index.ts'
 
-export type LcfFileKind = 'lmu' | 'ldb' | 'lmt'
+export type LcfFileKind = 'lmu' | 'ldb' | 'lmt' | 'lsd'
 
 export interface KindCodec {
   decode: (bytes: Uint8Array, options: CodecOptions) => LcfRecord
@@ -24,6 +24,7 @@ export const LCF_CODECS: Record<LcfFileKind, KindCodec> = {
   lmu: { decode: decodeMapUnit, encode: encodeMapUnit },
   ldb: { decode: decodeDatabase, encode: encodeDatabase },
   lmt: { decode: decodeMapTree, encode: encodeMapTree },
+  lsd: { decode: decodeSave, encode: encodeSave },
 } as unknown as Record<LcfFileKind, KindCodec>
 
 export interface ResolvedEngine {
@@ -39,7 +40,7 @@ export interface ResolvedEncoding {
 export const FALLBACK_ENCODING = 'windows-1252'
 
 export function lcfFileKind(filePath: string): LcfFileKind | undefined {
-  const match = filePath.toLowerCase().match(/\.(lmu|ldb|lmt)$/)
+  const match = filePath.toLowerCase().match(/\.(lmu|ldb|lmt|lsd)$/)
   return match ? match[1] as LcfFileKind : undefined
 }
 

@@ -15,6 +15,8 @@ export interface StructDef {
   format: LcfFormat
   name: string
   framing: StructFraming
+  /** Struct whose fields this one inherits (lsd `SaveMapEventBase` only). */
+  base: string | undefined
 }
 
 /** Syntactic parse of a fields.csv type string; serialization semantics are assigned at emit time. */
@@ -201,7 +203,7 @@ function loadStructs(filePath: string): StructDef[] {
       throw new Error(`Unexpected base struct outside lsd: ${name}`)
     const framing: StructFraming
       = indexAvailable === '' ? 'raw' : indexAvailable === '1' ? 'chunkedIdIndexed' : 'chunked'
-    return { format: format as LcfFormat, name, framing }
+    return { format: format as LcfFormat, name, framing, base: base === '' ? undefined : base }
   })
 }
 
@@ -286,10 +288,21 @@ function loadEnums(filePath: string): EnumDef[] {
 }
 
 /**
+ * liblcf misspells this one reference `SavePartyLoction_PanState` in
+ * vendor/liblcf-csv/fields.csv line 841 (liblcf @ 666e6c0); the enum itself is
+ * `SavePartyLocation,PanState`. Normalize the typo rather than editing the
+ * vendored CSV.
+ */
+const ENUM_REFERENCE_ALIASES: Record<string, string> = {
+  SavePartyLoction_PanState: 'SavePartyLocation_PanState',
+}
+
+/**
  * `Enum<X>` references are written either as `Struct_Name` or as the bare
  * entry name when it is globally unique (e.g. `MapLayer`).
  */
-export function resolveEnum(tables: LcfTables, enumReference: string): EnumDef {
+export function resolveEnum(tables: LcfTables, rawReference: string): EnumDef {
+  const enumReference = ENUM_REFERENCE_ALIASES[rawReference] ?? rawReference
   const qualified = tables.enums.filter(def => `${def.structName}_${def.enumName}` === enumReference)
   if (qualified.length === 1)
     return qualified[0]!

@@ -4,7 +4,7 @@ import type { ByteReader } from './reader.ts'
 import type { Transcoder } from './transcoder.ts'
 import { FLAG_SETS, RECORD_DESCRIPTORS } from '../generated/descriptors.ts'
 import { MoveCommandCode } from '../generated/enums.ts'
-import { deepEquals, resolveDefault } from './defaults.ts'
+import { isDefaultFieldValue, resolveDefault } from './defaults.ts'
 import { inPath, LcfError } from './errors.ts'
 import { ByteWriter } from './writer.ts'
 
@@ -373,7 +373,7 @@ export function encodeChunkStream(recordName: string, record: LcfRecord, writer:
     }
 
     const value = record[field.key] ?? resolveDefault(field, context.engine)
-    const isDefaultValue = deepEquals(value, resolveDefault(field, context.engine))
+    const isDefaultValue = isDefaultFieldValue(field.codec, value, resolveDefault(field, context.engine))
     const isForcedOmitWhenDefault = recordName === 'Terms' && context.engine === '2k3' && TERMS_2K3_OMITTED_CHUNK_IDS.has(field.id!)
     const shouldWriteData = isForcedOmitWhenDefault
       ? !isDefaultValue

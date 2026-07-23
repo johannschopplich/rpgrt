@@ -1,5 +1,5 @@
 import type { FieldCodec, FieldDefaultValue } from '../../src/codec/descriptors.ts'
-import type { EnumDef, FlagSetDef, LcfTables, StructDef, TypeExpression } from './tables.ts'
+import type { EnumDef, FieldDef, FlagSetDef, LcfTables, StructDef, TypeExpression } from './tables.ts'
 import { parseDefaultCell } from './defaults.ts'
 import { toCamelCase, toObjectKey } from './names.ts'
 import { classifyNamedType, resolveEnum } from './tables.ts'
@@ -69,9 +69,10 @@ export interface GeneratedModel {
 export function buildModel(tables: LcfTables, selected: StructDef[]): GeneratedModel {
   const usedFlagSets = new Map<string, FlagSetDef>()
   const usedEnums = new Map<string, EnumDef>()
+  const constantsByStruct = groupConstants(tables)
 
   const structs = selected.map((struct): GeneratedStruct => {
-    const fields = (tables.fieldsByStruct.get(struct.name) ?? []).map((field): GeneratedField => {
+    const fields = resolvedFields(tables, struct).map((field): GeneratedField => {
       const codec = resolveFieldCodec(tables, field.type)
       if (codec.kind === 'flags')
         usedFlagSets.set(codec.flagSet, tables.flagSetByStruct.get(codec.flagSet)!)
@@ -92,7 +93,7 @@ export function buildModel(tables: LcfTables, selected: StructDef[]): GeneratedM
         codec,
         enumRef,
         refRecord: field.type.kind === 'ref' ? toRecordName(field.type.targetStruct) : undefined,
-        default: parseDefaultCell(field.rawDefault, codec),
+        default: parseDefaultCell(field.rawDefault, codec, constantsByStruct.get(field.structName)),
         isPersistedIfDefault: field.isPersistedIfDefault,
         is2k3Only: field.is2k3Only,
       }
@@ -105,6 +106,35 @@ export function buildModel(tables: LcfTables, selected: StructDef[]): GeneratedM
     flagSets: [...usedFlagSets.values()],
     enums: [...usedEnums.values()],
   }
+}
+
+/**
+ * An inheriting struct's wire fields are its base's fields followed by its own.
+ * Base chunk IDs (0x01–0x55) all precede derived IDs (0x65+), but sort by chunk
+ * ID so a future inheritor with overlapping ranges still emits in wire order.
+ */
+function resolvedFields(tables: LcfTables, struct: StructDef): FieldDef[] {
+  const own = tables.fieldsByStruct.get(struct.name) ?? []
+  if (struct.base === undefined)
+    return own
+  const baseStruct = tables.structByName.get(struct.base)
+  if (baseStruct === undefined)
+    throw new Error(`${struct.name} inherits unknown base struct ${struct.base}`)
+  return [...resolvedFields(tables, baseStruct), ...own]
+    .sort((left, right) => (left.chunkId ?? 0) - (right.chunkId ?? 0))
+}
+
+function groupConstants(tables: LcfTables): Map<string, Map<string, string>> {
+  const byStruct = new Map<string, Map<string, string>>()
+  for (const constant of tables.constants) {
+    let symbols = byStruct.get(constant.structName)
+    if (symbols === undefined) {
+      symbols = new Map()
+      byStruct.set(constant.structName, symbols)
+    }
+    symbols.set(constant.name, constant.rawValue)
+  }
+  return byStruct
 }
 
 function resolveFieldCodec(tables: LcfTables, type: TypeExpression): FieldCodec {
@@ -282,8 +312,16 @@ function printChunkId(id: number): string {
 
 /** Literal printer matching the lint style (single quotes, identifier keys). */
 function printValue(value: unknown): string {
-  if (typeof value === 'string')
-    return `'${value.replaceAll('\\', '\\\\').replaceAll('\'', '\\\'')}'`
+  if (typeof value === 'string') {
+    // Control characters (the kEmptyName sentinel is U+0001) become visible
+    // escapes – a raw byte in generated source would not survive formatters.
+    const escaped = value
+      .replaceAll('\\', '\\\\')
+      .replaceAll('\'', '\\\'')
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1F\x7F]/g, character => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`)
+    return `'${escaped}'`
+  }
   if (typeof value === 'number' || typeof value === 'boolean')
     return String(value)
   if (Array.isArray(value))

@@ -6,7 +6,7 @@ import { loadTables, selectStructs } from './lib/tables.ts'
 
 const rootDirectory = fileURLToPath(new URL('..', import.meta.url))
 const tables = loadTables(join(rootDirectory, 'vendor/liblcf-csv'))
-const selected = selectStructs(tables, ['ldb', 'lmt', 'lmu'])
+const selected = selectStructs(tables, ['ldb', 'lmt', 'lmu', 'lsd'])
 const model = buildModel(tables, selected)
 
 const outputDirectory = join(rootDirectory, 'src/generated')

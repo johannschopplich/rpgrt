@@ -1,4 +1,4 @@
-import type { Database, MapUnit } from '../src/index.ts'
+import type { Database, MapUnit, Save } from '../src/index.ts'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,7 +7,7 @@ import { defaultRecord } from '../src/codec/defaults.ts'
 import { convertFile } from '../src/commands/convert.ts'
 import { scanDatabaseEngine } from '../src/commands/resolve.ts'
 import { createTranscoder } from '../src/encoding.ts'
-import { encodeDatabase, encodeMapUnit } from '../src/index.ts'
+import { encodeDatabase, encodeMapUnit, encodeSave } from '../src/index.ts'
 
 const temporaryDirectories: string[] = []
 
@@ -49,6 +49,28 @@ describe('convert lcf → json → lcf', () => {
     const toLcf = convertFile(toJson.outputPath)
     expect(toLcf).toMatchObject({ outputPath: mapPath, engineSource: 'envelope', encodingSource: 'envelope' })
     expect(new Uint8Array(readFileSync(mapPath))).toEqual(sourceBytes)
+  })
+
+  it('round-trips a save byte-exactly, taking the engine from the sibling database', () => {
+    const directory = createGameDirectory()
+    const options = { engine: '2k3' } as const
+    const savePath = join(directory, 'Save01.lsd')
+    const save = defaultRecord('Save', '2k3') as unknown as Save
+    save.partyLocation = { ...defaultRecord('SavePartyLocation', '2k3'), mapId: 5 } as unknown as Save['partyLocation']
+    const sourceBytes = encodeSave(save, options)
+    writeFileSync(savePath, sourceBytes)
+    writeFileSync(join(directory, 'RPG_RT.ldb'), encodeDatabase(defaultRecord('Database', '2k3') as unknown as Database, options))
+
+    const toJson = convertFile(savePath)
+    expect(toJson).toMatchObject({ format: 'lsd', engine: '2k3', engineSource: 'database', isByteIdentical: true })
+    const envelope = JSON.parse(readFileSync(toJson.outputPath, 'utf8'))
+    expect(envelope.format).toBe('lsd')
+    expect(envelope.data.partyLocation.mapId).toBe(5)
+
+    rmSync(savePath)
+    const toLcf = convertFile(toJson.outputPath)
+    expect(toLcf).toMatchObject({ outputPath: savePath, format: 'lsd', engineSource: 'envelope' })
+    expect(new Uint8Array(readFileSync(savePath))).toEqual(sourceBytes)
   })
 
   it('identifies a lone 2k map by re-encoding', () => {

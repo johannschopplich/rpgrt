@@ -31,6 +31,18 @@ _Avoid_: struct, model, entity
 The decoded record of one `.lmu` file (`MapUnit`) – liblcf calls it `Map`.
 _Avoid_: Map (shadows the ES built-in)
 
+**Save data**:
+The decoded record of one `.lsd` file (`Save`) – RPG_RT's in-progress player state. Player state, never authored text, so `convert` handles it but `extract`/`inject` do not.
+_Avoid_: savegame, save state
+
+**Base struct**:
+A struct whose fields another struct inherits – only `SaveMapEventBase`, flattened into `SavePartyLocation`, `SaveVehicleLocation`, and `SaveMapEvent` at generation, its chunks merged ahead of the derived struct's own and sorted by chunk ID.
+_Avoid_: parent, superclass
+
+**Symbolic default**:
+A Default Value cell that names a `constants.csv` symbol or a C integer expression (`kPanXDefault`, `9 * 256`, `2 << 3`) instead of a literal, resolved to its value at generation and scoped to the owning struct.
+_Avoid_: constant, macro
+
 **Raw record**:
 A record serialized as a fixed field sequence without chunk framing (`EventCommand`, `MoveCommand`, `Parameters`, `Equipment`, `Rect`, `TreeMap`). Cannot skip unknown data because there are no IDs.
 

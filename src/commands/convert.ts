@@ -62,7 +62,7 @@ function parseEnvelope(jsonText: string, filePath: string): JsonEnvelope {
   }
   const envelope = parsedValue as Partial<JsonEnvelope>
   const hasValidShape = envelope !== null && typeof envelope === 'object'
-    && (envelope.format === 'lmu' || envelope.format === 'ldb' || envelope.format === 'lmt')
+    && (envelope.format === 'lmu' || envelope.format === 'ldb' || envelope.format === 'lmt' || envelope.format === 'lsd')
     && (envelope.engine === '2k' || envelope.engine === '2k3')
     && typeof envelope.encoding === 'string'
     && envelope.data !== null && typeof envelope.data === 'object'
@@ -117,7 +117,7 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
 
   const kind = lcfFileKind(inputPath)
   if (kind === undefined)
-    throw new LcfError(`Unsupported file extension – expected .lmu, .ldb, .lmt, or .json: ${inputPath}`)
+    throw new LcfError(`Unsupported file extension – expected .lmu, .ldb, .lmt, .lsd, or .json: ${inputPath}`)
   const bytes = new Uint8Array(readFileSync(inputPath))
   const { engine, engineSource } = resolveEngine(inputPath, bytes, kind, options.engine)
   const { encoding, encodingSource } = resolveEncoding(inputPath, bytes, kind, engine, options.encoding)
@@ -152,7 +152,7 @@ export interface ConvertArgs extends ArgsDef {
 }
 
 const convertArgs: ConvertArgs = {
-  input: { type: 'positional', description: 'Path to a .lmu/.ldb/.lmt or .json file', required: true },
+  input: { type: 'positional', description: 'Path to a .lmu/.ldb/.lmt/.lsd or .json file', required: true },
   output: { type: 'string', alias: 'o', description: 'Output path (defaults next to the input)' },
   engine: { type: 'string', description: 'Engine version: 2k or 2k3 (overrides detection)' },
   encoding: { type: 'string', description: 'Text encoding, e.g. Shift_JIS or 1252 (overrides detection)' },
@@ -161,7 +161,7 @@ const convertArgs: ConvertArgs = {
 export const convertCommand: CommandDef<ConvertArgs> = defineCommand({
   meta: {
     name: 'convert',
-    description: 'Convert an LCF file (.lmu/.ldb/.lmt) to JSON, or a JSON document back to LCF',
+    description: 'Convert an LCF file (.lmu/.ldb/.lmt/.lsd) to JSON, or a JSON document back to LCF',
   },
   args: convertArgs,
   run({ args }) {

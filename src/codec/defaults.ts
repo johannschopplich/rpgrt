@@ -1,5 +1,5 @@
 import type { EngineVersion } from '../index.ts'
-import type { EngineSplitDefault, FieldDescriptor } from './descriptors.ts'
+import type { EngineSplitDefault, FieldCodec, FieldDescriptor } from './descriptors.ts'
 import { FLAG_SETS, RECORD_DESCRIPTORS } from '../generated/descriptors.ts'
 
 /**
@@ -53,6 +53,19 @@ export function defaultRecord(recordName: string, engine: EngineVersion): Record
     record[field.key] = resolveDefault(field, engine)
   }
   return record
+}
+
+/**
+ * Whether a field value equals its default, and so may be omitted from the
+ * stream. Scalar doubles compare with `Object.is` so a stored `-0.0` is not
+ * mistaken for the `0.0` default and dropped – `deepEquals` uses `===`, under
+ * which `-0 === 0` (decision 7). Scoped to scalar doubles; no other field type
+ * carries a `-0.0`/`NaN` distinction on the wire.
+ */
+export function isDefaultFieldValue(codec: FieldCodec, value: unknown, defaultValue: unknown): boolean {
+  if (codec.kind === 'scalar' && codec.scalar === 'double')
+    return Object.is(value, defaultValue)
+  return deepEquals(value, defaultValue)
 }
 
 export function deepEquals(left: unknown, right: unknown): boolean {

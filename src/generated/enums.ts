@@ -452,6 +452,77 @@ export const MoveCommandCode = {
   decreaseTransp: 41,
 } as const
 
+export const SaveActorRowType = {
+  front: 0,
+  back: 1,
+} as const
+
+export const SavePartyLocationPanState = {
+  fixed: 0,
+  follow: 1,
+} as const
+
+export const SavePartyLocationVehicleType = {
+  none: 0,
+  skiff: 1,
+  ship: 2,
+  airship: 3,
+} as const
+
+export const SavePictureBattleLayer = {
+  none: 0,
+  background: 1,
+  battlersAndAnimations: 2,
+  weather: 3,
+  windowsAndStatus: 4,
+  timers: 5,
+} as const
+
+export const SavePictureEffect = {
+  none: 0,
+  rotation: 1,
+  wave: 2,
+  maniacFixedAngle: 3,
+} as const
+
+export const SavePictureMapLayer = {
+  none: 0,
+  parallax: 1,
+  tilemapBelow: 2,
+  eventsBelow: 3,
+  eventsSameAsPlayer: 4,
+  tilemapAbove: 5,
+  eventsAbove: 6,
+  weather: 7,
+  animations: 8,
+  windows: 9,
+  timers: 10,
+} as const
+
+export const SaveSystemAtbMode = {
+  atbActive: 0,
+  atbWait: 1,
+} as const
+
+export const SaveSystemScene = {
+  map: 0,
+  menu: 1,
+  battle: 2,
+  shop: 3,
+  name: 4,
+  file: 5,
+  title: 6,
+  gameOver: 7,
+  debug: 8,
+} as const
+
+export const SaveVehicleLocationVehicleType = {
+  none: 0,
+  skiff: 1,
+  ship: 2,
+  airship: 3,
+} as const
+
 export const SkillScope = {
   enemy: 0,
   enemies: 1,

@@ -2,36 +2,77 @@ import type { DefaultScalar, FieldCodec, FieldDefaultValue } from '../../src/cod
 
 /**
  * Default Value cells hold numbers, True/False, quoted strings, list
- * expressions like `[31]+[15]*143`, and `2k|2k3` splits.
+ * expressions like `[31]+[15]*143`, `2k|2k3` splits, and – in lsd structs –
+ * symbolic constants (`kPanXDefault`), C integer expressions (`9 * 256`), and
+ * record/comprehension literals (`Music{ "" }`, `[x for x in range(0, 144)]`).
+ *
+ * `constants` maps a symbol to its raw `constants.csv` value, scoped to the
+ * field's owning struct so the two `kDefaultMessage` rows never collide.
  */
-export function parseDefaultCell(rawDefault: string, codec: FieldCodec): FieldDefaultValue | undefined {
+export function parseDefaultCell(
+  rawDefault: string,
+  codec: FieldCodec,
+  constants?: ReadonlyMap<string, string>,
+): FieldDefaultValue | undefined {
   if (rawDefault === '')
+    return undefined
+  // Record-typed struct literals and Python range comprehensions have no scalar
+  // representation; every such field is PersistIfDefault=1, so resolveDefault
+  // synthesizes the value and byte-identity is unaffected (see decision 6).
+  if (isRecordLiteral(rawDefault) || isComprehension(rawDefault))
     return undefined
   if (!rawDefault.startsWith('"') && rawDefault.includes('|')) {
     const parts = rawDefault.split('|')
     if (parts.length !== 2)
       throw new Error(`Bad split default: ${rawDefault}`)
-    return { '2k': parseLiteral(parts[0]!, codec), '2k3': parseLiteral(parts[1]!, codec) }
+    return { '2k': parseLiteral(parts[0]!, codec, constants), '2k3': parseLiteral(parts[1]!, codec, constants) }
   }
-  return parseLiteral(rawDefault, codec)
+  return parseLiteral(rawDefault, codec, constants)
 }
 
-function parseLiteral(text: string, codec: FieldCodec): DefaultScalar {
+function isRecordLiteral(text: string): boolean {
+  return /^[a-z_]\w*\s*\{/i.test(text)
+}
+
+function isComprehension(text: string): boolean {
+  return / for /.test(text)
+}
+
+function parseLiteral(text: string, codec: FieldCodec, constants?: ReadonlyMap<string, string>): DefaultScalar {
   if (text === 'True')
     return true
   if (text === 'False')
     return false
   if (text.startsWith('"') && text.endsWith('"'))
-    return text.slice(1, -1)
+    return unescapeCString(text.slice(1, -1))
   if (text.startsWith('['))
     return parseListExpression(text)
-  const value = Number(text)
+  const constantValue = constants?.get(text)
+  if (constantValue !== undefined)
+    return parseLiteral(constantValue, codec, constants)
+  const value = evaluateIntExpression(text) ?? Number(text)
   if (Number.isNaN(value))
     throw new Error(`Bad default literal: ${text}`)
   // Boolean defaults are sometimes written as plain integers.
   if (codec.kind === 'scalar' && codec.scalar === 'boolean')
     return value > 0
   return value
+}
+
+/** liblcf writes C sentinels like `\x1`; unescape the hex form to its code point. */
+function unescapeCString(text: string): string {
+  return text.replace(/\\x([0-9a-fA-F]+)/g, (_match, hex: string) => String.fromCharCode(Number.parseInt(hex, 16)))
+}
+
+/** The only C expressions in the CSVs: a single `*` or `<<` on integer literals. */
+function evaluateIntExpression(text: string): number | undefined {
+  const multiply = /^(-?\d+)\s*\*\s*(-?\d+)$/.exec(text)
+  if (multiply)
+    return Number(multiply[1]) * Number(multiply[2])
+  const shift = /^(-?\d+)\s*<<\s*(-?\d+)$/.exec(text)
+  if (shift)
+    return Number(shift[1]) << Number(shift[2])
+  return undefined
 }
 
 /** `[v]` terms with an optional `*count` repeat, joined by `+`. */
