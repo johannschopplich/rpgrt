@@ -156,7 +156,7 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
 
   const dirtyFileNames = new Set(plan.applications.map(({ collected }) => collected.fileName))
   const codecOptions = { engine: game.engine, transcoder: game.transcoder }
-  const pendingWrites: { filePath: string, tempPath: string, bytes: Uint8Array }[] = []
+  const pendingWrites: { filePath: string, tempPath: string, backupPath: string, bytes: Uint8Array }[] = []
   for (const fileName of [...dirtyFileNames].sort()) {
     let bytes: Uint8Array
     if (fileName === game.databaseFileName)
@@ -166,21 +166,43 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
     else
       bytes = encodeMapUnit(game.maps.find(map => map.fileName === fileName)!.mapUnit, codecOptions)
     const filePath = join(directory, fileName)
-    pendingWrites.push({ filePath, tempPath: `${filePath}.lcfkit-tmp`, bytes })
+    pendingWrites.push({ filePath, tempPath: `${filePath}.lcfkit-tmp`, backupPath: `${filePath}.lcfkit-bak`, bytes })
   }
-  // Two-phase write: stage every payload beside its target (same volume), then
-  // swap them in with atomic renames – a mid-batch error can truncate a staged
-  // temp file but never a game file.
+  // Three-phase write: stage every payload beside its target (same volume), move
+  // each original aside as a backup, then swap the staged files in – every rename
+  // is atomic, and an error mid-batch restores the backups so the directory never
+  // stays a mix of old and new files. Crash or power loss between renames remains
+  // out of scope.
+  // Only files whose original made it into a backup need (or may) be restored –
+  // probing the filesystem instead would mistake a stray occupant of the backup
+  // path for a backup.
+  const backedUpWrites: typeof pendingWrites = []
   try {
     for (const { tempPath, bytes } of pendingWrites)
       writeFileSync(tempPath, bytes)
-    for (const { filePath, tempPath } of pendingWrites)
-      renameSync(tempPath, filePath)
+    for (const pendingWrite of pendingWrites) {
+      renameSync(pendingWrite.filePath, pendingWrite.backupPath)
+      backedUpWrites.push(pendingWrite)
+      renameSync(pendingWrite.tempPath, pendingWrite.filePath)
+    }
+    for (const { backupPath } of backedUpWrites)
+      rmSync(backupPath, { force: true })
   }
   catch (error) {
+    const unrestoredFileNames: string[] = []
+    for (const { filePath, backupPath } of backedUpWrites) {
+      try {
+        renameSync(backupPath, filePath)
+      }
+      catch {
+        unrestoredFileNames.push(basename(filePath))
+      }
+    }
     for (const { tempPath } of pendingWrites)
       rmSync(tempPath, { force: true })
-    throw error
+    if (unrestoredFileNames.length > 0)
+      throw new LcfError(`Writing failed and rollback left ${unrestoredFileNames.join(', ')} unrestored – recover them from their .lcfkit-bak siblings. Original error: ${(error as Error).message}`)
+    throw new LcfError(`Nothing was written – the write phase failed and every file was restored: ${(error as Error).message}`)
   }
 
   return {

@@ -1,6 +1,6 @@
 import type { Dump } from '../src/commands/extract.ts'
 import type { Database, EventCommand, MapUnit, TreeMap } from '../src/index.ts'
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -156,6 +156,30 @@ describe('inject', () => {
       [20141, ''],
       [10610, 'Käthe'],
     ])
+  })
+
+  it('restores every file when a swap fails mid-batch', () => {
+    const gameDirectory = createGameDirectory()
+    const dumpPath = join(createDirectory(), 'strings.json')
+    extractGame(gameDirectory, { output: dumpPath })
+    const mapBytesBefore = readFileSync(join(gameDirectory, 'Map0001.lmu'))
+    const treeMapBytesBefore = readFileSync(join(gameDirectory, 'RPG_RT.lmt'))
+
+    const dump = readDump(dumpPath)
+    setTranslation(dump, 'lmu/1/events/1/pages/1/commands/0', 'Welcome')
+    setTranslation(dump, 'lmt/maps/1/name', 'Village')
+    writeFileSync(dumpPath, JSON.stringify(dump))
+
+    // A directory squatting on the backup path makes the second swap's rename
+    // throw after Map0001.lmu has already been replaced.
+    const blockingPath = join(gameDirectory, 'RPG_RT.lmt.lcfkit-bak')
+    mkdirSync(blockingPath)
+
+    expect(() => injectDump(gameDirectory, dumpPath)).toThrow('Nothing was written')
+    expect(readFileSync(join(gameDirectory, 'Map0001.lmu'))).toEqual(mapBytesBefore)
+    expect(readFileSync(join(gameDirectory, 'RPG_RT.lmt'))).toEqual(treeMapBytesBefore)
+    const leftoverNames = readdirSync(gameDirectory).filter(name => name.includes('.lcfkit-'))
+    expect(leftoverNames).toEqual(['RPG_RT.lmt.lcfkit-bak'])
   })
 
   it('round-trips through split dumps', () => {
