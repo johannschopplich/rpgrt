@@ -8,7 +8,7 @@ import { defineCommand } from 'citty'
 import { bytesEqual } from '../codec/bytes.ts'
 import { LcfError } from '../codec/errors.ts'
 import { createTranscoder } from '../encoding.ts'
-import { LCF_CODECS, lcfFileKind, parseEngineFlag, resolveEncoding, resolveEngine } from './resolve.ts'
+import { LCF_CODECS, lcfFileKind, parseEngineFlag, resolveFileContext } from './resolve.ts'
 
 /** The self-describing JSON document `convert` writes; converting back needs no flags. */
 interface JsonEnvelope {
@@ -119,8 +119,7 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
   if (kind === undefined)
     throw new LcfError(`Unsupported file extension – expected .lmu, .ldb, .lmt, .lsd, or .json: ${inputPath}`)
   const bytes = new Uint8Array(readFileSync(inputPath))
-  const { engine, engineSource } = resolveEngine(inputPath, bytes, kind, options.engine)
-  const { encoding, encodingSource } = resolveEncoding(inputPath, bytes, kind, engine, options.encoding)
+  const { engine, engineSource, encoding, encodingSource } = resolveFileContext(inputPath, bytes, kind, options)
   const envelope: JsonEnvelope = { format: kind, engine, encoding, data: decodeLcf(bytes, kind, engine, encoding) }
   const outputPath = options.output ?? `${inputPath}.json`
   writeFileSync(outputPath, stringifyEnvelope(envelope))

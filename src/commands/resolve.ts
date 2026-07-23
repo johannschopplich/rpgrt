@@ -93,55 +93,86 @@ export function parseEngineFlag(engineFlag: string): EngineVersion {
   return engineFlag
 }
 
-export function resolveEngine(filePath: string, bytes: Uint8Array, kind: LcfFileKind, engineFlag?: string): ResolvedEngine {
+export interface ResolveOptions {
+  engine?: string
+  encoding?: string
+}
+
+export type FileContext = ResolvedEngine & ResolvedEncoding
+
+/**
+ * Precedence ladder for the engine: an explicit flag, then the sibling
+ * database's chunk profile, then a byte-identical re-encode probe, then 2k3 as
+ * the safe guess. A file that re-encodes identically under both engines carries
+ * no 2k3 data, so 2k describes it fully; 2k3 decoding never drops data from a
+ * 2k file, so it is the fallback.
+ */
+export function decideEngine(inputs: { engineFlag?: string, kind: LcfFileKind, bytes: Uint8Array, databaseBytes?: Uint8Array }): ResolvedEngine {
+  const { engineFlag, kind, bytes, databaseBytes } = inputs
   if (engineFlag !== undefined)
     return { engine: parseEngineFlag(engineFlag), engineSource: 'flag' }
-  const databaseBytes = kind === 'ldb'
-    ? bytes
-    : (() => {
-        const databasePath = findSibling(filePath, 'rpg_rt.ldb')
-        return databasePath === undefined ? undefined : new Uint8Array(readFileSync(databasePath))
-      })()
   if (databaseBytes !== undefined)
     return { engine: scanDatabaseEngine(databaseBytes), engineSource: 'database' }
-  // Without a database, a byte-identical re-encode identifies the engine; a
-  // file identical under both carries no 2k3 data, so 2k describes it fully.
   if (reencodesIdentically(bytes, kind, '2k'))
     return { engine: '2k', engineSource: 'roundTrip' }
   if (reencodesIdentically(bytes, kind, '2k3'))
     return { engine: '2k3', engineSource: 'roundTrip' }
-  // 2k3 decoding never drops data from a 2k file, so it is the safe guess.
   return { engine: '2k3', engineSource: 'fallback' }
 }
 
-export function resolveEncoding(filePath: string, bytes: Uint8Array, kind: LcfFileKind, engine: EngineVersion, encodingFlag?: string): ResolvedEncoding {
+/**
+ * Precedence ladder for the encoding: an explicit (validated) flag, then the
+ * `Encoding` hint in RPG_RT.ini, then charset detection over a string sample,
+ * then windows-1252.
+ */
+export function decideEncoding(inputs: { encodingFlag?: string, iniText?: string, getSampleBytes?: () => Uint8Array | undefined }): ResolvedEncoding {
+  const { encodingFlag, iniText, getSampleBytes } = inputs
   if (encodingFlag !== undefined) {
     createTranscoder(encodingFlag)
     return { encoding: encodingFlag, encodingSource: 'flag' }
   }
-  const iniPath = findSibling(filePath, 'rpg_rt.ini')
-  if (iniPath !== undefined) {
-    const iniEncoding = encodingFromIni(readFileSync(iniPath, 'latin1'))
+  if (iniText !== undefined) {
+    const iniEncoding = encodingFromIni(iniText)
     if (iniEncoding !== undefined)
       return { encoding: iniEncoding, encodingSource: 'ini' }
   }
-  const sampleBytes = detectionSample(filePath, bytes, kind, engine)
+  // Deferred so a flag or ini hint never pays for the sample's whole-database decode.
+  const sampleBytes = getSampleBytes?.()
   const detectedEncoding = sampleBytes === undefined ? undefined : detectEncoding(sampleBytes)
   if (detectedEncoding !== undefined)
     return { encoding: detectedEncoding, encodingSource: 'detected' }
   return { encoding: FALLBACK_ENCODING, encodingSource: 'fallback' }
 }
 
+/**
+ * Gathers the sibling database and ini once, then hands them to the pure
+ * deciders. A .ldb resolves against its own bytes and needs no sibling read.
+ */
+export function resolveFileContext(filePath: string, bytes: Uint8Array, kind: LcfFileKind, options: ResolveOptions): FileContext {
+  const databaseBytes = kind === 'ldb'
+    ? bytes
+    : (() => {
+        const databasePath = findSibling(filePath, 'rpg_rt.ldb')
+        return databasePath === undefined ? undefined : new Uint8Array(readFileSync(databasePath))
+      })()
+  const resolvedEngine = decideEngine({ engineFlag: options.engine, kind, bytes, databaseBytes })
+  const iniPath = findSibling(filePath, 'rpg_rt.ini')
+  const iniText = iniPath === undefined ? undefined : readFileSync(iniPath, 'latin1')
+  const resolvedEncoding = decideEncoding({
+    encodingFlag: options.encoding,
+    iniText,
+    getSampleBytes: () => collectDetectionSample(bytes, kind, resolvedEngine.engine, databaseBytes),
+  })
+  return { ...resolvedEngine, ...resolvedEncoding }
+}
+
 /** The database holds most of a game's text, so prefer it as the detection sample. */
-function detectionSample(filePath: string, bytes: Uint8Array, kind: LcfFileKind, engine: EngineVersion): Uint8Array | undefined {
+function collectDetectionSample(bytes: Uint8Array, kind: LcfFileKind, engine: EngineVersion, databaseBytes?: Uint8Array): Uint8Array | undefined {
   try {
     if (kind === 'ldb')
       return collectStringBytes(decodeDatabase(bytes, { engine }))
-    const databasePath = findSibling(filePath, 'rpg_rt.ldb')
-    if (databasePath !== undefined) {
-      const databaseBytes = new Uint8Array(readFileSync(databasePath))
+    if (databaseBytes !== undefined)
       return collectStringBytes(decodeDatabase(databaseBytes, { engine: scanDatabaseEngine(databaseBytes) }))
-    }
     return collectStringBytes(LCF_CODECS[kind].decode(bytes, { engine }))
   }
   catch {

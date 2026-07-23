@@ -8,7 +8,7 @@ import { LcfError } from '../codec/errors.ts'
 import { createTranscoder } from '../encoding.ts'
 import { decodeDatabase, decodeMapTree, decodeMapUnit } from '../index.ts'
 import { collectDatabaseUnits, collectMapUnits, collectTreeMapUnits } from '../translation/units.ts'
-import { resolveEncoding, resolveEngine } from './resolve.ts'
+import { resolveFileContext } from './resolve.ts'
 
 export interface LoadedMap {
   fileName: string
@@ -64,8 +64,7 @@ export function loadGame(directory: string, options: GameLoadOptions = {}): Load
 
   const databasePath = join(directory, databaseFileName)
   const databaseBytes = new Uint8Array(readFileSync(databasePath))
-  const { engine, engineSource } = resolveEngine(databasePath, databaseBytes, 'ldb', options.engine)
-  const { encoding, encodingSource } = resolveEncoding(databasePath, databaseBytes, 'ldb', engine, options.encoding)
+  const { engine, engineSource, encoding, encodingSource } = resolveFileContext(databasePath, databaseBytes, 'ldb', options)
   const transcoder = createTranscoder(encoding)
   const codecOptions = { engine, transcoder }
 
