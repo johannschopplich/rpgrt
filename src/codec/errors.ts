@@ -1,7 +1,7 @@
 export interface LcfErrorContext {
   /** Record path such as `Database.actors[3].stateRanks`. */
   path?: string
-  /** Byte offset into the file being decoded. */
+  /** Byte offset into the enclosing chunk payload – file-absolute only for top-level stream errors. */
   offset?: number
 }
 
