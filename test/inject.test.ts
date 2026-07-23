@@ -67,7 +67,7 @@ describe('resolvePoDumps', () => {
     expect(resolution.abortReasons.some(reason => reason.includes('conflicting'))).toBe(true)
   })
 
-  it('skips fuzzy entries and counts the translated ones without applying them', () => {
+  it('skips fuzzy entries without applying them', () => {
     const resolution = resolvePoDumps(
       [catalog('RPG_RT.ldb.po', entry({ source: 'Alex', translation: 'Kate', addresses: ['ldb/actors/1/name'], isFuzzy: true }))],
       [],
@@ -75,6 +75,17 @@ describe('resolvePoDumps', () => {
     )
     expect(resolution.units).toEqual([])
     expect(resolution.fuzzySkippedCount).toBe(1)
+  })
+
+  it('counts a fuzzy entry with an empty msgstr as skipped, not untranslated', () => {
+    const resolution = resolvePoDumps(
+      [catalog('RPG_RT.ldb.po', entry({ source: 'Alex', addresses: ['ldb/actors/1/name'], isFuzzy: true }))],
+      [],
+      catalogContext,
+    )
+    expect(resolution.units).toEqual([])
+    expect(resolution.fuzzySkippedCount).toBe(1)
+    expect(resolution.untranslatedCount).toBe(0)
   })
 
   it('counts untranslated work in game units, not merged entries', () => {

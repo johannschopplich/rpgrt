@@ -46,8 +46,7 @@ export function resolvePoDumps(catalogs: ParsedCatalog[], collectedUnits: Collec
       // A foreign catalog may write msgctxt "" where lcfkit units carry no context.
       const context = entry.context === '' ? undefined : entry.context
       if (entry.isFuzzy) {
-        if (entry.translation !== '')
-          fuzzySkippedCount++
+        fuzzySkippedCount++
         continue
       }
       if (entry.translation === '') {
