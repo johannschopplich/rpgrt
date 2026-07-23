@@ -1,7 +1,7 @@
 import type { Database, MapUnit } from '../src/index.ts'
 import { describe, expect, it } from 'vitest'
 import { defaultRecord } from '../src/codec/defaults.ts'
-import { decideEncoding, decideEngine, FALLBACK_ENCODING } from '../src/commands/resolve.ts'
+import { decideEncoding, decideEngine } from '../src/commands/resolve.ts'
 import { createTranscoder } from '../src/encoding.ts'
 import { encodeDatabase, encodeMapUnit } from '../src/index.ts'
 
@@ -60,7 +60,7 @@ describe('decideEncoding', () => {
 
   it('falls back to windows-1252 without an ini hint or sample', () => {
     const result = decideEncoding({})
-    expect(result).toEqual({ encoding: FALLBACK_ENCODING, encodingSource: 'fallback' })
+    expect(result).toEqual({ encoding: 'windows-1252', encodingSource: 'fallback' })
   })
 
   it('rejects an unknown encoding flag', () => {

@@ -97,7 +97,7 @@ describe.each(engines)('semantic round trip (%s)', (engine) => {
     expect(decodeDatabase(encodeDatabase(database, { engine }), { engine })).toStrictEqual(database)
   })
 
-  it('default map tree', () => {
+  it('default tree map', () => {
     const treeMap = defaultRecord('TreeMap', engine) as unknown as TreeMap
     expect(decodeTreeMap(encodeTreeMap(treeMap, { engine }), { engine })).toStrictEqual(treeMap)
   })

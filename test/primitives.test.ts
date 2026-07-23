@@ -62,16 +62,24 @@ describe('read chunk stream', () => {
 })
 
 describe('fixed-width primitives', () => {
-  it('encodes int16, uint32, and double little-endian', () => {
+  it('round-trips int16 as little-endian', () => {
     const writer = new ByteWriter()
     writer.writeInt16(-1234)
+    expect([...writer.toBytes()]).toEqual([0x2E, 0xFB])
+    expect(new ByteReader(writer.toBytes()).readInt16()).toBe(-1234)
+  })
+
+  it('round-trips uint32 as little-endian', () => {
+    const writer = new ByteWriter()
     writer.writeUint32(0xDEADBEEF)
+    expect([...writer.toBytes()]).toEqual([0xEF, 0xBE, 0xAD, 0xDE])
+    expect(new ByteReader(writer.toBytes()).readUint32()).toBe(0xDEADBEEF)
+  })
+
+  it('round-trips a double as little-endian IEEE 754', () => {
+    const writer = new ByteWriter()
     writer.writeDouble(1.5)
-    expect([...writer.toBytes()]).toEqual([0x2E, 0xFB, 0xEF, 0xBE, 0xAD, 0xDE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0x3F])
-    const reader = new ByteReader(writer.toBytes())
-    expect(reader.readInt16()).toBe(-1234)
-    expect(reader.readUint32()).toBe(0xDEADBEEF)
-    expect(reader.readDouble()).toBe(1.5)
-    expect(reader.isAtEnd).toBe(true)
+    expect([...writer.toBytes()]).toEqual([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0x3F])
+    expect(new ByteReader(writer.toBytes()).readDouble()).toBe(1.5)
   })
 })

@@ -98,14 +98,17 @@ describe('extract', () => {
     expect(sources.get('lmu/1/events/1/pages/1/commands/7')).toBe('Käthe')
   })
 
-  it('writes split dumps and po catalogs', () => {
+  it('writes split dumps, one per game file', () => {
     const gameDirectory = createGameDirectory()
     const splitDirectory = join(createDirectory(), 'strings')
     const splitResult = extractGame(gameDirectory, { output: splitDirectory, isSplit: true })
     expect(splitResult.outputPaths.map(path => path.split('/').pop()).sort()).toEqual(
       ['Map0001.lmu.json', 'RPG_RT.ldb.json', 'RPG_RT.lmt.json'],
     )
+  })
 
+  it('writes po catalogs following the lcftrans file split', () => {
+    const gameDirectory = createGameDirectory()
     const poDirectory = join(createDirectory(), 'po')
     const poResult = extractGame(gameDirectory, { output: poDirectory, isPo: true })
     expect(poResult.outputPaths.map(path => path.split('/').pop()).sort()).toEqual(

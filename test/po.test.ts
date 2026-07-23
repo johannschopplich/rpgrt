@@ -102,7 +102,6 @@ describe('parsePoCatalog', () => {
       'msgstr "x"',
     ))
     expect(entries[0]!.source).toBe('a\nb\n')
-    expect(entries[0]!.source.split('\n')).toEqual(['a', 'b', ''])
   })
 
   it('collects #: reference addresses, one per occurrence', () => {
@@ -127,9 +126,10 @@ describe('parsePoCatalog', () => {
   })
 
   it('tolerates CRLF, CR and a missing final newline', () => {
-    const entries = parsePoCatalog(`${header}msgid "Hi"\r\nmsgstr "Moin"`)
+    const entries = parsePoCatalog(`${header}msgid "Hi"\r\nmsgstr "Moin"\r\rmsgid "Bye"\rmsgstr "Tschüss"`)
     expect(entries).toEqual([
       { context: undefined, source: 'Hi', translation: 'Moin', addresses: [], isFuzzy: false },
+      { context: undefined, source: 'Bye', translation: 'Tschüss', addresses: [], isFuzzy: false },
     ])
   })
 
