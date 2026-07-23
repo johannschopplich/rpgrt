@@ -37,9 +37,9 @@ export interface ResolvedEncoding {
   encodingSource: 'flag' | 'ini' | 'detected' | 'fallback'
 }
 
-/** `envelope` covers convert's JSON round trip – the document decides for itself. */
-export type EngineSource = ResolvedEngine['engineSource'] | 'envelope'
-export type EncodingSource = ResolvedEncoding['encodingSource'] | 'envelope'
+/** `envelope` and `dump` cover metadata a JSON document or extract dump carries with itself. */
+export type EngineSource = ResolvedEngine['engineSource'] | 'envelope' | 'dump'
+export type EncodingSource = ResolvedEncoding['encodingSource'] | 'envelope' | 'dump'
 
 const ENGINE_SOURCE_LABELS: Record<EngineSource, string> = {
   flag: 'from --engine',
@@ -47,6 +47,7 @@ const ENGINE_SOURCE_LABELS: Record<EngineSource, string> = {
   roundTrip: 'detected by re-encoding',
   fallback: 'fallback – pass --engine if wrong',
   envelope: 'from the JSON document',
+  dump: 'from the dump metadata',
 }
 
 const ENCODING_SOURCE_LABELS: Record<EncodingSource, string> = {
@@ -55,6 +56,7 @@ const ENCODING_SOURCE_LABELS: Record<EncodingSource, string> = {
   detected: 'detected',
   fallback: 'fallback – pass --encoding if wrong',
   envelope: 'from the JSON document',
+  dump: 'from the dump metadata',
 }
 
 /** The `engine … (why), encoding … (why)` line every command reports. */

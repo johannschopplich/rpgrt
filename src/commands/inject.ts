@@ -2,6 +2,7 @@ import type { ArgsDef, CommandDef } from 'citty'
 import type { ParsedCatalog } from '../translation/inject.ts'
 import type { CollectedUnit, Dump, DumpUnit } from '../translation/units.ts'
 import type { LoadedGame } from './game.ts'
+import type { EncodingSource, EngineSource } from './resolve.ts'
 import { readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { defineCommand } from 'citty'
@@ -24,9 +25,9 @@ export interface InjectResult {
   fuzzySkippedCount: number
   writtenFileNames: string[]
   engine: LoadedGame['engine']
-  engineSource: LoadedGame['engineSource']
+  engineSource: EngineSource
   encoding: string
-  encodingSource: LoadedGame['encodingSource']
+  encodingSource: EncodingSource
 }
 
 type DumpSource
@@ -96,10 +97,14 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
   let untranslatedCount = 0
   let fuzzySkippedCount = 0
   let extraAbortReasons: string[]
+  let engineSource: EngineSource
+  let encodingSource: EncodingSource
   if (source.format === 'po') {
     // PO carries no engine/encoding, and fallback matching needs the collected
     // units, so the game must load before parsing.
     game = loadGame(directory, { engine: options.engine, encoding: options.encoding })
+    engineSource = game.engineSource
+    encodingSource = game.encodingSource
     collectedUnits = collectGameUnits(game)
     const parsedCatalogs = source.filePaths.map(parsePoCatalogFile)
     const resolution = resolvePoDumps(parsedCatalogs, collectedUnits, toCatalogContext(game))
@@ -114,6 +119,10 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
       engine: options.engine ?? dumps[0]!.engine,
       encoding: options.encoding ?? dumps[0]!.encoding,
     })
+    // The dump's metadata rides in through the flag slot – report it as its own
+    // source so the CLI never claims a flag the user did not pass.
+    engineSource = options.engine !== undefined ? game.engineSource : 'dump'
+    encodingSource = options.encoding !== undefined ? game.encodingSource : 'dump'
     collectedUnits = collectGameUnits(game)
     dumpUnits = dumps.flatMap(dump => dump.units)
     fuzzySkippedCount = 0
@@ -173,9 +182,9 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
     fuzzySkippedCount,
     writtenFileNames: [...dirtyFileNames].sort(),
     engine: game.engine,
-    engineSource: game.engineSource,
+    engineSource,
     encoding: game.encoding,
-    encodingSource: game.encodingSource,
+    encodingSource,
   }
 }
 
