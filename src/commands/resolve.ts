@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { bytesEqual } from '../codec/bytes.ts'
 import { LcfError } from '../codec/errors.ts'
-import { ByteReader } from '../codec/reader.ts'
+import { ByteReader, readChunkStream } from '../codec/reader.ts'
 import { collectStringBytes, createTranscoder, detectEncoding, encodingFromIni } from '../encoding.ts'
 import { RECORD_DESCRIPTORS } from '../generated/descriptors.ts'
 import { decodeDatabase, decodeMapTree, decodeMapUnit, decodeSave, encodeDatabase, encodeMapTree, encodeMapUnit, encodeSave } from '../index.ts'
@@ -68,15 +68,10 @@ const DATABASE_2K3_CHUNK_IDS = new Set(
  */
 export function scanDatabaseEngine(databaseBytes: Uint8Array): EngineVersion {
   const reader = new ByteReader(databaseBytes)
-  const magicLength = reader.readBerUnsigned()
-  reader.skip(magicLength)
-  while (!reader.isAtEnd) {
-    const chunkId = reader.readBerUnsigned()
-    if (chunkId === 0)
-      break
-    if (DATABASE_2K3_CHUNK_IDS.has(chunkId))
+  reader.skip(reader.readBerUnsigned())
+  for (const chunk of readChunkStream(reader, 'end-of-data')) {
+    if (DATABASE_2K3_CHUNK_IDS.has(chunk.id))
       return '2k3'
-    reader.skip(reader.readBerUnsigned())
   }
   return '2k'
 }

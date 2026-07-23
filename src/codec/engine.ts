@@ -1,11 +1,11 @@
 import type { EngineVersion } from '../index.ts'
-import type { FieldDescriptor, UnknownChunk } from './descriptors.ts'
-import type { ByteReader } from './reader.ts'
+import type { FieldDescriptor, UnknownChunk, VectorElementKind } from './descriptors.ts'
 import type { Transcoder } from './transcoder.ts'
 import { FLAG_SETS, RECORD_DESCRIPTORS } from '../generated/descriptors.ts'
 import { MoveCommandCode } from '../generated/enums.ts'
 import { isDefaultFieldValue, resolveDefault } from './defaults.ts'
 import { inPath, LcfError } from './errors.ts'
+import { ByteReader, readChunkStream } from './reader.ts'
 import { ByteWriter } from './writer.ts'
 
 export interface CodecContext {
@@ -19,24 +19,33 @@ export type LcfRecord = Record<string, unknown>
 // they are persist-if-default (docs/serialization.md §8).
 const TERMS_2K3_OMITTED_CHUNK_IDS = new Set([0x01, 0x03])
 
-const VECTOR_ELEMENT_BYTE_WIDTH = { boolean: 1, uint8: 1, int16: 2, int32: 4, uint32: 4 } as const
-
 type RawScalarKind = 'uint8' | 'int16' | 'uint32' | 'double'
 
-const RAW_SCALAR_BYTE_WIDTHS: Record<RawScalarKind, number> = { uint8: 1, int16: 2, uint32: 4, double: 8 }
-
-const RAW_SCALAR_READERS: Record<RawScalarKind, (reader: ByteReader) => number> = {
-  uint8: reader => reader.readByte(),
-  int16: reader => reader.readInt16(),
-  uint32: reader => reader.readUint32(),
-  double: reader => reader.readDouble(),
+interface RawScalarCodec {
+  byteWidth: number
+  read: (reader: ByteReader) => number
+  write: (writer: ByteWriter, value: number) => void
 }
 
-const RAW_SCALAR_WRITERS: Record<RawScalarKind, (writer: ByteWriter, value: number) => void> = {
-  uint8: (writer, value) => writer.writeByte(value),
-  int16: (writer, value) => writer.writeInt16(value),
-  uint32: (writer, value) => writer.writeUint32(value),
-  double: (writer, value) => writer.writeDouble(value),
+const RAW_SCALAR_CODECS: Record<RawScalarKind, RawScalarCodec> = {
+  uint8: { byteWidth: 1, read: reader => reader.readByte(), write: (writer, value) => writer.writeByte(value) },
+  int16: { byteWidth: 2, read: reader => reader.readInt16(), write: (writer, value) => writer.writeInt16(value) },
+  uint32: { byteWidth: 4, read: reader => reader.readUint32(), write: (writer, value) => writer.writeUint32(value) },
+  double: { byteWidth: 8, read: reader => reader.readDouble(), write: (writer, value) => writer.writeDouble(value) },
+}
+
+interface VectorElementCodec {
+  byteWidth: number
+  read: (reader: ByteReader) => number | boolean
+  write: (writer: ByteWriter, value: number | boolean) => void
+}
+
+const VECTOR_ELEMENT_CODECS: Record<VectorElementKind, VectorElementCodec> = {
+  boolean: { byteWidth: 1, read: reader => reader.readByte() > 0, write: (writer, value) => writer.writeByte(value ? 1 : 0) },
+  uint8: { byteWidth: 1, read: reader => reader.readByte(), write: (writer, value) => writer.writeByte((value as number) & 0xFF) },
+  int16: { byteWidth: 2, read: reader => reader.readInt16(), write: (writer, value) => writer.writeInt16(value as number) },
+  int32: { byteWidth: 4, read: reader => reader.readInt32(), write: (writer, value) => writer.writeUint32(value as number) },
+  uint32: { byteWidth: 4, read: reader => reader.readUint32(), write: (writer, value) => writer.writeUint32(value as number) },
 }
 
 interface ScalarRawLayout {
@@ -57,13 +66,13 @@ function scalarRawLayout(recordName: string): ScalarRawLayout {
     const slots: ScalarRawLayout['slots'] = []
     let byteLength = 0
     for (const field of RECORD_DESCRIPTORS[recordName]!.fields) {
-      const scalar = field.codec.kind === 'scalar' && field.codec.scalar in RAW_SCALAR_BYTE_WIDTHS
+      const scalar = field.codec.kind === 'scalar' && field.codec.scalar in RAW_SCALAR_CODECS
         ? field.codec.scalar as RawScalarKind
         : undefined
       if (scalar === undefined)
         throw new LcfError(`Raw record ${recordName} field ${field.key} is not a fixed-width scalar`)
       slots.push({ key: field.key, scalar })
-      byteLength += RAW_SCALAR_BYTE_WIDTHS[scalar]
+      byteLength += RAW_SCALAR_CODECS[scalar].byteWidth
     }
     layout = { slots, byteLength }
     scalarRawLayoutByRecord.set(recordName, layout)
@@ -75,7 +84,7 @@ function scalarRawLayout(recordName: string): ScalarRawLayout {
 // express – the one hand-coded raw layout. Its series keys and int16 stride
 // still derive from the descriptor.
 const PARAMETERS_SERIES_KEYS: string[] = RECORD_DESCRIPTORS.Parameters!.fields.map(field => field.key)
-const PARAMETERS_STRIDE = PARAMETERS_SERIES_KEYS.length * VECTOR_ELEMENT_BYTE_WIDTH.int16
+const PARAMETERS_STRIDE = PARAMETERS_SERIES_KEYS.length * VECTOR_ELEMENT_CODECS.int16.byteWidth
 
 interface ChunkOwner {
   field: FieldDescriptor
@@ -107,34 +116,26 @@ export function decodeChunkStream(recordName: string, reader: ByteReader, contex
   const decodedFields: LcfRecord = {}
   const unknownChunks: UnknownChunk[] = []
 
-  while (true) {
-    if (reader.isAtEnd) {
-      if (isEndOfDataTerminated)
-        break
-      throw new LcfError('Chunk stream ended without a terminator', { path, offset: reader.offset })
+  inPath(path, () => {
+    const terminator = isEndOfDataTerminated ? 'end-of-data' : 'id-zero'
+    for (const chunk of readChunkStream(reader, terminator)) {
+      const owner = owners.get(chunk.id)
+      if (owner === undefined) {
+        unknownChunks.push({ id: chunk.id, bytes: chunk.bytes })
+        continue
+      }
+      // Size chunk values are recomputed on encode; the data chunk's own length
+      // is authoritative (docs/serialization.md §4).
+      if (owner.isSizeChunk || owner.field.codec.kind === 'emptyBlock')
+        continue
+      const field = owner.field
+      const fieldPath = `${path}.${field.key}`
+      const chunkReader = new ByteReader(chunk.bytes)
+      decodedFields[field.key] = inPath(fieldPath, () => decodeFieldPayload(field, chunk.bytes.length, chunkReader, context, fieldPath))
+      if (!chunkReader.isAtEnd)
+        throw new LcfError(`Chunk declared ${chunk.bytes.length} bytes but ${chunkReader.offset} were consumed`, { path: fieldPath, offset: chunkReader.offset })
     }
-    const chunkId = reader.readBerUnsigned()
-    if (chunkId === 0)
-      break
-    const chunkLength = reader.readBerUnsigned()
-    const owner = owners.get(chunkId)
-    if (owner === undefined) {
-      unknownChunks.push({ id: chunkId, bytes: reader.readBytes(chunkLength) })
-      continue
-    }
-    // Size chunk values are recomputed on encode; the data chunk's own length
-    // is authoritative (docs/serialization.md §4).
-    if (owner.isSizeChunk || owner.field.codec.kind === 'emptyBlock') {
-      reader.skip(chunkLength)
-      continue
-    }
-    const field = owner.field
-    const fieldPath = `${path}.${field.key}`
-    const start = reader.offset
-    decodedFields[field.key] = inPath(fieldPath, () => decodeFieldPayload(field, chunkLength, reader, context, fieldPath))
-    if (reader.offset !== start + chunkLength)
-      throw new LcfError(`Chunk declared ${chunkLength} bytes but ${reader.offset - start} were consumed`, { path: fieldPath, offset: reader.offset })
-  }
+  })
 
   const record: LcfRecord = {}
   for (const field of descriptor.fields) {
@@ -190,30 +191,13 @@ function decodeFieldPayload(field: FieldDescriptor, byteLength: number, reader: 
   throw new LcfError(`Codec ${codec.kind} cannot appear as a chunk payload`, { path })
 }
 
-function decodeVector(element: keyof typeof VECTOR_ELEMENT_BYTE_WIDTH, byteLength: number, reader: ByteReader, path: string): unknown[] {
-  const width = VECTOR_ELEMENT_BYTE_WIDTH[element]
-  if (byteLength % width !== 0)
-    throw new LcfError(`Vector payload of ${byteLength} bytes is not a multiple of the ${width}-byte element size`, { path, offset: reader.offset })
+function decodeVector(element: VectorElementKind, byteLength: number, reader: ByteReader, path: string): unknown[] {
+  const codec = VECTOR_ELEMENT_CODECS[element]
+  if (byteLength % codec.byteWidth !== 0)
+    throw new LcfError(`Vector payload of ${byteLength} bytes is not a multiple of the ${codec.byteWidth}-byte element size`, { path, offset: reader.offset })
   const elements: unknown[] = []
-  for (let index = 0; index < byteLength / width; index++) {
-    switch (element) {
-      case 'boolean':
-        elements.push(reader.readByte() > 0)
-        break
-      case 'uint8':
-        elements.push(reader.readByte())
-        break
-      case 'int16':
-        elements.push(reader.readInt16())
-        break
-      case 'int32':
-        elements.push(reader.readInt32())
-        break
-      case 'uint32':
-        elements.push(reader.readUint32())
-        break
-    }
-  }
+  for (let index = 0; index < byteLength / codec.byteWidth; index++)
+    elements.push(codec.read(reader))
   return elements
 }
 
@@ -255,7 +239,7 @@ function decodeRawField(recordName: string, byteLength: number, reader: ByteRead
     throw new LcfError(`${recordName} payload must be ${layout.byteLength} bytes, got ${byteLength}`, { path, offset: reader.offset })
   const record: LcfRecord = {}
   for (const slot of layout.slots)
-    record[slot.key] = RAW_SCALAR_READERS[slot.scalar](reader)
+    record[slot.key] = RAW_SCALAR_CODECS[slot.scalar].read(reader)
   return record
 }
 
@@ -354,30 +338,16 @@ export function encodeChunkStream(recordName: string, record: LcfRecord, writer:
       writer.writeBer(0)
       continue
     }
-    if (field.codec.kind === 'databaseVersion') {
-      const version = record[field.key] as number
-      if (context.engine === '2k' && version === 0)
-        continue
-      writer.writeBer(field.id!)
-      if (version === 0) {
-        writer.writeBer(0)
-      }
-      else {
-        const payload = new ByteWriter()
-        payload.writeBer(version)
-        const bytes = payload.toBytes()
-        writer.writeBer(bytes.length)
-        writer.writeBytes(bytes)
-      }
-      continue
-    }
 
     const value = record[field.key] ?? resolveDefault(field, context.engine)
     const isDefaultValue = isDefaultFieldValue(field.codec, value, resolveDefault(field, context.engine))
     const isForcedOmitWhenDefault = recordName === 'Terms' && context.engine === '2k3' && TERMS_2K3_OMITTED_CHUNK_IDS.has(field.id!)
+    // RPG_RT always writes the version chunk in 2k3 but only when non-zero in 2k
+    // (docs/serialization.md §1 DatabaseVersion).
+    const isForcedPersistWhenDefault = field.codec.kind === 'databaseVersion' && context.engine === '2k3'
     const shouldWriteData = isForcedOmitWhenDefault
       ? !isDefaultValue
-      : (field.isPersistedIfDefault === true || !isDefaultValue)
+      : (isForcedPersistWhenDefault || field.isPersistedIfDefault === true || !isDefaultValue)
     const shouldWriteSize = field.sizeId !== undefined
       && (field.isSizePersistedIfDefault === true || !isDefaultValue)
 
@@ -454,32 +424,23 @@ function encodeFieldPayload(field: FieldDescriptor, value: unknown, context: Cod
       for (const command of value as LcfRecord[])
         encodeMoveCommand(command, writer, context)
       break
-    case 'berIntList':
     case 'databaseVersion':
+      // Version 0 encodes as an empty chunk (length 0); RPG_RT distinguishes it
+      // from a one-byte BER 0 (docs/serialization.md §1 DatabaseVersion).
+      if ((value as number) !== 0)
+        writer.writeBer(value as number)
+      break
+    case 'berIntList':
     case 'emptyBlock':
       throw new LcfError(`Codec ${codec.kind} cannot be encoded as a plain chunk payload`, { path })
   }
   return writer.toBytes()
 }
 
-function encodeVector(element: keyof typeof VECTOR_ELEMENT_BYTE_WIDTH, elements: (number | boolean)[], writer: ByteWriter): void {
-  for (const value of elements) {
-    switch (element) {
-      case 'boolean':
-        writer.writeByte(value ? 1 : 0)
-        break
-      case 'uint8':
-        writer.writeByte((value as number) & 0xFF)
-        break
-      case 'int16':
-        writer.writeInt16(value as number)
-        break
-      case 'int32':
-      case 'uint32':
-        writer.writeUint32(value as number)
-        break
-    }
-  }
+function encodeVector(element: VectorElementKind, elements: (number | boolean)[], writer: ByteWriter): void {
+  const codec = VECTOR_ELEMENT_CODECS[element]
+  for (const value of elements)
+    codec.write(writer, value)
 }
 
 function encodeFlags(flagSetName: string, flags: Record<string, boolean>, engine: EngineVersion, writer: ByteWriter): void {
@@ -519,7 +480,7 @@ function encodeRawField(recordName: string, record: LcfRecord, writer: ByteWrite
     return
   }
   for (const slot of scalarRawLayout(recordName).slots)
-    RAW_SCALAR_WRITERS[slot.scalar](writer, record[slot.key] as number)
+    RAW_SCALAR_CODECS[slot.scalar].write(writer, record[slot.key] as number)
 }
 
 function encodeEventCommands(commands: LcfRecord[], writer: ByteWriter, context: CodecContext, path: string): void {

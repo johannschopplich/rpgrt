@@ -1,36 +1,33 @@
 import type { Actor, Database, EngineVersion, EventPage, MapInfo, MapUnit, TreeMap } from '../src/index.ts'
 import { describe, expect, it } from 'vitest'
 import { defaultRecord } from '../src/codec/defaults.ts'
-import { ByteReader } from '../src/codec/reader.ts'
+import { ByteReader, readChunkStream } from '../src/codec/reader.ts'
 import { decodeDatabase, decodeMapTree, decodeMapUnit, encodeDatabase, encodeMapTree, encodeMapUnit } from '../src/index.ts'
 
 const engines: EngineVersion[] = ['2k', '2k3']
 
 /** Chunk IDs of one chunk stream, ignoring payloads. */
 function chunkIds(payload: Uint8Array): number[] {
-  const reader = new ByteReader(payload)
-  const ids: number[] = []
-  while (!reader.isAtEnd) {
-    const id = reader.readBerUnsigned()
-    if (id === 0)
-      break
-    ids.push(id)
-    reader.skip(reader.readBerUnsigned())
+  return [...readChunkStream(new ByteReader(payload), 'id-zero')].map(chunk => chunk.id)
+}
+
+/** Payload byte-length of a given top-level chunk, or undefined if absent. */
+function topLevelChunkLength(databaseBytes: Uint8Array, chunkId: number): number | undefined {
+  const reader = new ByteReader(databaseBytes)
+  reader.skip(reader.readBerUnsigned())
+  for (const chunk of readChunkStream(reader, 'end-of-data')) {
+    if (chunk.id === chunkId)
+      return chunk.bytes.length
   }
-  return ids
+  return undefined
 }
 
 function termsChunkIds(databaseBytes: Uint8Array): number[] {
   const reader = new ByteReader(databaseBytes)
   reader.skip(reader.readBerUnsigned())
-  while (!reader.isAtEnd) {
-    const id = reader.readBerUnsigned()
-    if (id === 0)
-      break
-    const length = reader.readBerUnsigned()
-    if (id === 0x15)
-      return chunkIds(reader.readBytes(length))
-    reader.skip(length)
+  for (const chunk of readChunkStream(reader, 'end-of-data')) {
+    if (chunk.id === 0x15)
+      return chunkIds(chunk.bytes)
   }
   throw new Error('No Terms chunk in the encoded database')
 }
@@ -56,6 +53,38 @@ describe('terms omission quirk (docs/serialization.md §8)', () => {
     const decoded = decodeDatabase(encodeDatabase(database, { engine: '2k3' }), { engine: '2k3' })
     expect(decoded.terms.encounter).toBe('Kampf!')
     expect(decoded.terms.escapeSuccess).toBe('Entkommen!')
+  })
+})
+
+describe('database version framing (docs/serialization.md §DatabaseVersion)', () => {
+  const DATABASE_VERSION_CHUNK_ID = 0x1A
+
+  it('writes version 0 as an empty chunk in a 2k3 database', () => {
+    const database = defaultRecord('Database', '2k3') as unknown as Database
+    const bytes = encodeDatabase(database, { engine: '2k3' })
+    expect(topLevelChunkLength(bytes, DATABASE_VERSION_CHUNK_ID)).toBe(0)
+  })
+
+  it('omits the version chunk entirely in a 2k database', () => {
+    const database = defaultRecord('Database', '2k') as unknown as Database
+    const bytes = encodeDatabase(database, { engine: '2k' })
+    expect(topLevelChunkLength(bytes, DATABASE_VERSION_CHUNK_ID)).toBeUndefined()
+  })
+
+  it('writes and round-trips a non-zero version in a 2k database', () => {
+    const database = defaultRecord('Database', '2k') as unknown as Database
+    database.version = 0x1234
+    const bytes = encodeDatabase(database, { engine: '2k' })
+    expect(topLevelChunkLength(bytes, DATABASE_VERSION_CHUNK_ID)).toBeGreaterThan(0)
+    expect(decodeDatabase(bytes, { engine: '2k' }).version).toBe(0x1234)
+  })
+
+  it('round-trips a non-zero version in a 2k3 database', () => {
+    const database = defaultRecord('Database', '2k3') as unknown as Database
+    database.version = 0x1234
+    const bytes = encodeDatabase(database, { engine: '2k3' })
+    expect(topLevelChunkLength(bytes, DATABASE_VERSION_CHUNK_ID)).toBeGreaterThan(0)
+    expect(decodeDatabase(bytes, { engine: '2k3' }).version).toBe(0x1234)
   })
 })
 

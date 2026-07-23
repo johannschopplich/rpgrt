@@ -1,7 +1,7 @@
 import type { EngineVersion, Save } from '../src/index.ts'
 import { describe, expect, it } from 'vitest'
 import { defaultRecord } from '../src/codec/defaults.ts'
-import { ByteReader } from '../src/codec/reader.ts'
+import { ByteReader, readChunkStream } from '../src/codec/reader.ts'
 import { decodeSave, encodeSave } from '../src/index.ts'
 
 const engines: EngineVersion[] = ['2k', '2k3']
@@ -10,20 +10,12 @@ function makeSave(engine: EngineVersion): Save {
   return defaultRecord('Save', engine) as unknown as Save
 }
 
-/** Walk the top-level chunk stream past the magic header. */
+// A trailing ID-0 terminator would break RPG_RT after a top-level Save;
+// readChunkStream's end-of-data mode throws on one, enforcing that invariant.
 function topLevelChunkIds(bytes: Uint8Array): number[] {
   const reader = new ByteReader(bytes)
   reader.skip(reader.readBerUnsigned())
-  const ids: number[] = []
-  while (!reader.isAtEnd) {
-    const id = reader.readBerUnsigned()
-    // A trailing ID-0 terminator would break RPG_RT after a top-level Save.
-    if (id === 0)
-      throw new Error('top-level Save stream ends with a chunk terminator')
-    ids.push(id)
-    reader.skip(reader.readBerUnsigned())
-  }
-  return ids
+  return [...readChunkStream(reader, 'end-of-data')].map(chunk => chunk.id)
 }
 
 describe.each(engines)('save round trip (%s)', (engine) => {
@@ -89,6 +81,30 @@ describe.each(engines)('save round trip (%s)', (engine) => {
     expect(decoded.partyLocation.positionX).toBe(10)
     expect(decoded.partyLocation.panCurrentX).toBe(999)
     expect(decoded).toStrictEqual(save)
+  })
+
+  it('round-trips signed int32 and boolean vectors and pins their wire bytes', () => {
+    const save = makeSave(engine)
+    save.system = {
+      ...defaultRecord('SaveSystem', engine),
+      switches: [true, false, true],
+      variables: [-2, 100000],
+    } as unknown as Save['system']
+
+    const bytes = encodeSave(save, { engine })
+    const decoded = decodeSave(bytes, { engine })
+    expect(decoded.system.switches).toStrictEqual([true, false, true])
+    expect(decoded.system.variables).toStrictEqual([-2, 100000])
+
+    const reader = new ByteReader(bytes)
+    reader.skip(reader.readBerUnsigned())
+    const systemChunk = [...readChunkStream(reader, 'end-of-data')].find(chunk => chunk.id === 0x65)!
+    const systemChunks = [...readChunkStream(new ByteReader(systemChunk.bytes), 'id-zero')]
+    const switchesChunk = systemChunks.find(chunk => chunk.id === 0x20)!
+    const variablesChunk = systemChunks.find(chunk => chunk.id === 0x22)!
+    expect([...switchesChunk.bytes]).toEqual([0x01, 0x00, 0x01])
+    // int32 -2 and 100000, little-endian – signed in, unsigned out.
+    expect([...variablesChunk.bytes]).toEqual([0xFE, 0xFF, 0xFF, 0xFF, 0xA0, 0x86, 0x01, 0x00])
   })
 
   it('preserves an unknown top-level chunk through re-encode', () => {

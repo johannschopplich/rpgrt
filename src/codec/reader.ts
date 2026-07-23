@@ -91,3 +91,32 @@ export class ByteReader {
     return this.readBerUnsigned() | 0
   }
 }
+
+export interface Chunk {
+  id: number
+  bytes: Uint8Array
+}
+
+export type ChunkStreamTerminator = 'id-zero' | 'end-of-data'
+
+/**
+ * The single seam that owns how a chunk stream ends: nested streams close on an
+ * ID-0 terminator, top-level file streams run to the end of their data.
+ */
+export function* readChunkStream(reader: ByteReader, terminator: ChunkStreamTerminator = 'id-zero'): Generator<Chunk> {
+  while (true) {
+    if (reader.isAtEnd) {
+      if (terminator === 'end-of-data')
+        return
+      throw new LcfError('Chunk stream ended without a terminator', { offset: reader.offset })
+    }
+    const id = reader.readBerUnsigned()
+    if (id === 0) {
+      if (terminator === 'id-zero')
+        return
+      throw new LcfError('Unexpected chunk terminator in an end-of-data stream', { offset: reader.offset })
+    }
+    const length = reader.readBerUnsigned()
+    yield { id, bytes: reader.readBytes(length) }
+  }
+}
