@@ -41,6 +41,8 @@ export type FieldDefaultValue = DefaultScalar | EngineSplitDefault
 
 export interface FieldDescriptor {
   key: string
+  /** The liblcf field name when the camelCased key cannot be regex-inverted back to it. */
+  liblcfName?: string
   /** Chunk ID; absent for the positional fields of raw records. */
   id?: number
   /** Chunk ID of the companion size chunk RPG_RT expects before the data chunk. */

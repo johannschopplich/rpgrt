@@ -122,7 +122,7 @@ describe('database units', () => {
     const database = defaultRecord('Database', '2k') as unknown as Database
     database.actors = [{ ...defaultRecord('Actor', '2k'), id: 1, name: 'Alex', title: 'Held', skillName: 'Magie' } as never]
     database.skills = [{ ...defaultRecord('Skill', '2k'), id: 3, name: 'Feuer', usingMessage1: 'wirkt Feuer' } as never]
-    database.terms = { ...database.terms, victory: 'Sieg!' }
+    database.terms = { ...database.terms, victory: 'Sieg!', innAGreeting1: 'Zimmer frei?' }
     database.commonevents = [{ ...defaultRecord('CommonEvent', '2k'), id: 2, eventCommands: [command(10110, 'Gemeinsam')] } as never]
     database.troops = [{ ...defaultRecord('Troop', '2k'), id: 4, pages: [{ id: 1, ...defaultRecord('TroopPage', '2k'), eventCommands: [command(10110, 'Kampf!')] }] } as never]
     return database
@@ -134,6 +134,7 @@ describe('database units', () => {
     expect(byAddress.get('ldb/actors/1/skillName')?.context).toBe('actors.skill_name')
     expect(byAddress.get('ldb/skills/3/usingMessage1')?.context).toBe('skills.using_message1')
     expect(byAddress.get('ldb/terms/victory')?.context).toBe('terms.victory')
+    expect(byAddress.get('ldb/terms/innAGreeting1')?.context).toBe('terms.inn_a_greeting_1')
     expect(byAddress.get('ldb/commonevents/2/commands/0')?.catalog).toBe('common')
     expect(byAddress.get('ldb/troops/4/pages/1/commands/0')?.catalog).toBe('battle')
     expect(units.every(unit => unit.fileName === 'RPG_RT.ldb')).toBe(true)

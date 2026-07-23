@@ -1,5 +1,6 @@
 import type { FieldCodec, FieldDefaultValue } from '../../src/codec/descriptors.ts'
 import type { EnumDef, FieldDef, FlagSetDef, LcfTables, StructDef, TypeExpression } from './tables.ts'
+import { approximateLiblcfName } from '../../src/translation/units.ts'
 import { parseDefaultCell } from './defaults.ts'
 import { toCamelCase, toObjectKey } from './names.ts'
 import { classifyNamedType, resolveEnum } from './tables.ts'
@@ -42,6 +43,7 @@ const VECTOR_ELEMENT_BY_PRIMITIVE: Record<string, 'boolean' | 'uint8' | 'int16' 
 
 interface GeneratedField {
   key: string
+  liblcfName: string | undefined
   id: number | undefined
   sizeId: number | undefined
   sizeKind: 'byteLength' | 'elementCount' | undefined
@@ -82,8 +84,10 @@ export function buildModel(tables: LcfTables, selected: StructDef[]): GeneratedM
         enumRef = `${enumDef.structName}${enumDef.enumName}`
         usedEnums.set(enumRef, enumDef)
       }
+      const key = toCamelCase(field.fieldName)
       return {
-        key: toCamelCase(field.fieldName),
+        key,
+        liblcfName: approximateLiblcfName(key) === field.fieldName ? undefined : field.fieldName,
         id: field.chunkId,
         sizeId: field.sizeChunkId,
         sizeKind: field.sizeChunkId === undefined
@@ -284,6 +288,8 @@ export function emitDescriptors(model: GeneratedModel): string {
 
 function printField(field: GeneratedField): string {
   const properties = [`key: '${field.key}'`]
+  if (field.liblcfName !== undefined)
+    properties.push(`liblcfName: '${field.liblcfName}'`)
   if (field.id !== undefined)
     properties.push(`id: ${printChunkId(field.id)}`)
   if (field.sizeId !== undefined) {

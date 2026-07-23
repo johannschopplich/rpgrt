@@ -2,7 +2,9 @@ import type { GeneratedModel } from '../scripts/lib/emit.ts'
 import { fileURLToPath } from 'node:url'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { buildModel } from '../scripts/lib/emit.ts'
+import { toCamelCase } from '../scripts/lib/names.ts'
 import { loadTables, resolveEnum, selectStructs } from '../scripts/lib/tables.ts'
+import { approximateLiblcfName } from '../src/translation/units.ts'
 
 const csvDirectory = fileURLToPath(new URL('../vendor/liblcf-csv', import.meta.url))
 
@@ -22,6 +24,17 @@ describe('lsd generator seams', () => {
 
   beforeAll(() => {
     model = buildModel(tables, selectStructs(tables, ['ldb', 'lmt', 'lmu', 'lsd']))
+  })
+
+  it('recovers every liblcf field name from the key and its override', () => {
+    for (const struct of model.structs) {
+      for (const field of struct.fields) {
+        const liblcfName = field.liblcfName ?? approximateLiblcfName(field.key)
+        expect(toCamelCase(liblcfName), `${struct.name}.${field.key}`).toBe(field.key)
+      }
+    }
+    expect(fieldOf(model, 'Terms', 'innAGreeting1').liblcfName).toBe('inn_a_greeting_1')
+    expect(fieldOf(model, 'Terms', 'shopGreeting1').liblcfName).toBeUndefined()
   })
 
   it('gap A flattens SaveMapEventBase fields into inheritors, sorted by ascending chunk ID', () => {
