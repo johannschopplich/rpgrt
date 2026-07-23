@@ -7,7 +7,9 @@ import { ByteReader } from './codec/reader.ts'
 import { latin1Transcoder } from './codec/transcoder.ts'
 import { ByteWriter } from './codec/writer.ts'
 
-export type { FieldCodec, FieldDescriptor, FlagBitDescriptor, RecordDescriptor, UnknownChunk } from './codec/descriptors.ts'
+// The descriptor metadata types stay internal – their backing tables are not
+// exported, and an unusable type would still freeze at first publish.
+export type { UnknownChunk } from './codec/descriptors.ts'
 export { LcfError } from './codec/errors.ts'
 export { latin1Transcoder } from './codec/transcoder.ts'
 export type { Transcoder } from './codec/transcoder.ts'
