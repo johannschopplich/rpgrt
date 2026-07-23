@@ -45,7 +45,7 @@ function writeDump(filePath: string, engine: EngineVersion, encoding: string, un
 }
 
 /** PO catalogs follow lcftrans's naming so its tooling and EasyRPG Player match up. */
-function poCatalogs(units: CollectedUnit[], game: LoadedGame): Map<string, CollectedUnit[]> {
+export function poCatalogs(units: CollectedUnit[], game: LoadedGame): Map<string, CollectedUnit[]> {
   const catalogs = new Map<string, CollectedUnit[]>([
     [`${game.databaseFileName}.po`, units.filter(unit => unit.catalog === 'terms')],
     [`${game.databaseFileName}.common.po`, units.filter(unit => unit.catalog === 'common')],

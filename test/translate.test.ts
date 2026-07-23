@@ -27,15 +27,20 @@ function command(code: number, string = '', indent = 0, parameters: number[] = [
   return { code, indent, string, parameters }
 }
 
-function createGameDirectory(): string {
+function createGameDirectory(options: { duplicateActorName?: boolean } = {}): string {
   const directory = createDirectory()
   const transcoder = createTranscoder('cp1252')
-  const options = { engine: '2k', transcoder } as const
+  const codecOptions = { engine: '2k', transcoder } as const
 
   const database = defaultRecord('Database', '2k') as unknown as Database
-  database.actors = [{ ...defaultRecord('Actor', '2k'), id: 1, name: 'Käthe', title: 'Heldin' } as never]
+  database.actors = [
+    { ...defaultRecord('Actor', '2k'), id: 1, name: 'Käthe', title: 'Heldin' } as never,
+    ...(options.duplicateActorName === true
+      ? [{ ...defaultRecord('Actor', '2k'), id: 2, name: 'Käthe', title: 'Zweite' } as never]
+      : []),
+  ]
   database.terms = { ...database.terms, victory: 'Sieg!' }
-  writeFileSync(join(directory, 'RPG_RT.ldb'), encodeDatabase(database, options))
+  writeFileSync(join(directory, 'RPG_RT.ldb'), encodeDatabase(database, codecOptions))
 
   const treeMap = defaultRecord('TreeMap', '2k') as unknown as TreeMap
   treeMap.maps = [
@@ -43,7 +48,7 @@ function createGameDirectory(): string {
     { ...defaultRecord('MapInfo', '2k'), id: 1, name: 'Dorf', type: 1 } as never,
   ]
   treeMap.treeOrder = [0, 1]
-  writeFileSync(join(directory, 'RPG_RT.lmt'), encodeMapTree(treeMap, options))
+  writeFileSync(join(directory, 'RPG_RT.lmt'), encodeMapTree(treeMap, codecOptions))
 
   const page = { id: 1, ...defaultRecord('EventPage', '2k') } as never as { eventCommands: EventCommand[] }
   page.eventCommands = [
@@ -58,7 +63,7 @@ function createGameDirectory(): string {
   ]
   const mapUnit = defaultRecord('MapUnit', '2k') as unknown as MapUnit
   mapUnit.events = [{ id: 1, name: 'npc', x: 2, y: 3, pages: [page as never] }]
-  writeFileSync(join(directory, 'Map0001.lmu'), encodeMapUnit(mapUnit, options))
+  writeFileSync(join(directory, 'Map0001.lmu'), encodeMapUnit(mapUnit, codecOptions))
 
   writeFileSync(join(directory, 'RPG_RT.ini'), '[EasyRPG]\nEncoding=1252\n')
   return directory
@@ -196,5 +201,251 @@ describe('inject', () => {
     unit.translation = 'Kate'
     writeFileSync(dumpPath, JSON.stringify(dump))
     expect(() => injectDump(gameDirectory, dumpPath)).toThrow('stale')
+  })
+})
+
+const PO_HEADER = 'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\n'
+
+function setPoMsgstr(poFilePath: string, address: string, escapedMsgstr: string): void {
+  const lines = readFileSync(poFilePath, 'utf8').split('\n')
+  const referenceIndex = lines.findIndex(line => line === `#: ${address}`)
+  expect(referenceIndex, `#: ${address}`).toBeGreaterThan(-1)
+  const msgstrIndex = lines.findIndex((line, index) => index > referenceIndex && line.startsWith('msgstr'))
+  lines[msgstrIndex] = `msgstr "${escapedMsgstr}"`
+  writeFileSync(poFilePath, lines.join('\n'))
+}
+
+describe('inject from PO', () => {
+  it('round-trips a full extract --po → filled msgstr → inject cycle', () => {
+    const gameDirectory = createGameDirectory()
+    const poDirectory = join(createDirectory(), 'po')
+    extractGame(gameDirectory, { output: poDirectory, isPo: true })
+
+    setPoMsgstr(join(poDirectory, 'RPG_RT.ldb.po'), 'ldb/actors/1/name', 'Kate')
+    setPoMsgstr(join(poDirectory, 'RPG_RT.lmt.po'), 'lmt/maps/1/name', 'Village')
+    setPoMsgstr(join(poDirectory, 'Map0001.po'), 'lmu/1/events/1/pages/1/commands/0', 'Welcome\\nto the village')
+
+    const result = injectDump(gameDirectory, poDirectory)
+    expect(result.appliedCount).toBe(3)
+    expect(result.engine).toBe('2k')
+    expect(result.encoding).toBe('cp1252')
+
+    const afterPath = join(createDirectory(), 'after.json')
+    extractGame(gameDirectory, { output: afterPath })
+    const afterDump = readDump(afterPath)
+    const sources = new Map(afterDump.units.map(unit => [unit.address, unit.source]))
+    expect(sources.get('ldb/actors/1/name')).toBe('Kate')
+    expect(sources.get('lmt/maps/1/name')).toBe('Village')
+    expect(sources.get('lmu/1/events/1/pages/1/commands/0')).toBe('Welcome\nto the village')
+    expect(sources.get('ldb/terms/victory')).toBe('Sieg!')
+  })
+
+  it('fans one merged entry out to every #: address it carries', () => {
+    const gameDirectory = createGameDirectory({ duplicateActorName: true })
+    const poDirectory = join(createDirectory(), 'po')
+    extractGame(gameDirectory, { output: poDirectory, isPo: true })
+
+    const catalog = readFileSync(join(poDirectory, 'RPG_RT.ldb.po'), 'utf8')
+    expect(catalog).toContain('#: ldb/actors/1/name\n')
+    expect(catalog).toContain('#: ldb/actors/2/name\n')
+    setPoMsgstr(join(poDirectory, 'RPG_RT.ldb.po'), 'ldb/actors/1/name', 'Kate')
+
+    const result = injectDump(gameDirectory, poDirectory)
+    expect(result.appliedCount).toBe(2)
+
+    const afterPath = join(createDirectory(), 'after.json')
+    extractGame(gameDirectory, { output: afterPath })
+    const sources = new Map(readDump(afterPath).units.map(unit => [unit.address, unit.source]))
+    expect(sources.get('ldb/actors/1/name')).toBe('Kate')
+    expect(sources.get('ldb/actors/2/name')).toBe('Kate')
+  })
+
+  it('matches a foreign catalog with no #: by (msgctxt, msgid) scoped to the filename', () => {
+    const gameDirectory = createGameDirectory()
+    const poDirectory = createDirectory()
+    writeFileSync(
+      join(poDirectory, 'RPG_RT.ldb.po'),
+      `${PO_HEADER}msgctxt "actors.name"\nmsgid "Käthe"\nmsgstr "Kate"\n`,
+    )
+
+    const result = injectDump(gameDirectory, poDirectory)
+    expect(result.appliedCount).toBe(1)
+
+    const afterPath = join(createDirectory(), 'after.json')
+    extractGame(gameDirectory, { output: afterPath })
+    const sources = new Map(readDump(afterPath).units.map(unit => [unit.address, unit.source]))
+    expect(sources.get('ldb/actors/1/name')).toBe('Kate')
+  })
+
+  it('normalizes a foreign msgctxt "" to no-context so it still matches', () => {
+    const gameDirectory = createGameDirectory()
+    const poDirectory = createDirectory()
+    writeFileSync(
+      join(poDirectory, 'Map0001.po'),
+      `${PO_HEADER}msgctxt ""\nmsgid "Willkommen\\nim Dorf"\nmsgstr "Welcome"\n`,
+    )
+    const result = injectDump(gameDirectory, poDirectory)
+    expect(result.appliedCount).toBe(1)
+
+    const afterPath = join(createDirectory(), 'after.json')
+    extractGame(gameDirectory, { output: afterPath })
+    const sources = new Map(readDump(afterPath).units.map(unit => [unit.address, unit.source]))
+    expect(sources.get('lmu/1/events/1/pages/1/commands/0')).toBe('Welcome')
+  })
+
+  it('scopes fallback matching to the catalog filename', () => {
+    const gameDirectory = createGameDirectory()
+    const poDirectory = createDirectory()
+    // The msgid exists in the game, but only as a Map0001 unit – an ldb catalog
+    // must not reach across files to it.
+    writeFileSync(
+      join(poDirectory, 'RPG_RT.ldb.po'),
+      `${PO_HEADER}msgid "Willkommen\\nim Dorf"\nmsgstr "Welcome"\n`,
+    )
+    expect(() => injectDump(gameDirectory, poDirectory)).toThrow('no game text matches')
+  })
+
+  it('aborts when a foreign entry matches no game text', () => {
+    const gameDirectory = createGameDirectory()
+    const poDirectory = createDirectory()
+    writeFileSync(
+      join(poDirectory, 'RPG_RT.ldb.po'),
+      `${PO_HEADER}msgctxt "actors.name"\nmsgid "Ghost"\nmsgstr "Geist"\n`,
+    )
+    expect(() => injectDump(gameDirectory, poDirectory)).toThrow('no game text matches')
+  })
+
+  it('aborts when a #: address is absent from the game', () => {
+    const gameDirectory = createGameDirectory()
+    const poDirectory = createDirectory()
+    writeFileSync(
+      join(poDirectory, 'RPG_RT.ldb.po'),
+      `${PO_HEADER}#: ldb/actors/99/name\nmsgid "Käthe"\nmsgstr "Kate"\n`,
+    )
+    expect(() => injectDump(gameDirectory, poDirectory)).toThrow('no such unit')
+  })
+
+  it('collapses identical (address, translation) duplicates into one applied unit', () => {
+    const gameDirectory = createGameDirectory()
+    const poDirectory = createDirectory()
+    writeFileSync(
+      join(poDirectory, 'RPG_RT.ldb.po'),
+      `${PO_HEADER}#: ldb/actors/1/name\nmsgid "Käthe"\nmsgstr "Kate"\n\n`
+      + `#: ldb/actors/1/name\nmsgid "Käthe"\nmsgstr "Kate"\n`,
+    )
+    const result = injectDump(gameDirectory, poDirectory)
+    expect(result.appliedCount).toBe(1)
+
+    const afterPath = join(createDirectory(), 'after.json')
+    extractGame(gameDirectory, { output: afterPath })
+    const sources = new Map(readDump(afterPath).units.map(unit => [unit.address, unit.source]))
+    expect(sources.get('ldb/actors/1/name')).toBe('Kate')
+  })
+
+  it('aborts when one address receives conflicting translations', () => {
+    const gameDirectory = createGameDirectory()
+    const poDirectory = createDirectory()
+    writeFileSync(
+      join(poDirectory, 'RPG_RT.ldb.po'),
+      `${PO_HEADER}#: ldb/actors/1/name\nmsgid "Käthe"\nmsgstr "Kate"\n\n`
+      + `#: ldb/actors/1/name\nmsgid "Käthe"\nmsgstr "Kathy"\n`,
+    )
+    expect(() => injectDump(gameDirectory, poDirectory)).toThrow('conflicting')
+  })
+
+  it('skips fuzzy entries, counts them, and does not apply them', () => {
+    const gameDirectory = createGameDirectory()
+    const poDirectory = createDirectory()
+    writeFileSync(
+      join(poDirectory, 'RPG_RT.ldb.po'),
+      `${PO_HEADER}#: ldb/actors/1/name\n#, fuzzy\nmsgid "Käthe"\nmsgstr "Kate"\n`,
+    )
+    const result = injectDump(gameDirectory, poDirectory)
+    expect(result.appliedCount).toBe(0)
+    expect(result.fuzzySkippedCount).toBe(1)
+
+    const afterPath = join(createDirectory(), 'after.json')
+    extractGame(gameDirectory, { output: afterPath })
+    const sources = new Map(readDump(afterPath).units.map(unit => [unit.address, unit.source]))
+    expect(sources.get('ldb/actors/1/name')).toBe('Käthe')
+  })
+
+  it('aborts a directory mixing .po and .json dumps', () => {
+    const gameDirectory = createGameDirectory()
+    const mixedDirectory = createDirectory()
+    writeFileSync(join(mixedDirectory, 'RPG_RT.ldb.po'), PO_HEADER)
+    writeFileSync(join(mixedDirectory, 'RPG_RT.ldb.json'), '{}')
+    expect(() => injectDump(gameDirectory, mixedDirectory)).toThrow(/mix/i)
+  })
+
+  it('imports a Poedit-style catalog with wrapped continuations and header churn', () => {
+    const gameDirectory = createGameDirectory()
+    const poDirectory = createDirectory()
+    writeFileSync(
+      join(poDirectory, 'Map0001.po'),
+      'msgid ""\nmsgstr ""\n'
+      + '"Project-Id-Version: Game 1.0\\n"\n'
+      + '"Content-Type: text/plain; charset=UTF-8\\n"\n'
+      + '"X-Generator: Poedit 3.4\\n"\n\n'
+      + '#: lmu/1/events/1/pages/1/commands/0\n'
+      + 'msgid ""\n"Willkommen\\n"\n"im Dorf"\n'
+      + 'msgstr ""\n"Welcome\\n"\n"to the village"\n',
+    )
+    const result = injectDump(gameDirectory, poDirectory)
+    expect(result.appliedCount).toBe(1)
+
+    const afterPath = join(createDirectory(), 'after.json')
+    extractGame(gameDirectory, { output: afterPath })
+    const sources = new Map(readDump(afterPath).units.map(unit => [unit.address, unit.source]))
+    expect(sources.get('lmu/1/events/1/pages/1/commands/0')).toBe('Welcome\nto the village')
+  })
+
+  it('imports a Weblate-style catalog with #| previous source and #~ obsolete lines', () => {
+    const gameDirectory = createGameDirectory()
+    const poDirectory = createDirectory()
+    writeFileSync(
+      join(poDirectory, 'RPG_RT.ldb.po'),
+      `${PO_HEADER}#| msgid "Kaethe"\n#: ldb/actors/1/name\nmsgid "Käthe"\nmsgstr "Kate"\n\n`
+      + '#~ msgid "Alt"\n#~ msgstr "veraltet"\n',
+    )
+    const result = injectDump(gameDirectory, poDirectory)
+    expect(result.appliedCount).toBe(1)
+
+    const afterPath = join(createDirectory(), 'after.json')
+    extractGame(gameDirectory, { output: afterPath })
+    const sources = new Map(readDump(afterPath).units.map(unit => [unit.address, unit.source]))
+    expect(sources.get('ldb/actors/1/name')).toBe('Kate')
+  })
+
+  it('aborts on a magic page token only when the entry would be applied', () => {
+    const gameDirectory = createGameDirectory()
+    const abortDirectory = createDirectory()
+    writeFileSync(
+      join(abortDirectory, 'RPG_RT.ldb.po'),
+      `${PO_HEADER}#: ldb/actors/1/name\nmsgid "Käthe"\nmsgstr "Kate<easyrpg:new_page>"\n`,
+    )
+    expect(() => injectDump(gameDirectory, abortDirectory)).toThrow('page-manipulation')
+
+    const fuzzyDirectory = createDirectory()
+    writeFileSync(
+      join(fuzzyDirectory, 'RPG_RT.ldb.po'),
+      `${PO_HEADER}#: ldb/actors/1/name\n#, fuzzy\nmsgid "Käthe"\nmsgstr "Kate<easyrpg:new_page>"\n`,
+    )
+    const result = injectDump(gameDirectory, fuzzyDirectory)
+    expect(result.appliedCount).toBe(0)
+    expect(result.fuzzySkippedCount).toBe(1)
+  })
+
+  it('counts untranslated work in game units, not merged entries', () => {
+    const gameDirectory = createGameDirectory({ duplicateActorName: true })
+    const poDirectory = createDirectory()
+    writeFileSync(
+      join(poDirectory, 'RPG_RT.ldb.po'),
+      `${PO_HEADER}#: ldb/actors/1/name\n#: ldb/actors/2/name\nmsgid "Käthe"\nmsgstr ""\n\n`
+      + `#: ldb/terms/victory\nmsgid "Sieg!"\nmsgstr "Victory!"\n`,
+    )
+    const result = injectDump(gameDirectory, poDirectory)
+    expect(result.appliedCount).toBe(1)
+    expect(result.untranslatedCount).toBe(2)
   })
 })

@@ -26,7 +26,7 @@ It's built for translation work – including the step no open tool covers: writ
 | Dump every translatable string of a game | `extract ./game` |
 | Get one dump per game file instead of one big one | `extract --split` |
 | Translate with Poedit/Weblate or lcftrans tooling | `extract --po` |
-| Write my translated dump back into the game | `inject ./game strings.json` |
+| Write my translated dump back into the game | `inject ./game strings.json` (JSON or PO) |
 | Fix a wrong engine or codepage guess | `--engine 2k3`, `--encoding 932` |
 
 ## Installation
@@ -53,7 +53,7 @@ npx lcfkit convert Map0001.lmu.json
 ```text
 lcfkit convert <file> [options]         # .lmu/.ldb/.lmt → JSON, or .json → LCF
 lcfkit extract <game> [options]         # game directory → translatable text dump
-lcfkit inject  <game> <dump> [options]  # dump → game files, all-or-nothing
+lcfkit inject  <game> <dump> [options]  # JSON or PO dump → game files, all-or-nothing
 
 Options:
   -o, --output <path>    Output path (default: next to the input; strings.json for extract)
@@ -133,9 +133,15 @@ Messages may grow or shrink lines freely; a choice must keep exactly its option 
 npx lcfkit extract ./game --po -o po
 ```
 
-This writes the same catalogs lcftrans produces – `RPG_RT.ldb.po` (database terms), `RPG_RT.ldb.common.po` (common events), `RPG_RT.ldb.battle.po` (battle events), `RPG_RT.lmt.po` (map names), and one `Map####.po` per map – with lcftrans-style `msgctxt` and `#.` location comments, ready for Poedit, Weblate, or [EasyRPG Player's `Language/` folder workflow](https://easyrpg.org/player/guide/game_translation/).
+This writes the same catalogs lcftrans produces – `RPG_RT.ldb.po` (database terms), `RPG_RT.ldb.common.po` (common events), `RPG_RT.ldb.battle.po` (battle events), `RPG_RT.lmt.po` (map names), and one `Map####.po` per map – with lcftrans-style `msgctxt`, `#.` location comments, and a `#: <address>` reference per occurrence, ready for Poedit, Weblate, or [EasyRPG Player's `Language/` folder workflow](https://easyrpg.org/player/guide/game_translation/).
 
-The two formats serve two pipelines. Use PO when yours ends in EasyRPG Player's runtime translation loading; use JSON dumps when you want lcfkit to write the game files themselves – the step lcftrans and Player leave out. `inject` reads JSON dumps today; PO import is next on the roadmap.
+`inject` accepts PO too – point it at a single `.po` file or a directory of them (the format is auto-detected by extension; a directory may not mix `.po` and `.json`):
+
+```bash
+npx lcfkit inject ./game po
+```
+
+Each entry is matched back to its game location by the `#:` reference lcfkit wrote; catalogs without one (from lcftrans or hand-authored) fall back to exact `(msgctxt, msgid)` matching scoped to the filename. `#, fuzzy` entries are skipped as untranslated and reported. JSON dumps remain the more direct format – one unit per game address with engine and encoding recorded, no entry merging – so reach for PO when your pipeline lives in gettext tools, and for JSON when you script against the dump.
 
 ### Encodings, or: avoiding mojibake
 

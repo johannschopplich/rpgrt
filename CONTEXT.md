@@ -78,6 +78,20 @@ The legacy code page (Shift-JIS, Windows-1252, …) of a game's strings and file
 The codec's pluggable converter between wire bytes and strings. The default maps each byte to the code point of the same value – lossless, so round trips stay byte-exact even before the real encoding is known.
 _Avoid_: encoder, decoder (both overloaded)
 
+**Reference address**:
+A `#: <address>` gettext comment lcfkit writes into each PO entry, one per occurrence, carrying the text unit's stable address. On inject it is the primary key that joins a PO entry back to its game location, surviving `msgid` edits.
+_Avoid_: location comment, occurrence
+
+**Fallback matching**:
+Joining a PO entry with no reference address to game locations by exact `(msgctxt, source)` equality, scoped to the unit set the catalog filename implies, then fanning the translation out to every matching address. Makes foreign PO (lcftrans, hand-authored) importable.
+_Avoid_: fuzzy matching (that means something else in gettext), heuristic match
+
+**Fuzzy skip**:
+Treating a `#, fuzzy` PO entry as untranslated: it is not applied, does not abort, and is counted and reported separately so a part-done catalog stays usable.
+
+**Magic page token**:
+An `<easyrpg:new_page>` / `<easyrpg:delete_page>` marker a translator may place in a `msgstr` to split or merge runtime message pages. Runtime-only; incompatible with static injection, so inject aborts when one appears in an entry that would be applied – fuzzy or untranslated entries keep their non-fatal skip.
+
 **Envelope**:
 The self-describing JSON document `convert` writes: `format`, `engine`, and `encoding` alongside the decoded record in `data`. Converting back to LCF needs no flags because the envelope carries its own context.
 _Avoid_: dump (that's the extract output)
