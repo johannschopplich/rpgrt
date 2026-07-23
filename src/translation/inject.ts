@@ -20,7 +20,16 @@ export interface InjectionPlan {
   untranslatedCount: number
 }
 
+/** Magic page tokens drive runtime page splits/merges – no static injection can honor them. */
+const MAGIC_PAGE_TOKENS = ['<easyrpg:new_page>', '<easyrpg:delete_page>']
+
 function validateTranslation(unit: DumpUnit, collected: CollectedUnit, context: InjectionContext): string | undefined {
+  // Only entries that would be applied reach here – fuzzy (skipped in inject) and
+  // untranslated (skipped in planInjection) units keep their non-fatal skip, so the
+  // magic-token abort below never fires on them.
+  const magicToken = MAGIC_PAGE_TOKENS.find(token => unit.translation.includes(token))
+  if (magicToken !== undefined)
+    return `${unit.address}: runtime page-manipulation token ${magicToken} is not supported by static injection`
   if (unit.source !== collected.source)
     return `${unit.address}: source text differs from the game – the dump is stale, re-extract and merge`
   const lines = unit.translation.split('\n')

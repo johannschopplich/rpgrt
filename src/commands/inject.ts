@@ -71,9 +71,6 @@ function readJsonDumps(filePaths: string[], dumpPath: string): Dump[] {
   return dumps
 }
 
-/** Runtime page splits/merges – incompatible with lcfkit's static line-wise injection. */
-const MAGIC_PAGE_TOKENS = ['<easyrpg:new_page>', '<easyrpg:delete_page>']
-
 interface PoDumpResult {
   units: DumpUnit[]
   fuzzySkippedCount: number
@@ -131,13 +128,6 @@ function readPoDumps(filePaths: string[], collectedUnits: CollectedUnit[], game:
         untranslatedCount += entry.addresses.length > 0
           ? entry.addresses.length
           : (scopeUnitsByKey.get(`${context ?? ''}\x01${entry.source}`)?.length ?? 1)
-        continue
-      }
-      // Checked only for entries that would be applied – fuzzy or untranslated
-      // entries with a stray token stay a non-fatal skip.
-      const magicToken = MAGIC_PAGE_TOKENS.find(token => entry.translation.includes(token))
-      if (magicToken !== undefined) {
-        abortReasons.push(`${fileName}: runtime page-manipulation token ${magicToken} is not supported by static injection`)
         continue
       }
       let addresses: string[]

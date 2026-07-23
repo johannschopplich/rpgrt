@@ -169,6 +169,15 @@ describe('injection planning', () => {
     expect(plan.abortReasons).toEqual(['ldb/ghost/9/name: no such unit in the game'])
   })
 
+  it('rejects a magic page-manipulation token', () => {
+    const plan = planInjection([collected('ldb/actors/1/name', 'Käthe')], [
+      { address: 'ldb/actors/1/name', source: 'Käthe', translation: 'Kate<easyrpg:new_page>', info: [] },
+    ], context)
+    expect(plan.applications).toEqual([])
+    expect(plan.abortReasons).toHaveLength(1)
+    expect(plan.abortReasons[0]).toMatch(/page-manipulation/)
+  })
+
   it('collects every abort reason instead of stopping at the first', () => {
     const plan = planInjection([collected('ldb/actors/1/name', 'Käthe')], [
       { address: 'ldb/actors/1/name', source: 'Somebody', translation: 'Kate', info: [] },

@@ -191,6 +191,20 @@ describe('inject', () => {
     expect(readFileSync(join(gameDirectory, 'Map0001.lmu'))).toEqual(mapBytesBefore)
   })
 
+  it('aborts on a magic page token in a JSON dump without writing', () => {
+    const gameDirectory = createGameDirectory()
+    const dumpPath = join(createDirectory(), 'strings.json')
+    extractGame(gameDirectory, { output: dumpPath })
+    const databaseBytesBefore = readFileSync(join(gameDirectory, 'RPG_RT.ldb'))
+
+    const dump = readDump(dumpPath)
+    setTranslation(dump, 'ldb/actors/1/name', 'Kate<easyrpg:new_page>')
+    writeFileSync(dumpPath, JSON.stringify(dump))
+
+    expect(() => injectDump(gameDirectory, dumpPath)).toThrow('page-manipulation')
+    expect(readFileSync(join(gameDirectory, 'RPG_RT.ldb'))).toEqual(databaseBytesBefore)
+  })
+
   it('rejects stale dumps whose source text drifted', () => {
     const gameDirectory = createGameDirectory()
     const dumpPath = join(createDirectory(), 'strings.json')
