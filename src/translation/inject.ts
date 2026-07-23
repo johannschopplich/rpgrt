@@ -10,7 +10,6 @@ export interface ParsedCatalog {
   entries: ParsedPoEntry[]
 }
 
-/** The dump units a set of PO catalogs resolve to, plus the counts inject reports. */
 export interface PoResolution {
   units: DumpUnit[]
   fuzzySkippedCount: number

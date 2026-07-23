@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { decodeDatabase, decodeMapUnit, decodeSave, decodeTreeMap, encodeDatabase, encodeMapUnit, encodeSave, encodeTreeMap } from '../src/index.ts'
 
-// Real game files, never committed – the suite skips itself when absent.
 const corpusDirectory = fileURLToPath(new URL('corpus', import.meta.url))
 const gameNames = existsSync(corpusDirectory)
   ? readdirSync(corpusDirectory, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name)

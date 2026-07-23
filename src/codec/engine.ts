@@ -81,8 +81,7 @@ function scalarRawLayout(recordName: string): ScalarRawLayout {
 }
 
 // Parameters is a transposed series-of-arrays, which the scalar walker cannot
-// express – the one hand-coded raw layout. Its series keys and int16 stride
-// still derive from the descriptor.
+// express – the one hand-coded raw layout.
 const PARAMETERS_SERIES_KEYS: string[] = RECORD_DESCRIPTORS.Parameters!.fields.map(field => field.key)
 const PARAMETERS_STRIDE = PARAMETERS_SERIES_KEYS.length * VECTOR_ELEMENT_CODECS.int16.byteWidth
 

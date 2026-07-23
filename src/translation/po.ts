@@ -96,7 +96,6 @@ export function formatPoCatalog(units: TextUnit[], projectName: string): string 
   return text
 }
 
-/** One parsed PO entry, before it is joined back to game addresses on inject. */
 export interface ParsedPoEntry {
   context?: string
   source: string

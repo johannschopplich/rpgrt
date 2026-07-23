@@ -75,7 +75,6 @@ function readJsonDumps(filePaths: string[], dumpPath: string): Dump[] {
   return dumps
 }
 
-/** Reads and parses one PO catalog, wrapping parse aborts with the filename. */
 function parsePoCatalogFile(filePath: string): ParsedCatalog {
   const fileName = basename(filePath)
   try {
@@ -119,8 +118,8 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
       engine: options.engine ?? dumps[0]!.engine,
       encoding: options.encoding ?? dumps[0]!.encoding,
     })
-    // The dump's metadata rides in through the flag slot – report it as its own
-    // source so the CLI never claims a flag the user did not pass.
+    // The dump's engine/encoding were passed through the flag slot above, so the
+    // game's source reads `flag` – re-derive it as `dump` instead.
     engineSource = options.engine !== undefined ? game.engineSource : 'dump'
     encodingSource = options.encoding !== undefined ? game.encodingSource : 'dump'
     collectedUnits = collectGameUnits(game)

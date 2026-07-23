@@ -136,7 +136,6 @@ describe('inject', () => {
     const result = injectDump(gameDirectory, dumpPath)
     expect(result.appliedCount).toBe(4)
     expect(result.writtenFileNames).toEqual(['Map0001.lmu', 'RPG_RT.lmt'])
-    // A JSON dump supplies its own metadata – reported as `dump`, not as a flag.
     expect(result.engineSource).toBe('dump')
     expect(result.encodingSource).toBe('dump')
     expect(readFileSync(join(gameDirectory, 'RPG_RT.ldb'))).toEqual(databaseBytesBefore)
@@ -246,7 +245,6 @@ describe('inject from PO', () => {
     expect(result.appliedCount).toBe(3)
     expect(result.engine).toBe('2k')
     expect(result.encoding).toBe('cp1252')
-    // PO carries no metadata, so the game's own detection decides – and is reported.
     expect(result.engineSource).toBe('database')
     expect(result.encodingSource).toBe('ini')
 

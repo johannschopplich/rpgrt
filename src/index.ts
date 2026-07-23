@@ -7,8 +7,6 @@ import { ByteReader } from './codec/reader.ts'
 import { latin1Transcoder } from './codec/transcoder.ts'
 import { ByteWriter } from './codec/writer.ts'
 
-// The descriptor metadata types stay internal – their backing tables are not
-// exported, and an unusable type would still freeze at first publish.
 export type { UnknownChunk } from './codec/descriptors.ts'
 export { LcfError } from './codec/errors.ts'
 export { latin1Transcoder } from './codec/transcoder.ts'
@@ -16,7 +14,7 @@ export type { Transcoder } from './codec/transcoder.ts'
 export * from './generated/enums.ts'
 export type * from './generated/records.ts'
 
-/** RPG Maker engine the file targets. Some LCF fields exist only in 2k3. */
+/** Some LCF fields exist only in 2k3. */
 export type EngineVersion = '2k' | '2k3'
 
 export interface CodecOptions {

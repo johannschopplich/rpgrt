@@ -2,7 +2,6 @@ import type { Database, EngineVersion, EventCommand, MapUnit, TreeMap } from '..
 import { RECORD_DESCRIPTORS } from '../generated/descriptors.ts'
 import { TreeMapMapType } from '../generated/enums.ts'
 
-/** One translatable entry: stable address, source text, and lcftrans-style context. */
 export interface TextUnit {
   address: string
   /** Lines joined with newlines; control codes like `\c[3]` appear verbatim. */
@@ -30,7 +29,6 @@ export interface DumpUnit extends TextUnit {
   translation: string
 }
 
-/** The extract output: dump metadata plus every text unit of one or all files. */
 export interface Dump {
   engine: EngineVersion
   encoding: string

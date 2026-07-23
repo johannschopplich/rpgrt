@@ -59,7 +59,6 @@ const ENCODING_SOURCE_LABELS: Record<EncodingSource, string> = {
   dump: 'from the dump metadata',
 }
 
-/** The `engine … (why), encoding … (why)` line every command reports. */
 export function describeFileContext(context: { engine: EngineVersion, engineSource: EngineSource, encoding: string, encodingSource: EncodingSource }): string {
   return `engine ${context.engine} (${ENGINE_SOURCE_LABELS[context.engineSource]}), encoding ${context.encoding} (${ENCODING_SOURCE_LABELS[context.encodingSource]})`
 }

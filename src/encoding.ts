@@ -70,16 +70,12 @@ export function createTranscoder(encoding: string): Transcoder {
   }
 }
 
-/** True when decoding and re-encoding reproduces the input byte for byte. */
 export function isLosslessFor(encoding: string, bytes: Uint8Array): boolean {
   const transcoder = createTranscoder(encoding)
   return bytesEqual(transcoder.encode(transcoder.decode(bytes)), bytes)
 }
 
-/**
- * Reads the `Encoding` key of the `[EasyRPG]` section from RPG_RT.ini contents.
- * EasyRPG writes either an encoding name or a Windows code page number.
- */
+/** EasyRPG writes either an encoding name or a Windows code page number. */
 export function encodingFromIni(iniText: string): string | undefined {
   let isInEasyRpgSection = false
   for (const line of iniText.split(/\r?\n/)) {

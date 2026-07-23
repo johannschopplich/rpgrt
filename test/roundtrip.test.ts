@@ -6,12 +6,10 @@ import { decodeDatabase, decodeMapUnit, decodeTreeMap, encodeDatabase, encodeMap
 
 const engines: EngineVersion[] = ['2k', '2k3']
 
-/** Chunk IDs of one chunk stream, ignoring payloads. */
 function chunkIds(payload: Uint8Array): number[] {
   return [...readChunkStream(new ByteReader(payload), 'id-zero')].map(chunk => chunk.id)
 }
 
-/** Payload byte-length of a given top-level chunk, or undefined if absent. */
 function topLevelChunkLength(databaseBytes: Uint8Array, chunkId: number): number | undefined {
   const reader = new ByteReader(databaseBytes)
   reader.skip(reader.readBerUnsigned())

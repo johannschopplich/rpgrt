@@ -35,7 +35,7 @@ export type FieldCodec
 
 export type DefaultScalar = number | boolean | string | number[]
 
-/** A default that differs between engines, e.g. Actor finalLevel 50|99. */
+/** e.g. Actor finalLevel 50 (2k) / 99 (2k3). */
 export type EngineSplitDefault = Record<EngineVersion, DefaultScalar>
 
 export type FieldDefaultValue = DefaultScalar | EngineSplitDefault
