@@ -1,4 +1,6 @@
 // Generated from vendor/liblcf-csv by `pnpm run generate` – do not edit.
+// Field tables derived from EasyRPG/liblcf (MIT, © 2014-2025 liblcf authors),
+// https://github.com/EasyRPG/liblcf @ 666e6c0. See the root LICENSE.
 
 export const AnimationPosition = {
   up: 0,

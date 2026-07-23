@@ -5,6 +5,8 @@ import { toCamelCase, toObjectKey } from './names.ts'
 import { classifyNamedType, resolveEnum } from './tables.ts'
 
 const GENERATED_HEADER = '// Generated from vendor/liblcf-csv by `pnpm run generate` – do not edit.\n'
+  + '// Field tables derived from EasyRPG/liblcf (MIT, © 2014-2025 liblcf authors),\n'
+  + '// https://github.com/EasyRPG/liblcf @ 666e6c0. See the root LICENSE.\n'
 
 /** Raw structs that appear as chunk payloads (all other raw structs only occur inside vectors or at top level). */
 const EMBEDDABLE_RAW_STRUCTS = new Set(['Parameters', 'Equipment', 'Rect'])

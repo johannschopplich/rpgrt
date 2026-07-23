@@ -13,9 +13,9 @@ Read and write RPG Maker 2000/2003 LCF files in pure TypeScript – library and 
 
 </div>
 
-RPG Maker 2000/2003 games – *Yume Nikki*, *OFF*, *Ib*, and thousands of freeware classics – store everything in the binary LCF format: maps (`Map0001.lmu`), the database (`RPG_RT.ldb`), the map tree (`RPG_RT.lmt`). The only complete implementation has been [EasyRPG's liblcf](https://github.com/EasyRPG/liblcf) – C++, a native build toolchain between you and the data, and XML as the only text output. lcfkit reimplements the format in isomorphic TypeScript (`Uint8Array` core, browser-safe, no native builds): LCF in, typed records or diffable JSON out, and the *same bytes* back.
+RPG Maker 2000/2003 games – *Yume Nikki*, *OFF*, *Ib*, and thousands of freeware classics – store everything in the binary LCF format: maps (`Map0001.lmu`), the database (`RPG_RT.ldb`), the map tree (`RPG_RT.lmt`). The only production-grade implementation has been [EasyRPG's liblcf](https://github.com/EasyRPG/liblcf) – C++, a native build toolchain between you and the data, and XML as the only text output. lcfkit reimplements the format in isomorphic TypeScript (`Uint8Array` core, browser-safe, no native builds): LCF in, typed records or diffable JSON out, and the *same bytes* back.
 
-It's built for translation work. `extract` pulls every message, choice, hero name, and database string into one dump with stable addresses; `inject` validates the translated dump in memory – line counts, encodability, staleness – and writes it back all-or-nothing. PO export follows [lcftrans](https://easyrpg.org/player/guide/game_translation/) catalog naming, so gettext editors and EasyRPG Player's translation workflow line up.
+It's built for translation work – including the step no open tool covers: writing translations back. [lcftrans](https://easyrpg.org/player/guide/game_translation/) extracts to PO, but those catalogs are only loaded at runtime by EasyRPG Player – the game files themselves stay untranslated. lcfkit closes the loop: `extract` pulls every message, choice, hero name, and database string into one dump with stable addresses, and `inject` validates the translated dump in memory – line counts, encodability, staleness – and writes it into the actual `.lmu`/`.ldb`/`.lmt` files, all-or-nothing. PO export follows lcftrans catalog naming, so gettext editors and EasyRPG Player's translation workflow line up.
 
 ## When to Use
 
@@ -135,11 +135,11 @@ npx lcfkit extract ./game --po -o po
 
 This writes the same catalogs lcftrans produces – `RPG_RT.ldb.po` (database terms), `RPG_RT.ldb.common.po` (common events), `RPG_RT.ldb.battle.po` (battle events), `RPG_RT.lmt.po` (map names), and one `Map####.po` per map – with lcftrans-style `msgctxt` and `#.` location comments, ready for Poedit, Weblate, or [EasyRPG Player's `Language/` folder workflow](https://easyrpg.org/player/guide/game_translation/).
 
-PO export is one-way: `inject` reads the JSON dumps. Use PO when your pipeline ends in EasyRPG Player's runtime translation loading; use JSON dumps when you want lcfkit to write the game files themselves.
+The two formats serve two pipelines. Use PO when yours ends in EasyRPG Player's runtime translation loading; use JSON dumps when you want lcfkit to write the game files themselves – the step lcftrans and Player leave out. `inject` reads JSON dumps today; PO import is next on the roadmap.
 
 ### Encodings, or: avoiding mojibake
 
-LCF predates Unicode – text is stored in a legacy codepage with no marker in the file. Japanese games are Shift_JIS (cp932), Western ones usually Windows-1252, and reading with the wrong one turns every string into mojibake. lcfkit makes the codepage explicit: detection records it in the envelope or dump, `inject` re-encodes with the same codepage, and any translated character that doesn't exist in it (e.g. `é` in a Shift_JIS game) aborts the injection with the exact unit named – it never silently writes `?`.
+LCF predates Unicode – text is stored in a legacy codepage with no marker in the file. Japanese games are Shift_JIS (cp932), Western ones usually Windows-1252, and reading with the wrong one turns every string into mojibake. lcfkit makes the codepage explicit: detection records it in the envelope or dump, `inject` re-encodes with the same codepage, and any translated character that doesn't exist in it (e.g. `é` in a Shift_JIS game) aborts the injection with the exact unit named – it never silently writes `?`. The `--encoding` flag accepts both iconv names (`Shift_JIS`, `cp1252`) and bare Windows codepage numbers (`932`, `1252`) – the numeric form EasyRPG's `RPG_RT.ini` uses.
 
 ## Safety & limits
 
@@ -199,9 +199,9 @@ function detectEncoding(bytes: Uint8Array): string | undefined
 function encodingFromIni(iniText: string): string | undefined
 ```
 
----
+## Credits
 
-Design records live in [`CONTEXT.md`](./CONTEXT.md) (domain glossary) and [`docs/adr/`](./docs/adr) (scope and architecture decisions). Format tables are generated from [vendored liblcf CSVs](./vendor/liblcf-csv).
+lcfkit's format knowledge and its generated record tables (`vendor/liblcf-csv/`, `src/generated/`) come from EasyRPG's [liblcf](https://github.com/EasyRPG/liblcf), used under the MIT License. Thanks to the EasyRPG project.
 
 ## License
 
