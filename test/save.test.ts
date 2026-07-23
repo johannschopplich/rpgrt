@@ -131,16 +131,14 @@ describe.each(engines)('save round trip (%s)', (engine) => {
   })
 })
 
-describe('save wire bytes (docs/serialization.md)', () => {
+describe('save wire bytes', () => {
   it('frames a sparse id-indexed actor array as a count then per-entry id and chunk stream', () => {
-    // Array framing (§2): [BER element count] then, per element, [BER id] and the
-    // element's chunk stream ending in 0x00. A default 2k SaveActor persists only
-    // its persist-if-default chunks (§8), each [id][BER length][payload]:
-    //   name 0x01 = "", title 0x02 = "",
-    //   skills element-count size 0x33 = 0 and empty data 0x34,
-    //   equipped 0x3D = five int16 zeros (10 bytes),
-    //   status data 0x52 empty (its count size 0x51 is omitted when default),
-    //   then the terminating 0x00. 2k3-only chunks are absent in a 2k save (§8).
+    // An id-indexed array is a BER element count, then per element a BER id and
+    // the element's chunk stream ending in 0x00. A default SaveActor persists
+    // only its persist-if-default chunks – name and title default to the one-byte
+    // 0x01 sentinel RPG_RT reads as "copy from the database actor", and the
+    // status size chunk 0x51, unlike the skills size 0x33, is not persisted when
+    // default.
     const name = [0x01, 0x01, 0x01]
     const title = [0x02, 0x01, 0x01]
     const skillsSize = [0x33, 0x01, 0x00]
@@ -163,9 +161,8 @@ describe('save wire bytes (docs/serialization.md)', () => {
 
   it('merges the SaveMapEventBase chunk ids into the party location, sorted', () => {
     // SaveMapEventBase is flattened into SavePartyLocation, its chunks merged
-    // ahead of the derived struct's own and sorted by id (CONTEXT.md base struct).
-    // A default party location writes exactly the base struct's persist-if-default
-    // chunks, in ascending id order.
+    // ahead of the derived struct's own and sorted by id. A default party
+    // location writes exactly the base struct's persist-if-default chunks.
     const expectedBaseIds = [0x0B, 0x0C, 0x0D, 0x15, 0x16, 0x21, 0x23, 0x25, 0x29]
     const descriptorBaseIds = RECORD_DESCRIPTORS.SaveMapEventBase!.fields
       .filter(field => field.isPersistedIfDefault === true)

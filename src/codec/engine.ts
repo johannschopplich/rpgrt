@@ -16,7 +16,7 @@ export interface CodecContext {
 export type LcfRecord = Record<string, unknown>
 
 // RPG_RT omits these Terms chunks when default in a 2k3 database even though
-// they are persist-if-default (docs/serialization.md §8).
+// they are persist-if-default.
 const TERMS_2K3_OMITTED_CHUNK_IDS = new Set([0x01, 0x03])
 
 type RawScalarKind = 'uint8' | 'int16' | 'uint32' | 'double'
@@ -124,7 +124,7 @@ export function decodeChunkStream(recordName: string, reader: ByteReader, contex
         continue
       }
       // Size chunk values are recomputed on encode; the data chunk's own length
-      // is authoritative (docs/serialization.md §4).
+      // is authoritative.
       if (owner.isSizeChunk || owner.field.codec.kind === 'emptyBlock')
         continue
       const field = owner.field
@@ -341,8 +341,7 @@ export function encodeChunkStream(recordName: string, record: LcfRecord, writer:
     const value = record[field.key] ?? resolveDefault(field, context.engine)
     const isDefaultValue = isDefaultFieldValue(field.codec, value, resolveDefault(field, context.engine))
     const isForcedOmitWhenDefault = recordName === 'Terms' && context.engine === '2k3' && TERMS_2K3_OMITTED_CHUNK_IDS.has(field.id!)
-    // RPG_RT always writes the version chunk in 2k3 but only when non-zero in 2k
-    // (docs/serialization.md §1 DatabaseVersion).
+    // RPG_RT always writes the version chunk in 2k3 but only when non-zero in 2k.
     const isForcedPersistWhenDefault = field.codec.kind === 'databaseVersion' && context.engine === '2k3'
     const shouldWriteData = isForcedOmitWhenDefault
       ? !isDefaultValue
@@ -425,7 +424,7 @@ function encodeFieldPayload(field: FieldDescriptor, value: unknown, context: Cod
       break
     case 'databaseVersion':
       // Version 0 encodes as an empty chunk (length 0); RPG_RT distinguishes it
-      // from a one-byte BER 0 (docs/serialization.md §1 DatabaseVersion).
+      // from a one-byte BER 0.
       if ((value as number) !== 0)
         writer.writeBer(value as number)
       break
@@ -443,8 +442,7 @@ function encodeVector(element: VectorElementKind, elements: (number | boolean)[]
 }
 
 function encodeFlags(flagSetName: string, flags: Record<string, boolean>, engine: EngineVersion, writer: ByteWriter): void {
-  // 2k3-only bits are dropped before packing, shifting later bit positions
-  // (docs/serialization.md §5).
+  // 2k3-only bits are dropped before packing, shifting later bit positions.
   const activeBits = FLAG_SETS[flagSetName]!.filter(bit => engine === '2k3' || bit.is2k3Only !== true)
   const bytes = new Uint8Array(Math.ceil(activeBits.length / 8))
   activeBits.forEach((bit, index) => {

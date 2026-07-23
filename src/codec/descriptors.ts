@@ -1,8 +1,7 @@
 import type { EngineVersion } from '../index.ts'
 
 /**
- * Serialization kinds, mirroring liblcf's wire behavior (derivation with
- * liblcf source references: docs/serialization.md):
+ * Serialization kinds, mirroring liblcf's wire behavior:
  *
  * - `berInt` is the BER integer used by scalar Int32, enums, and refs.
  * - Vector elements are always fixed-width little-endian – including `int32`,
