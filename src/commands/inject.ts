@@ -10,6 +10,7 @@ import { encodeDatabase, encodeMapTree, encodeMapUnit } from '../index.ts'
 import { planInjection, resolvePoDumps } from '../translation/inject.ts'
 import { parsePoCatalog } from '../translation/po.ts'
 import { collectGameUnits, loadGame, toCatalogContext } from './game.ts'
+import { describeFileContext } from './resolve.ts'
 
 export interface InjectOptions {
   engine?: string
@@ -23,7 +24,9 @@ export interface InjectResult {
   fuzzySkippedCount: number
   writtenFileNames: string[]
   engine: LoadedGame['engine']
+  engineSource: LoadedGame['engineSource']
   encoding: string
+  encodingSource: LoadedGame['encodingSource']
 }
 
 type DumpSource
@@ -170,7 +173,9 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
     fuzzySkippedCount,
     writtenFileNames: [...dirtyFileNames].sort(),
     engine: game.engine,
+    engineSource: game.engineSource,
     encoding: game.encoding,
+    encodingSource: game.encodingSource,
   }
 }
 
@@ -198,7 +203,7 @@ export const injectCommand: CommandDef<InjectArgs> = defineCommand({
     const result = injectDump(args.game, args.dump, { engine: args.engine, encoding: args.encoding })
     const fuzzyNote = result.fuzzySkippedCount > 0 ? `, ${result.fuzzySkippedCount} fuzzy entr${result.fuzzySkippedCount === 1 ? 'y' : 'ies'} skipped` : ''
     console.error(`${result.appliedCount} translation(s) applied, ${result.untranslatedCount} unit(s) still untranslated${fuzzyNote}`)
-    console.error(`  engine ${result.engine}, encoding ${result.encoding}`)
+    console.error(`  ${describeFileContext(result)}`)
     console.error(result.writtenFileNames.length === 0
       ? '  no files written'
       : `  wrote ${result.writtenFileNames.join(', ')}`)

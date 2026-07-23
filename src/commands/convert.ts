@@ -1,14 +1,14 @@
 import type { ArgsDef, CommandDef } from 'citty'
 import type { LcfRecord } from '../codec/engine.ts'
 import type { EngineVersion } from '../index.ts'
-import type { LcfFileKind, ResolvedEncoding, ResolvedEngine } from './resolve.ts'
+import type { EncodingSource, EngineSource, LcfFileKind } from './resolve.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { defineCommand } from 'citty'
 import { bytesEqual } from '../codec/bytes.ts'
 import { LcfError } from '../codec/errors.ts'
 import { createTranscoder } from '../encoding.ts'
-import { LCF_CODECS, lcfFileKind, parseEngineFlag, resolveFileContext } from './resolve.ts'
+import { describeFileContext, LCF_CODECS, lcfFileKind, parseEngineFlag, resolveFileContext } from './resolve.ts'
 
 /** The self-describing JSON document `convert` writes; converting back needs no flags. */
 interface JsonEnvelope {
@@ -22,9 +22,9 @@ export interface ConvertResult {
   outputPath: string
   format: LcfFileKind
   engine: EngineVersion
-  engineSource: ResolvedEngine['engineSource'] | 'envelope'
+  engineSource: EngineSource
   encoding: string
-  encodingSource: ResolvedEncoding['encodingSource'] | 'envelope'
+  encodingSource: EncodingSource
   /** Whether re-encoding the JSON document reproduces the source file byte for byte (LCF→JSON only). */
   isByteIdentical?: boolean
 }
@@ -127,22 +127,6 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
   return { outputPath, format: kind, engine, engineSource, encoding, encodingSource, isByteIdentical }
 }
 
-const ENGINE_SOURCE_LABELS: Record<ConvertResult['engineSource'], string> = {
-  flag: 'from --engine',
-  database: 'detected from RPG_RT.ldb',
-  roundTrip: 'detected by re-encoding',
-  fallback: 'fallback – pass --engine if wrong',
-  envelope: 'from the JSON document',
-}
-
-const ENCODING_SOURCE_LABELS: Record<ConvertResult['encodingSource'], string> = {
-  flag: 'from --encoding',
-  ini: 'from RPG_RT.ini',
-  detected: 'detected',
-  fallback: 'fallback – pass --encoding if wrong',
-  envelope: 'from the JSON document',
-}
-
 export interface ConvertArgs extends ArgsDef {
   input: { type: 'positional', description: string, required: true }
   output: { type: 'string', alias: string, description: string }
@@ -166,7 +150,7 @@ export const convertCommand: CommandDef<ConvertArgs> = defineCommand({
   run({ args }) {
     const result = convertFile(args.input, { output: args.output, engine: args.engine, encoding: args.encoding })
     console.error(`${args.input} → ${result.outputPath}`)
-    console.error(`  engine ${result.engine} (${ENGINE_SOURCE_LABELS[result.engineSource]}), encoding ${result.encoding} (${ENCODING_SOURCE_LABELS[result.encodingSource]})`)
+    console.error(`  ${describeFileContext(result)}`)
     if (result.isByteIdentical === false)
       console.error('  warning: converting back will not reproduce the source byte for byte – check --engine and --encoding')
   },

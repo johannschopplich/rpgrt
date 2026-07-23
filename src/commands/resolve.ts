@@ -37,6 +37,31 @@ export interface ResolvedEncoding {
   encodingSource: 'flag' | 'ini' | 'detected' | 'fallback'
 }
 
+/** `envelope` covers convert's JSON round trip – the document decides for itself. */
+export type EngineSource = ResolvedEngine['engineSource'] | 'envelope'
+export type EncodingSource = ResolvedEncoding['encodingSource'] | 'envelope'
+
+const ENGINE_SOURCE_LABELS: Record<EngineSource, string> = {
+  flag: 'from --engine',
+  database: 'detected from RPG_RT.ldb',
+  roundTrip: 'detected by re-encoding',
+  fallback: 'fallback – pass --engine if wrong',
+  envelope: 'from the JSON document',
+}
+
+const ENCODING_SOURCE_LABELS: Record<EncodingSource, string> = {
+  flag: 'from --encoding',
+  ini: 'from RPG_RT.ini',
+  detected: 'detected',
+  fallback: 'fallback – pass --encoding if wrong',
+  envelope: 'from the JSON document',
+}
+
+/** The `engine … (why), encoding … (why)` line every command reports. */
+export function describeFileContext(context: { engine: EngineVersion, engineSource: EngineSource, encoding: string, encodingSource: EncodingSource }): string {
+  return `engine ${context.engine} (${ENGINE_SOURCE_LABELS[context.engineSource]}), encoding ${context.encoding} (${ENCODING_SOURCE_LABELS[context.encodingSource]})`
+}
+
 export const FALLBACK_ENCODING = 'windows-1252'
 
 export function lcfFileKind(filePath: string): LcfFileKind | undefined {

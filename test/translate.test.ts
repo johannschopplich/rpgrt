@@ -136,6 +136,9 @@ describe('inject', () => {
     const result = injectDump(gameDirectory, dumpPath)
     expect(result.appliedCount).toBe(4)
     expect(result.writtenFileNames).toEqual(['Map0001.lmu', 'RPG_RT.lmt'])
+    // The sibling database always decides the engine for a loaded game.
+    expect(result.engineSource).toBe('database')
+    expect(result.encodingSource).toBeDefined()
     expect(readFileSync(join(gameDirectory, 'RPG_RT.ldb'))).toEqual(databaseBytesBefore)
     expect(readdirSync(gameDirectory).sort()).toEqual(fileNamesBefore)
 

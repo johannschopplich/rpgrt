@@ -8,6 +8,7 @@ import { defineCommand } from 'citty'
 import { LcfError } from '../codec/errors.ts'
 import { formatPoCatalog, poCatalogs } from '../translation/po.ts'
 import { collectGameUnits, loadGame, toCatalogContext } from './game.ts'
+import { describeFileContext } from './resolve.ts'
 
 export type { Dump, DumpUnit } from '../translation/units.ts'
 
@@ -122,7 +123,7 @@ export const extractCommand: CommandDef<ExtractArgs> = defineCommand({
       encoding: args.encoding,
     })
     console.error(`${result.unitCount} text units → ${result.outputPaths.length === 1 ? result.outputPaths[0] : `${result.outputPaths.length} files`}`)
-    console.error(`  engine ${result.engine}, encoding ${result.encoding}`)
+    console.error(`  ${describeFileContext(result)}`)
     for (const skippedFileName of result.skippedFileNames)
       console.error(`  skipped ${skippedFileName} – no MapNNNN name, so its units have no stable address`)
   },
