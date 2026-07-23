@@ -61,7 +61,15 @@ function classifyDumpSource(dumpPath: string): DumpSource {
 
 function readJsonDumps(filePaths: string[], dumpPath: string): Dump[] {
   const dumps = filePaths.map((filePath) => {
-    const dump = JSON.parse(readFileSync(filePath, 'utf8')) as Partial<Dump>
+    const jsonText = readFileSync(filePath, 'utf8')
+    let parsedValue: unknown
+    try {
+      parsedValue = JSON.parse(jsonText)
+    }
+    catch (error) {
+      throw new LcfError(`${filePath} is not valid JSON: ${(error as Error).message}`)
+    }
+    const dump = parsedValue as Partial<Dump>
     const hasValidShape = (dump.engine === '2k' || dump.engine === '2k3')
       && typeof dump.encoding === 'string' && Array.isArray(dump.units)
     if (!hasValidShape)
