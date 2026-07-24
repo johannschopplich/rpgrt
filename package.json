@@ -1,7 +1,7 @@
 {
   "name": "rpgrt",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "packageManager": "pnpm@11.10.0",
   "description": "Turn RPG Maker 2000/2003 games into diffable JSON and back – byte for byte, in pure TypeScript",
   "author": "Johann Schopplich <hello@johannschopplich.com>",
