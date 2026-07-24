@@ -154,10 +154,10 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
   for (const { collected, lines } of plan.applications)
     collected.applyTranslation(lines)
 
-  const dirtyFileNames = new Set(plan.applications.map(({ collected }) => collected.fileName))
+  const dirtyFileNames = [...new Set(plan.applications.map(({ collected }) => collected.fileName))].sort()
   const codecOptions = { engine: game.engine, transcoder: game.transcoder }
   const pendingWrites: { filePath: string, tempPath: string, backupPath: string, bytes: Uint8Array }[] = []
-  for (const fileName of [...dirtyFileNames].sort()) {
+  for (const fileName of dirtyFileNames) {
     let bytes: Uint8Array
     if (fileName === game.databaseFileName)
       bytes = encodeDatabase(game.database, codecOptions)
@@ -209,7 +209,7 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
     appliedCount: plan.applications.length,
     untranslatedCount,
     fuzzySkippedCount,
-    writtenFileNames: [...dirtyFileNames].sort(),
+    writtenFileNames: dirtyFileNames,
     engine: game.engine,
     engineSource,
     encoding: game.encoding,

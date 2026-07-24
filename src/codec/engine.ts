@@ -338,8 +338,9 @@ export function encodeChunkStream(recordName: string, record: LcfRecord, writer:
       continue
     }
 
-    const value = record[field.key] ?? resolveDefault(field, context.engine)
-    const isDefaultValue = isDefaultFieldValue(field.codec, value, resolveDefault(field, context.engine))
+    const defaultValue = resolveDefault(field, context.engine)
+    const value = record[field.key] ?? defaultValue
+    const isDefaultValue = isDefaultFieldValue(field.codec, value, defaultValue)
     const isForcedOmitWhenDefault = recordName === 'Terms' && context.engine === '2k3' && TERMS_2K3_OMITTED_CHUNK_IDS.has(field.id!)
     // RPG_RT always writes the version chunk in 2k3 but only when non-zero in 2k.
     const isForcedPersistWhenDefault = field.codec.kind === 'databaseVersion' && context.engine === '2k3'
