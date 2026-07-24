@@ -1,18 +1,18 @@
 {
-  "name": "lcfkit",
+  "name": "rpgrt",
   "type": "module",
   "version": "0.0.0",
   "packageManager": "pnpm@11.10.0",
   "description": "Turn RPG Maker 2000/2003 games into diffable JSON and back – byte for byte, in pure TypeScript",
   "author": "Johann Schopplich <hello@johannschopplich.com>",
   "license": "MIT",
-  "homepage": "https://github.com/johannschopplich/lcfkit#readme",
+  "homepage": "https://github.com/johannschopplich/rpgrt#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/johannschopplich/lcfkit.git"
+    "url": "git+https://github.com/johannschopplich/rpgrt.git"
   },
   "bugs": {
-    "url": "https://github.com/johannschopplich/lcfkit/issues"
+    "url": "https://github.com/johannschopplich/rpgrt/issues"
   },
   "keywords": [
     "lcf",
@@ -38,7 +38,7 @@
   },
   "types": "./dist/index.d.mts",
   "bin": {
-    "lcfkit": "bin/lcfkit.mjs"
+    "rpgrt": "bin/rpgrt.mjs"
   },
   "files": [
     "bin",

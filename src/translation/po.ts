@@ -59,7 +59,7 @@ function formatPoHeader(projectName: string): string {
     + '"MIME-Version: 1.0\\n"\n'
     + '"Content-Type: text/plain; charset=UTF-8\\n"\n'
     + '"Content-Transfer-Encoding: 8bit\\n"\n'
-    + '"X-CreatedBy: lcfkit"\n'
+    + '"X-CreatedBy: rpgrt"\n'
 }
 
 /**

@@ -13,7 +13,7 @@ import { decodeMapUnit, encodeDatabase, encodeMapUnit, encodeTreeMap } from '../
 const temporaryDirectories: string[] = []
 
 function createDirectory(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'lcfkit-test-'))
+  const directory = mkdtempSync(join(tmpdir(), 'rpgrt-test-'))
   temporaryDirectories.push(directory)
   return directory
 }
@@ -172,14 +172,14 @@ describe('inject', () => {
 
     // A directory squatting on the backup path makes the second swap's rename
     // throw after Map0001.lmu has already been replaced.
-    const blockingPath = join(gameDirectory, 'RPG_RT.lmt.lcfkit-bak')
+    const blockingPath = join(gameDirectory, 'RPG_RT.lmt.rpgrt-bak')
     mkdirSync(blockingPath)
 
     expect(() => injectDump(gameDirectory, dumpPath)).toThrow('Nothing was written')
     expect(readFileSync(join(gameDirectory, 'Map0001.lmu'))).toEqual(mapBytesBefore)
     expect(readFileSync(join(gameDirectory, 'RPG_RT.lmt'))).toEqual(treeMapBytesBefore)
-    const leftoverNames = readdirSync(gameDirectory).filter(name => name.includes('.lcfkit-'))
-    expect(leftoverNames).toEqual(['RPG_RT.lmt.lcfkit-bak'])
+    const leftoverNames = readdirSync(gameDirectory).filter(name => name.includes('.rpgrt-'))
+    expect(leftoverNames).toEqual(['RPG_RT.lmt.rpgrt-bak'])
   })
 
   it('round-trips through split dumps', () => {

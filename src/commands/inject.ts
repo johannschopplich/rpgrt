@@ -73,7 +73,7 @@ function readJsonDumps(filePaths: string[], dumpPath: string): Dump[] {
     const hasValidShape = (dump.engine === '2k' || dump.engine === '2k3')
       && typeof dump.encoding === 'string' && Array.isArray(dump.units)
     if (!hasValidShape)
-      throw new LcfError(`${filePath} is not an lcfkit dump (expected engine, encoding, and units keys)`)
+      throw new LcfError(`${filePath} is not an rpgrt dump (expected engine, encoding, and units keys)`)
     return dump as Dump
   })
   for (const dump of dumps) {
@@ -166,7 +166,7 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
     else
       bytes = encodeMapUnit(game.maps.find(map => map.fileName === fileName)!.mapUnit, codecOptions)
     const filePath = join(directory, fileName)
-    pendingWrites.push({ filePath, tempPath: `${filePath}.lcfkit-tmp`, backupPath: `${filePath}.lcfkit-bak`, bytes })
+    pendingWrites.push({ filePath, tempPath: `${filePath}.rpgrt-tmp`, backupPath: `${filePath}.rpgrt-bak`, bytes })
   }
   // Temps are staged beside their targets so every rename stays on one volume
   // and is atomic. Crash or power loss between renames remains out of scope.
@@ -198,7 +198,7 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
     for (const { tempPath } of pendingWrites)
       rmSync(tempPath, { force: true })
     if (unrestoredFileNames.length > 0)
-      throw new LcfError(`Writing failed and rollback left ${unrestoredFileNames.join(', ')} unrestored – recover them from their .lcfkit-bak siblings. Original error: ${(error as Error).message}`)
+      throw new LcfError(`Writing failed and rollback left ${unrestoredFileNames.join(', ')} unrestored – recover them from their .rpgrt-bak siblings. Original error: ${(error as Error).message}`)
     throw new LcfError(`Nothing was written – the write phase failed and every file was restored: ${(error as Error).message}`)
   }
 

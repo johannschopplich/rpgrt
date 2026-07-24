@@ -13,7 +13,7 @@ import { encodeDatabase, encodeMapUnit, encodeSave } from '../src/index.ts'
 const temporaryDirectories: string[] = []
 
 function createGameDirectory(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'lcfkit-test-'))
+  const directory = mkdtempSync(join(tmpdir(), 'rpgrt-test-'))
   temporaryDirectories.push(directory)
   return directory
 }
@@ -141,6 +141,6 @@ describe('convert errors', () => {
     const directory = createGameDirectory()
     const filePath = join(directory, 'plain.json')
     writeFileSync(filePath, '{"events": []}')
-    expect(() => convertFile(filePath)).toThrow('not an lcfkit JSON document')
+    expect(() => convertFile(filePath)).toThrow('not an rpgrt JSON document')
   })
 })

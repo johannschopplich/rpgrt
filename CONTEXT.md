@@ -1,4 +1,4 @@
-# lcfkit
+# rpgrt
 
 Reads and writes the binary LCF files of RPG Maker 2000/2003 games (maps, database, map tree) in pure TypeScript, and ships a CLI for JSON conversion and translation workflows. Reimplements the format knowledge of EasyRPG's C++ liblcf without wrapping it.
 
@@ -95,7 +95,7 @@ The codec's pluggable converter between wire bytes and strings. The default maps
 _Avoid_: encoder, decoder (both overloaded)
 
 **Reference address**:
-A `#: <address>` gettext comment lcfkit writes into each PO entry, one per occurrence, carrying the text unit's stable address. On inject it is the primary key that joins a PO entry back to its game location, surviving `msgid` edits.
+A `#: <address>` gettext comment rpgrt writes into each PO entry, one per occurrence, carrying the text unit's stable address. On inject it is the primary key that joins a PO entry back to its game location, surviving `msgid` edits.
 _Avoid_: location comment, occurrence
 
 **Fallback matching**:

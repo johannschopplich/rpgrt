@@ -1,6 +1,6 @@
 # liblcf Serialization Semantics (LDB / LMU / LMT / LSD)
 
-Source: EasyRPG/liblcf @ [666e6c0](https://github.com/EasyRPG/liblcf/tree/666e6c0); all file:line references below are into that tree. This documents the exact on-the-wire behavior for the LcfReader/LcfWriter binary format, as driven by `generator/csv/fields.csv` and the generated + hand-written struct readers. It describes liblcf; where lcfkit deliberately diverges, the spot is marked and §11 collects the rationale.
+Source: EasyRPG/liblcf @ [666e6c0](https://github.com/EasyRPG/liblcf/tree/666e6c0); all file:line references below are into that tree. This documents the exact on-the-wire behavior for the LcfReader/LcfWriter binary format, as driven by `generator/csv/fields.csv` and the generated + hand-written struct readers. It describes liblcf; where rpgrt deliberately diverges, the spot is marked and §11 collects the rationale.
 
 ---
 
@@ -42,7 +42,7 @@ There is **no `uint16_t` TypeCategory** and no BER for `uint32`/`int16`/`double`
 ### Primitive vectors – count derived from CHUNK LENGTH, elements FIXED-WIDTH
 `Primitive<std::vector<T>>` (`reader_struct.h:218-243`) calls `stream.Read(vec, length)`:
 - `Vector<UInt8>` / `Vector<Boolean>`: 1 byte each, count = length (`reader_lcf.cpp:140-159`). Bool: `val > 0`.
-- `Vector<Int16>`: 2-byte LE each, count = length/2 (`reader_lcf.cpp:161-175`). Trailing odd byte → skip + push 0 (lcfkit diverges – §11).
+- `Vector<Int16>`: 2-byte LE each, count = length/2 (`reader_lcf.cpp:161-175`). Trailing odd byte → skip + push 0 (rpgrt diverges – §11).
 - `Vector<Int32>` / `Vector<UInt32>` / `Vector<Ref<...:Int32>>` / `Vector<Ref<Map>>`: **4-byte LE raw each**, count = length/4 (`reader_lcf.cpp:177-207`). **NOT BER** – this is the #1 gotcha: scalar Int32 is BER but Vector<Int32> elements are fixed 4-byte LE.
 - Write: `LcfWriter::Write(vector)` writes elements back-to-back (`writer_lcf.cpp:80-117`); chunk byte-length = `sizeof(elem)*count`.
 
@@ -74,7 +74,7 @@ Only appears as `EventCommand.parameters` (fields.csv:1025) – never a standalo
 
 **A chunk** = `[BER ID][BER length][length bytes of payload]` (`reader_struct_impl.h:67-72`).
 
-**Struct chunk stream** (chunked structs: Actor element bodies, System, Terms, Map, etc.): read chunks in a loop; **ID `0x00` terminates** (`reader_struct_impl.h:69`). The terminator is a single `0x00` byte – the ID only; there is NO length byte after it. Unknown IDs are skipped by `length` bytes (`reader_struct_impl.h:92`). If a field reads the wrong number of bytes, reader re-seeks to `off+length` (`reader_struct_impl.h:82-89`; lcfkit diverges – §11).
+**Struct chunk stream** (chunked structs: Actor element bodies, System, Terms, Map, etc.): read chunks in a loop; **ID `0x00` terminates** (`reader_struct_impl.h:69`). The terminator is a single `0x00` byte – the ID only; there is NO length byte after it. Unknown IDs are skipped by `length` bytes (`reader_struct_impl.h:92`). If a field reads the wrong number of bytes, reader re-seeks to `off+length` (`reader_struct_impl.h:82-89`; rpgrt diverges – §11).
 
 **Write side** (`reader_struct_impl.h:111-139`): iterate `fields[]` in table order, emit each present field as `[id][len][payload]` (payload written only if len>0), then `conditional_zero_writer` writes the terminating `WriteInt(0)` – **except for `rpg::Database` and `rpg::Save`**, which write NO trailing 0x00 (`reader_struct_impl.h:97-109, 137-138`). So an LDB file ends at EOF with no terminator; an LMU (Map) ends with `0x00`.
 
@@ -112,7 +112,7 @@ Wire layout of ONE command (variable by command_id):
 6 parallel `int16` arrays, each of `n = length/6` bytes → n/2 elements: `maxhp, maxsp, attack, defense, spirit, agility`, each as 2-byte LE ints, in that order, fully sequential. Byte-length = `maxhp.size() * 2 * 6`.
 
 ### Equipment (`src/ldb_equipment.cpp:29-59`)
-Exactly 10 bytes: 5 × int16 LE = `weapon_id, shield_id, armor_id, helmet_id, accessory_id`. If length ≠ 10, the whole chunk is skipped (lcfkit diverges – §11).
+Exactly 10 bytes: 5 × int16 LE = `weapon_id, shield_id, armor_id, helmet_id, accessory_id`. If length ≠ 10, the whole chunk is skipped (rpgrt diverges – §11).
 
 ### Rect (`src/lmt_rect.cpp:28-46`)
 Exactly 16 bytes: 4 × **uint32 LE** = `l, t, r, b` (asserts length==16).
@@ -184,7 +184,7 @@ Each file starts with a **BER length-prefixed magic string** (codepage-encoded, 
 | LMT | `LcfMapTree` (10) | `RawStruct<TreeMap>` | ends with `Start` struct's `0x00` – `lmt_reader.cpp:64-76` |
 | LSD | `LcfSaveData` (11) | `Struct<Save>` chunk stream | **NO 0x00 terminator** (same `conditional_zero_writer` carve-out as Database) – header check `lsd_reader.cpp:89-94` |
 
-Header write: `WriteInt(header.size()); Write(header)` (`ldb_reader.cpp:104-105`, `lmu_reader.cpp:98-99`, `lmt_reader.cpp:91-92`). Header length is validated by exact char count; content mismatch only warns (lcfkit diverges – §11).
+Header write: `WriteInt(header.size()); Write(header)` (`ldb_reader.cpp:104-105`, `lmu_reader.cpp:98-99`, `lmt_reader.cpp:91-92`). Header length is validated by exact char count; content mismatch only warns (rpgrt diverges – §11).
 
 **Version/empty oddities (LDB Database, in ascending-ID order):**
 - `version` = `DatabaseVersion` @ 0x1A (§1). Present in 2k3 always; in 2k only if ≠0.
@@ -211,15 +211,15 @@ Grep of `reader_struct*.{h,cpp}`, `generate.py`, and the hand-written `*.cpp`:
 
 ---
 
-## 11. Deliberate lcfkit divergences from liblcf's lenient recovery
+## 11. Deliberate rpgrt divergences from liblcf's lenient recovery
 
-liblcf recovers from four kinds of malformed input. Every one of those recoveries is lossy – the recovered data cannot round-trip byte-identically – and well-formed RPG_RT files never trigger them. lcfkit's contract is byte fidelity, so it throws an `LcfError` where liblcf silently repairs:
+liblcf recovers from four kinds of malformed input. Every one of those recoveries is lossy – the recovered data cannot round-trip byte-identically – and well-formed RPG_RT files never trigger them. rpgrt's contract is byte fidelity, so it throws an `LcfError` where liblcf silently repairs:
 
-| Malformed input | liblcf | lcfkit |
+| Malformed input | liblcf | rpgrt |
 |---|---|---|
 | `Vector<Int16>` chunk with an odd byte length | skips the byte, appends a synthesized `0` element (`reader_lcf.cpp:161-175`) | throws |
 | `Equipment` chunk with length ≠ 10 | warns, skips the chunk, keeps defaults (`ldb_equipment.cpp:31-44`) | throws |
 | Header magic with the right length but wrong content | warns and continues (`ldb_reader.cpp:68-79`) | throws |
 | Chunk field consuming fewer bytes than the declared length | re-seeks to `offset + length`, dropping the surplus bytes (`reader_struct_impl.h:82-89`) | throws |
 
-A file rejected by one of these throws is corrupt by liblcf's own definition; lcfkit refuses to guess because any guess would be unverifiable against the original bytes.
+A file rejected by one of these throws is corrupt by liblcf's own definition; rpgrt refuses to guess because any guess would be unverifiable against the original bytes.

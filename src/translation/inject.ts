@@ -43,7 +43,7 @@ export function resolvePoDumps(catalogs: ParsedCatalog[], collectedUnits: Collec
     }
 
     for (const entry of entries) {
-      // A foreign catalog may write msgctxt "" where lcfkit units carry no context.
+      // A foreign catalog may write msgctxt "" where rpgrt units carry no context.
       const context = entry.context === '' ? undefined : entry.context
       if (entry.isFuzzy) {
         fuzzySkippedCount++
@@ -125,7 +125,7 @@ export function planInjection(collectedUnits: CollectedUnit[], dumpUnits: DumpUn
   const unitsByAddress = new Map<string, CollectedUnit>()
   for (const collected of collectedUnits) {
     if (unitsByAddress.has(collected.address))
-      throw new LcfError(`Duplicate unit address ${collected.address} – this is a bug in lcfkit`)
+      throw new LcfError(`Duplicate unit address ${collected.address} – this is a bug in rpgrt`)
     unitsByAddress.set(collected.address, collected)
   }
 

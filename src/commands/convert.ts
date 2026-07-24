@@ -67,7 +67,7 @@ function parseEnvelope(jsonText: string, filePath: string): JsonEnvelope {
     && typeof envelope.encoding === 'string'
     && envelope.data !== null && typeof envelope.data === 'object'
   if (!hasValidShape)
-    throw new LcfError(`${filePath} is not an lcfkit JSON document (expected format, engine, encoding, and data keys)`)
+    throw new LcfError(`${filePath} is not an rpgrt JSON document (expected format, engine, encoding, and data keys)`)
   reviveUnknownChunks(envelope.data)
   return envelope as JsonEnvelope
 }
