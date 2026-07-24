@@ -168,11 +168,8 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
     const filePath = join(directory, fileName)
     pendingWrites.push({ filePath, tempPath: `${filePath}.lcfkit-tmp`, backupPath: `${filePath}.lcfkit-bak`, bytes })
   }
-  // Three-phase write: stage every payload beside its target (same volume), move
-  // each original aside as a backup, then swap the staged files in – every rename
-  // is atomic, and an error mid-batch restores the backups so the directory never
-  // stays a mix of old and new files. Crash or power loss between renames remains
-  // out of scope.
+  // Temps are staged beside their targets so every rename stays on one volume
+  // and is atomic. Crash or power loss between renames remains out of scope.
   // Only files whose original made it into a backup need (or may) be restored –
   // probing the filesystem instead would mistake a stray occupant of the backup
   // path for a backup.

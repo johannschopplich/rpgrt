@@ -126,8 +126,7 @@ export function parseTypeExpression(rawType: string): TypeExpression {
       return { kind: 'ref', targetStruct: parts[0]!, storage: parts[1]! }
     }
     case 'Array': {
-      // The optional second argument annotates liblcf's index field; nothing
-      // downstream reads it.
+      // Array<X:Y>'s second argument names liblcf's index field; it has no wire effect.
       return { kind: 'array', elementStruct: parts[0]! }
     }
     case 'Vector': {

@@ -180,7 +180,7 @@ describe('save wire bytes', () => {
   })
 
   it('writes a double field as eight little-endian IEEE-754 bytes', () => {
-    // flashCurrentLevel is chunk id 0x54, a Double (§0). -2.5 = -(1.25 * 2^1):
+    // flashCurrentLevel is chunk id 0x54, a Double. -2.5 = -(1.25 * 2^1):
     // sign 1, exponent 0x400, mantissa 0x4000000000000 → 0xC004000000000000,
     // little-endian on the wire.
     for (const engine of engines) {
