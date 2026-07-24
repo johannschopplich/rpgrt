@@ -3,7 +3,7 @@ import type { LcfRecord } from '../codec/engine.ts'
 import type { EngineVersion } from '../index.ts'
 import type { EncodingSource, EngineSource, LcfFileKind } from './resolve.ts'
 import { Buffer } from 'node:buffer'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import { defineCommand } from 'citty'
 import { bytesEqual } from '../codec/bytes.ts'
 import { LcfError } from '../codec/errors.ts'
@@ -99,6 +99,12 @@ function lcfOutputPath(inputPath: string, format: LcfFileKind): string {
 }
 
 export function convertFile(inputPath: string, options: ConvertOptions = {}): ConvertResult {
+  const stats = statSync(inputPath, { throwIfNoEntry: false })
+  if (stats === undefined)
+    throw new LcfError(`No such file or directory: ${inputPath}`)
+  if (stats.isDirectory())
+    throw new LcfError(`${inputPath} is a directory – convert takes a single file`)
+
   if (/\.json$/i.test(inputPath)) {
     const envelope = parseEnvelope(readFileSync(inputPath, 'utf8'), inputPath)
     const engine = options.engine === undefined ? envelope.engine : parseEngineFlag(options.engine)

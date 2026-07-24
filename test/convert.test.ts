@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defaultRecord } from '../src/codec/defaults.ts'
+import { LcfError } from '../src/codec/errors.ts'
 import { convertFile } from '../src/commands/convert.ts'
 import { scanDatabaseEngine } from '../src/commands/resolve.ts'
 import { createTranscoder } from '../src/encoding.ts'
@@ -118,6 +119,17 @@ describe('engine detection from the database', () => {
 })
 
 describe('convert errors', () => {
+  it('reports a missing input path as an LcfError, not a raw ENOENT', () => {
+    const missingPath = join(createGameDirectory(), 'Map0001.lmu')
+    expect(() => convertFile(missingPath)).toThrow(LcfError)
+    expect(() => convertFile(missingPath)).toThrow(`No such file or directory: ${missingPath}`)
+  })
+
+  it('rejects a directory input', () => {
+    const directory = createGameDirectory()
+    expect(() => convertFile(directory)).toThrow('is a directory')
+  })
+
   it('rejects unsupported extensions', () => {
     const directory = createGameDirectory()
     const filePath = join(directory, 'notes.txt')
