@@ -275,7 +275,7 @@ function loadEnums(filePath: string): EnumDef[] {
     const value = Number.parseInt(valueRaw, 10)
     if (Number.isNaN(value))
       throw new Error(`Bad enum value for ${structName}.${enumName}.${label}: ${valueRaw}`)
-    const key = `${structName} ${enumName}`
+    const key = `${structName}\u0000${enumName}`
     let enumDef = byKey.get(key)
     if (!enumDef) {
       enumDef = { structName, enumName, members: [] }
