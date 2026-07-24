@@ -27,7 +27,7 @@ function command(code: number, string = '', indent = 0, parameters: number[] = [
   return { code, indent, string, parameters }
 }
 
-function createGameDirectory(options: { duplicateActorName?: boolean } = {}): string {
+function createGameDirectory(options: { hasDuplicateActorName?: boolean } = {}): string {
   const directory = createDirectory()
   const transcoder = createTranscoder('cp1252')
   const codecOptions = { engine: '2k', transcoder } as const
@@ -35,7 +35,7 @@ function createGameDirectory(options: { duplicateActorName?: boolean } = {}): st
   const database = defaultRecord('Database', '2k') as unknown as Database
   database.actors = [
     { ...defaultRecord('Actor', '2k'), id: 1, name: 'Käthe', title: 'Heldin' } as never,
-    ...(options.duplicateActorName === true
+    ...(options.hasDuplicateActorName === true
       ? [{ ...defaultRecord('Actor', '2k'), id: 2, name: 'Käthe', title: 'Zweite' } as never]
       : []),
   ]
@@ -286,7 +286,7 @@ describe('inject from PO', () => {
   })
 
   it('fans one merged entry out to every #: address it carries', () => {
-    const gameDirectory = createGameDirectory({ duplicateActorName: true })
+    const gameDirectory = createGameDirectory({ hasDuplicateActorName: true })
     const poDirectory = join(createDirectory(), 'po')
     extractGame(gameDirectory, { output: poDirectory, isPo: true })
 
@@ -482,7 +482,7 @@ describe('inject from PO', () => {
   })
 
   it('counts untranslated work in game units, not merged entries', () => {
-    const gameDirectory = createGameDirectory({ duplicateActorName: true })
+    const gameDirectory = createGameDirectory({ hasDuplicateActorName: true })
     const poDirectory = createDirectory()
     writeFileSync(
       join(poDirectory, 'RPG_RT.ldb.po'),
