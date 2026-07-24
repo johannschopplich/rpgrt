@@ -24,7 +24,7 @@ export type TypeExpression
   = | { kind: 'named', name: string }
     | { kind: 'enum', enumName: string }
     | { kind: 'ref', targetStruct: string, storage: string }
-    | { kind: 'array', elementStruct: string, indexRef: TypeExpression | undefined }
+    | { kind: 'array', elementStruct: string }
     | { kind: 'vector', element: TypeExpression }
     | { kind: 'count', sized: TypeExpression }
     | { kind: 'dbArray', element: TypeExpression }
@@ -34,7 +34,6 @@ export interface FieldDef {
   structName: string
   fieldName: string
   type: TypeExpression
-  rawType: string
   /** Undefined for fields of raw structs, which are positional. */
   chunkId: number | undefined
   /** Chunk ID of the companion size chunk, folded in from the preceding `t` row. */
@@ -46,7 +45,6 @@ export interface FieldDef {
   rawDefault: string
   isPersistedIfDefault: boolean
   is2k3Only: boolean
-  comment: string
 }
 
 export interface EnumMember {
@@ -73,9 +71,7 @@ export interface FlagSetDef {
 export interface ConstantDef {
   structName: string
   name: string
-  rawType: string
   rawValue: string
-  comment: string
 }
 
 export interface LcfTables {
@@ -130,10 +126,9 @@ export function parseTypeExpression(rawType: string): TypeExpression {
       return { kind: 'ref', targetStruct: parts[0]!, storage: parts[1]! }
     }
     case 'Array': {
-      if (parts.length === 1)
-        return { kind: 'array', elementStruct: parts[0]!, indexRef: undefined }
-      expectParts(rawType, parts, 2)
-      return { kind: 'array', elementStruct: parts[0]!, indexRef: parseTypeExpression(parts[1]!) }
+      // The optional second argument annotates liblcf's index field; nothing
+      // downstream reads it.
+      return { kind: 'array', elementStruct: parts[0]! }
     }
     case 'Vector': {
       expectParts(rawType, parts, 1)
@@ -213,8 +208,8 @@ function loadFields(filePath: string, structByName: Map<string, StructDef>): Map
   let pendingSizeRow: { structName: string, fieldName: string, chunkId: number, rawType: string, isPersistedIfDefault: boolean } | undefined
 
   for (const row of loadRows(filePath, header)) {
-    const [structName, fieldName, sizeMarker, rawType, chunkIdRaw, rawDefault, persistRaw, is2k3Raw, comment]
-      = row as [string, string, string, string, string, string, string, string, string]
+    const [structName, fieldName, sizeMarker, rawType, chunkIdRaw, rawDefault, persistRaw, is2k3Raw]
+      = row as [string, string, string, string, string, string, string, string]
     if (!structByName.has(structName))
       throw new Error(`fields.csv references unknown struct: ${structName}`)
 
@@ -245,7 +240,6 @@ function loadFields(filePath: string, structByName: Map<string, StructDef>): Map
       structName,
       fieldName,
       type: parseTypeExpression(rawType),
-      rawType,
       chunkId,
       sizeChunkId,
       sizeFieldRawType,
@@ -253,7 +247,6 @@ function loadFields(filePath: string, structByName: Map<string, StructDef>): Map
       rawDefault,
       isPersistedIfDefault: persistRaw === '1',
       is2k3Only: is2k3Raw === '1',
-      comment,
     }
     const list = fieldsByStruct.get(structName)
     if (list)
@@ -328,8 +321,8 @@ function loadFlagSets(filePath: string): Map<string, FlagSetDef> {
 
 function loadConstants(filePath: string): ConstantDef[] {
   return loadRows(filePath, ['Structure', 'name', 'type', 'value', 'comment']).map((row) => {
-    const [structName, name, rawType, rawValue, comment] = row as [string, string, string, string, string]
-    return { structName, name, rawType, rawValue, comment }
+    const [structName, name, , rawValue] = row as [string, string, string, string]
+    return { structName, name, rawValue }
   })
 }
 
