@@ -14,7 +14,7 @@ const EMBEDDABLE_RAW_STRUCTS = new Set(['Parameters', 'Equipment', 'Rect'])
 /**
  * Top-level file records preserve a non-canonical header for write-back
  * (Save excluded – liblcf hardcodes the .lsd header on write). Must agree with
- * LCF_FORMATS' isHeaderPreserving; the generator test pins that.
+ * LCF_FORMATS' isHeaderPreserving.
  */
 export const HEADER_PRESERVING_RECORDS: Set<string> = new Set(['MapUnit', 'Database', 'TreeMap'])
 

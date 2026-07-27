@@ -100,15 +100,17 @@ export function parseEngineFlag(engineFlag: string): EngineVersion {
   return engineFlag
 }
 
+export type HintSource = 'flag' | 'dump'
+
 /** An engine or encoding the caller already knows, with its provenance for reporting. */
 export interface EngineHint {
   engine: string
-  source: 'flag' | 'envelope' | 'dump'
+  source: HintSource
 }
 
 export interface EncodingHint {
   encoding: string
-  source: 'flag' | 'envelope' | 'dump'
+  source: HintSource
 }
 
 export interface ResolveInputs {

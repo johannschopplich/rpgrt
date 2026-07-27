@@ -137,7 +137,7 @@ export function decodeChunkStream(recordName: string, reader: ByteReader, contex
 
   // Preserved chunks re-enter the stream just before the known chunk that
   // followed them, so anchor each run once its successor arrives.
-  const anchorPendingUnknowns = (chunkId: number): void => {
+  const anchorPendingUnknownChunks = (chunkId: number): void => {
     for (let index = unknownChunks.length - 1; index >= 0 && unknownChunks[index]!.beforeId === undefined; index--)
       unknownChunks[index]!.beforeId = chunkId
   }
@@ -157,7 +157,7 @@ export function decodeChunkStream(recordName: string, reader: ByteReader, contex
         unknownChunks.push({ id: chunk.id, bytes: chunk.bytes })
         continue
       }
-      anchorPendingUnknowns(chunk.id)
+      anchorPendingUnknownChunks(chunk.id)
       // Size chunk values are recomputed on encode; the data chunk's own length
       // is authoritative.
       if (owner.isSizeChunk || owner.field.codec.kind === 'emptyBlock')
@@ -377,7 +377,7 @@ export function encodeChunkStream(recordName: string, record: LcfRecord, writer:
   const anchorRank = (chunk: UnknownChunk): number =>
     chunk.beforeId === undefined ? Number.POSITIVE_INFINITY : emissionRanks.get(chunk.beforeId) ?? Number.POSITIVE_INFINITY
 
-  const flushUnknownThrough = (rank: number): void => {
+  const flushUnknownChunksThrough = (rank: number): void => {
     while (unknownIndex < unknownChunks.length && anchorRank(unknownChunks[unknownIndex]!) <= rank) {
       const chunk = unknownChunks[unknownIndex++]!
       writer.writeBer(chunk.id)
@@ -387,7 +387,7 @@ export function encodeChunkStream(recordName: string, record: LcfRecord, writer:
   }
 
   const writeChunk = (chunkId: number, payload: Uint8Array): void => {
-    flushUnknownThrough(emissionRanks.get(chunkId)!)
+    flushUnknownChunksThrough(emissionRanks.get(chunkId)!)
     writer.writeBer(chunkId)
     writer.writeBer(payload.length)
     writer.writeBytes(payload)
@@ -441,7 +441,7 @@ export function encodeChunkStream(recordName: string, record: LcfRecord, writer:
     if (shouldWriteData)
       writeChunk(field.id!, payload!)
   }
-  flushUnknownThrough(Number.POSITIVE_INFINITY)
+  flushUnknownChunksThrough(Number.POSITIVE_INFINITY)
   if (hasTerminator)
     writer.writeByte(0)
 }

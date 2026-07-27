@@ -88,15 +88,15 @@ export function collectControlCodes(text: string): string[] {
   return codes
 }
 
-const LIBLCF_NAMES = new Map<string, string>()
+const LIBLCF_NAME_BY_FIELD_KEY = new Map<string, string>()
 for (const record of Object.values(RECORD_DESCRIPTORS)) {
   for (const field of record.fields)
-    LIBLCF_NAMES.set(field.key, field.liblcfName)
+    LIBLCF_NAME_BY_FIELD_KEY.set(field.key, field.liblcfName)
 }
 
 /** liblcf field name for msgctxt – lcftrans matches on it verbatim. */
 function toLiblcfName(fieldKey: string): string {
-  return LIBLCF_NAMES.get(fieldKey)!
+  return LIBLCF_NAME_BY_FIELD_KEY.get(fieldKey)!
 }
 
 const DATABASE_TEXT_FIELDS: [arrayKey: string, fieldKeys: string[]][] = [
