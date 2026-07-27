@@ -199,7 +199,7 @@ export function collectTreeMapUnits(treeMap: TreeMap, fileName: string): Collect
   return units
 }
 
-/** Choice options sit at the same indent as ShowChoice, before ShowChoiceEnd. */
+/** Choice options sit at the same indent as `ShowChoice`, before `ShowChoiceEnd`. */
 function scanChoiceOptionIndices(commands: EventCommand[], choiceIndex: number): number[] {
   const choiceIndent = commands[choiceIndex]!.indent
   const optionIndices: number[] = []
@@ -318,7 +318,7 @@ function collectCommandUnits(
             applyTranslation: (lines) => {
               const currentIndices = scanChoiceOptionIndices(commands, commands.indexOf(command))
               currentIndices.forEach((optionIndex, optionOffset) => (commands[optionIndex]!.string = lines[optionOffset]!))
-              // RPG_RT also stores the options slash-joined on the ShowChoice command itself.
+              // RPG_RT also stores the options slash-joined on the `ShowChoice` command itself.
               if (command.string === originalJoined)
                 command.string = lines.join('/')
             },

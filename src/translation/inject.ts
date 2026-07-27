@@ -94,7 +94,7 @@ export interface InjectionApplication {
   lines: string[]
 }
 
-/** Injection is all-or-nothing: apply nothing when abortReasons is non-empty. */
+/** Injection is all-or-nothing: apply nothing when `abortReasons` is non-empty. */
 export interface InjectionPlan {
   applications: InjectionApplication[]
   abortReasons: string[]

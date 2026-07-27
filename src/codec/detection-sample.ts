@@ -1,5 +1,5 @@
 /**
- * Terms fields liblcf samples for charset detection. The rest of Terms holds
+ * `Terms` fields liblcf samples for charset detection. The rest of `Terms` holds
  * untranslated garbage even in default databases, and asset filenames or
  * event text would dilute the sample with ASCII.
  */
@@ -37,8 +37,8 @@ const SAMPLED_TERMS_KEYS = [
 ] as const
 
 /**
- * The detection sample liblcf uses for a database: every System string plus
- * the curated Terms subset.
+ * Collects the detection sample liblcf uses for a database: every `system`
+ * string plus the curated `terms` subset.
  */
 export function collectDatabaseSampleBytes(database: { system: unknown, terms: unknown }): Uint8Array {
   const stringValues: string[] = []

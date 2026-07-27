@@ -17,7 +17,7 @@ export type LcfRecord = Record<string, unknown>
 
 const EMPTY_PAYLOAD = new Uint8Array(0)
 
-// RPG_RT omits these Terms chunks when default in a 2k3 database even though
+// RPG_RT omits these `Terms` chunks when default in a 2k3 database even though
 // they are persist-if-default.
 const TERMS_2K3_OMITTED_CHUNK_IDS = new Set([0x01, 0x03])
 
@@ -82,7 +82,7 @@ function scalarRawLayout(recordName: string): ScalarRawLayout {
   return layout
 }
 
-// Parameters is a transposed series-of-arrays, which the scalar walker cannot
+// `Parameters` is a transposed series-of-arrays, which the scalar walker cannot
 // express – the one hand-coded raw layout.
 const PARAMETERS_SERIES_KEYS: string[] = RECORD_DESCRIPTORS.Parameters!.fields.map(field => field.key)
 const PARAMETERS_STRIDE = PARAMETERS_SERIES_KEYS.length * VECTOR_ELEMENT_CODECS.int16.byteWidth
@@ -237,7 +237,7 @@ function decodeVector(element: VectorElementKind, byteLength: number, reader: By
   return elements
 }
 
-// liblcf's sparse Vector<DBString>: a BER value beyond the 32-bit range is a
+// liblcf's sparse `Vector<DBString>`: a BER value beyond the 32-bit range is a
 // gap marker (0x800000000 minus the run length) standing for that many empty
 // strings; anything smaller is the next string's byte length.
 const STRING_VECTOR_GAP_BASE = 0x800000000

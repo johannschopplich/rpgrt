@@ -23,7 +23,7 @@ export class LcfError extends Error {
   }
 }
 
-/** Attaches the path to an LcfError only if it has none yet, so the innermost frame's path wins. */
+/** Attaches the path to an `LcfError` only if it has none yet, so the innermost frame's path wins. */
 export function inPath<T>(path: string, run: () => T): T {
   try {
     return run()

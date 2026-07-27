@@ -38,10 +38,10 @@ export type FieldCodec
 
 export type DefaultScalar = number | boolean | string | number[]
 
-/** e.g. Actor finalLevel 50 (2k) / 99 (2k3). */
+/** e.g. `Actor.finalLevel` 50 (2k) / 99 (2k3). */
 export type EngineSplitDefault = Record<EngineVersion, DefaultScalar>
 
-/** A flag-set default expanded to its per-bit booleans, e.g. SavePicture flags. */
+/** A flag-set default expanded to its per-bit booleans, e.g. `SavePicture.flags`. */
 export type FlagsDefault = Record<string, boolean>
 
 export type FieldDefaultValue = DefaultScalar | EngineSplitDefault | FlagsDefault
