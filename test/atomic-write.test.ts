@@ -1,21 +1,10 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { writeFilesAtomically } from '../src/commands/atomic-write.ts'
+import { useTemporaryDirectories } from './helpers.ts'
 
-const temporaryDirectories: string[] = []
-
-function createDirectory(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'rpgrt-atomic-'))
-  temporaryDirectories.push(directory)
-  return directory
-}
-
-afterEach(() => {
-  while (temporaryDirectories.length > 0)
-    rmSync(temporaryDirectories.pop()!, { recursive: true, force: true })
-})
+const createDirectory = useTemporaryDirectories()
 
 describe('writeFilesAtomically', () => {
   it('replaces existing files and removes the backups after the commit', () => {
@@ -78,5 +67,20 @@ describe('writeFilesAtomically', () => {
     expect(readFileSync(secondPath, 'utf8')).toBe('b-old')
     expect(existsSync(`${firstPath}.rpgrt-tmp`)).toBe(false)
     expect(existsSync(`${secondPath}.rpgrt-tmp`)).toBe(false)
+  })
+
+  it('removes a committed new file when a later write fails', () => {
+    const directory = createDirectory()
+    const newPath = join(directory, 'new.bin')
+    const failingPath = join(directory, 'b.bin')
+    writeFileSync(failingPath, 'b-old')
+    mkdirSync(`${failingPath}.rpgrt-bak`)
+    expect(() => writeFilesAtomically([
+      { filePath: newPath, bytes: Uint8Array.from([1]) },
+      { filePath: failingPath, bytes: Uint8Array.from([2]) },
+    ])).toThrow('every file was restored')
+    // The new file has no backup to restore – a full rollback means deleting it.
+    expect(existsSync(newPath)).toBe(false)
+    expect(readFileSync(failingPath, 'utf8')).toBe('b-old')
   })
 })

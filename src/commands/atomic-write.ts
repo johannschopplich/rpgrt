@@ -31,6 +31,9 @@ export function writeFilesAtomically(writes: PendingWrite[], options: { keepBack
   // probing the filesystem instead would mistake a stray occupant of the backup
   // path for a backup.
   const backedUpWrites: typeof stagedWrites = []
+  // A target that never existed has no backup to restore – rollback must
+  // delete the committed file instead.
+  const committedNewWrites: typeof stagedWrites = []
   try {
     for (const { tempPath, bytes } of stagedWrites)
       writeFileSync(tempPath, bytes)
@@ -38,8 +41,12 @@ export function writeFilesAtomically(writes: PendingWrite[], options: { keepBack
       if (existsSync(stagedWrite.filePath)) {
         renameSync(stagedWrite.filePath, stagedWrite.backupPath)
         backedUpWrites.push(stagedWrite)
+        renameSync(stagedWrite.tempPath, stagedWrite.filePath)
       }
-      renameSync(stagedWrite.tempPath, stagedWrite.filePath)
+      else {
+        renameSync(stagedWrite.tempPath, stagedWrite.filePath)
+        committedNewWrites.push(stagedWrite)
+      }
     }
   }
   catch (error) {
@@ -47,6 +54,14 @@ export function writeFilesAtomically(writes: PendingWrite[], options: { keepBack
     for (const { filePath, backupPath } of backedUpWrites) {
       try {
         renameSync(backupPath, filePath)
+      }
+      catch {
+        unrestoredFileNames.push(basename(filePath))
+      }
+    }
+    for (const { filePath } of committedNewWrites) {
+      try {
+        rmSync(filePath, { force: true })
       }
       catch {
         unrestoredFileNames.push(basename(filePath))
