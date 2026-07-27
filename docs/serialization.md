@@ -238,6 +238,6 @@ A file rejected by one of these throws is corrupt by liblcf's own definition; rp
 | Wire form | liblcf | rpgrt |
 |---|---|---|
 | Header magic with the right length but non-canonical content | warns, writes the canonical magic back (`ldb_reader.cpp:68-79`) | warns via `onWarning`, preserves the text in `_header`, writes it back – except `.lsd`, whose header both write canonically |
-| `is2k3=1` chunk in a 2k file (e.g. `save_count_2k3e` 0x5A in TestGame-2000 maps) | reads it, drops it on write (`reader_struct_impl.h:148-150`) | writes it back whenever it holds a non-default value |
+| `is2k3=1` chunk in a 2k file (e.g. `save_count_2k3e` 0x5A in TestGame-2000 maps) | reads it, drops it on write (`reader_struct_impl.h:119-121`) | writes it back whenever it holds a non-default value |
 | Explicit one-byte `0` payload in the Database `version` chunk of a 2k file (RPG_RT 2000 v1.61+) | reads version 0, omits the chunk on write | preserves the chunk bytes verbatim via `_unknown` |
 | Chunk IDs absent from the field tables | dropped | preserved verbatim via `_unknown`, re-emitted just before the known chunk that followed it (`beforeId`) – field IDs are not globally ascending (§8), so the numeric ID alone cannot place a chunk |
