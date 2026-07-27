@@ -117,6 +117,8 @@ export const CommonEventTrigger = {
   automatic: 3,
   parallel: 4,
   call: 5,
+  maniacBattleStart: 6,
+  maniacBattleParallel: 7,
 } as const
 
 export const EnemyActionBasic = {
@@ -276,6 +278,43 @@ export const EventCommandCode = {
   Comment2: 22410,
   ElseBranchB: 23310,
   EndBranchB: 23311,
+  EasyRpgTriggerEventAt: 2002,
+  EasyRpgPathfinder: 2003,
+  EasyRpgCallMovementAction: 2050,
+  EasyRpgWaitForSingleMovement: 2051,
+  EasyRpgAnimateVariable: 2052,
+  EasyRpgSetInterpreterFlag: 2053,
+  EasyRpgProcessJson: 2055,
+  EasyRpgCloneMapEvent: 2056,
+  EasyRpgDestroyMapEvent: 2057,
+  EasyRpgStringPictureMenu: 2058,
+  ManiacGetSaveInfo: 3001,
+  ManiacSave: 3002,
+  ManiacLoad: 3003,
+  ManiacEndLoadProcess: 3004,
+  ManiacGetMousePosition: 3005,
+  ManiacSetMousePosition: 3006,
+  ManiacShowStringPicture: 3007,
+  ManiacGetPictureInfo: 3008,
+  ManiacControlBattle: 3009,
+  ManiacControlAtbGauge: 3010,
+  ManiacChangeBattleCommandEx: 3011,
+  ManiacGetBattleInfo: 3012,
+  ManiacControlVarArray: 3013,
+  ManiacKeyInputProcEx: 3014,
+  ManiacRewriteMap: 3015,
+  ManiacControlGlobalSave: 3016,
+  ManiacChangePictureId: 3017,
+  ManiacSetGameOption: 3018,
+  ManiacCallCommand: 3019,
+  ManiacControlStrings: 3020,
+  ManiacGetGameInfo: 3021,
+  ManiacEditPicture: 3025,
+  ManiacWritePicture: 3026,
+  ManiacAddMoveRoute: 3027,
+  ManiacEditTile: 3028,
+  ManiacControlTextProcessing: 3029,
+  ManiacZoom: 3032,
 } as const
 
 export const EventPageAnimType = {
@@ -476,6 +515,19 @@ export const SavePictureBattleLayer = {
   weather: 3,
   windowsAndStatus: 4,
   timers: 5,
+} as const
+
+export const SavePictureEasyRpgFlip = {
+  none: 0,
+  x: 1,
+  y: 2,
+  both: 3,
+} as const
+
+export const SavePictureEasyRpgType = {
+  default: 0,
+  window: 1,
+  canvas: 2,
 } as const
 
 export const SavePictureEffect = {

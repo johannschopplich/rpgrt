@@ -195,6 +195,26 @@ describe('save wire bytes', () => {
       expect([...doubleChunk.bytes]).toEqual([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0xC0])
     }
   })
+
+  it('compresses empty runs in the maniac string vector into gap markers', () => {
+    const save = makeSave('2k3')
+    save.system = { ...save.system, maniacStrings: ['alpha', '', '', '', 'beta', '', ''] }
+    const bytes = encodeSave(save, { engine: '2k3' })
+
+    // system is top-level chunk id 0x65; maniacStrings is 0x24 inside it. The
+    // three-element gap encodes as BER 0x800000000 - 3 = wire ff ff ff ff 7d.
+    const systemChunk = topLevelChunk(bytes, 0x65)
+    const stringsChunk = [...readChunkStream(new ByteReader(systemChunk.bytes), 'id-zero')].find(chunk => chunk.id === 0x24)!
+    const gapMarker = [0xFF, 0xFF, 0xFF, 0xFF, 0x7D]
+    const hasGapMarker = [...stringsChunk.bytes.keys()]
+      .some(offset => bytesEqual(stringsChunk.bytes.slice(offset, offset + gapMarker.length), Uint8Array.from(gapMarker)))
+    expect(hasGapMarker).toBe(true)
+
+    // The embedded gap survives the round trip; the trailing empty run is
+    // dropped, as liblcf writes it.
+    const decoded = decodeSave(bytes, { engine: '2k3' })
+    expect(decoded.system.maniacStrings).toEqual(['alpha', '', '', '', 'beta'])
+  })
 })
 
 function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {

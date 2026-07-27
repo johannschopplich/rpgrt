@@ -172,12 +172,18 @@ function splitTopLevel(text: string, separator: string): string[] {
   return parts
 }
 
+/**
+ * The `*_easyrpg.csv` companions follow their canonical file, matching how
+ * liblcf's generator concatenates them: extension rows append after a struct's
+ * canonical rows, which is also liblcf's wire emission order.
+ */
 export function loadTables(csvDirectory: string): LcfTables {
-  const structs = loadStructs(join(csvDirectory, 'structs.csv'))
+  const paths = (...names: string[]): string[] => names.map(name => join(csvDirectory, name))
+  const structs = loadStructs(paths('structs.csv', 'structs_easyrpg.csv'))
   const structByName = new Map(structs.map(struct => [struct.name, struct]))
-  const fieldsByStruct = loadFields(join(csvDirectory, 'fields.csv'), structByName)
-  const enums = loadEnums(join(csvDirectory, 'enums.csv'))
-  const flagSetByStruct = loadFlagSets(join(csvDirectory, 'flags.csv'))
+  const fieldsByStruct = loadFields(paths('fields.csv', 'fields_easyrpg.csv'), structByName)
+  const enums = loadEnums(paths('enums.csv', 'enums_easyrpg.csv'))
+  const flagSetByStruct = loadFlagSets(paths('flags.csv', 'flags_easyrpg.csv'))
   const constants = loadConstants(join(csvDirectory, 'constants.csv'))
   return { structs, structByName, fieldsByStruct, enums, flagSetByStruct, constants }
 }
@@ -190,8 +196,8 @@ function loadRows(filePath: string, expectedHeader: string[]): string[][] {
   return rows.slice(1).filter(row => row.some(cell => cell !== ''))
 }
 
-function loadStructs(filePath: string): StructDef[] {
-  return loadRows(filePath, ['Type', 'Structure', 'Base', 'Index available?']).map((row) => {
+function loadStructs(filePaths: string[]): StructDef[] {
+  return filePaths.flatMap(filePath => loadRows(filePath, ['Type', 'Structure', 'Base', 'Index available?'])).map((row) => {
     const [format, name, base, indexAvailable] = row as [string, string, string, string]
     if (base !== '' && format !== 'lsd')
       throw new Error(`Unexpected base struct outside lsd: ${name}`)
@@ -201,12 +207,12 @@ function loadStructs(filePath: string): StructDef[] {
   })
 }
 
-function loadFields(filePath: string, structByName: Map<string, StructDef>): Map<string, FieldDef[]> {
+function loadFields(filePaths: string[], structByName: Map<string, StructDef>): Map<string, FieldDef[]> {
   const header = ['Structure', 'Field', 'Size Field?', 'Type', 'Index', 'Default Value', 'PersistIfDefault', 'Is2k3', 'Comment']
   const fieldsByStruct = new Map<string, FieldDef[]>()
   let pendingSizeRow: { structName: string, fieldName: string, chunkId: number, rawType: string, isPersistedIfDefault: boolean } | undefined
 
-  for (const row of loadRows(filePath, header)) {
+  for (const row of filePaths.flatMap(filePath => loadRows(filePath, header))) {
     const [structName, fieldName, sizeMarker, rawType, chunkIdRaw, rawDefault, persistRaw, is2k3Raw]
       = row as [string, string, string, string, string, string, string, string]
     if (!structByName.has(structName))
@@ -259,10 +265,10 @@ function loadFields(filePath: string, structByName: Map<string, StructDef>): Map
   return fieldsByStruct
 }
 
-function loadEnums(filePath: string): EnumDef[] {
+function loadEnums(filePaths: string[]): EnumDef[] {
   const enums: EnumDef[] = []
   const byKey = new Map<string, EnumDef>()
-  for (const row of loadRows(filePath, ['Structure', 'Entry', 'Value', 'Index'])) {
+  for (const row of filePaths.flatMap(filePath => loadRows(filePath, ['Structure', 'Entry', 'Value', 'Index']))) {
     const [structName, enumName, label, valueRaw] = row as [string, string, string, string]
     const value = Number.parseInt(valueRaw, 10)
     if (Number.isNaN(value))
@@ -283,10 +289,13 @@ function loadEnums(filePath: string): EnumDef[] {
  * liblcf misspells this one reference `SavePartyLoction_PanState` in
  * vendor/liblcf-csv/fields.csv line 841 (liblcf @ 666e6c0); the enum itself is
  * `SavePartyLocation,PanState`. Normalize the typo rather than editing the
- * vendored CSV.
+ * vendored CSV. `EasyRpgPictureType` is not a typo: liblcf never resolves
+ * `Enum<>` references (they compile to `int32_t`), so the CSV name and the
+ * enum's own name (`SavePicture,EasyRpgType`) drifted apart.
  */
 const ENUM_REFERENCE_ALIASES: Record<string, string> = {
   SavePartyLoction_PanState: 'SavePartyLocation_PanState',
+  EasyRpgPictureType: 'SavePicture_EasyRpgType',
 }
 
 /**
@@ -304,9 +313,9 @@ export function resolveEnum(tables: LcfTables, rawReference: string): EnumDef {
   throw new Error(`Cannot resolve enum reference: ${enumReference} (${qualified.length + bare.length} candidates)`)
 }
 
-function loadFlagSets(filePath: string): Map<string, FlagSetDef> {
+function loadFlagSets(filePaths: string[]): Map<string, FlagSetDef> {
   const flagSetByStruct = new Map<string, FlagSetDef>()
-  for (const row of loadRows(filePath, ['Structure', 'Field', 'Is2k3'])) {
+  for (const row of filePaths.flatMap(filePath => loadRows(filePath, ['Structure', 'Field', 'Is2k3']))) {
     const [structName, fieldName, is2k3Raw] = row as [string, string, string]
     let flagSet = flagSetByStruct.get(structName)
     if (!flagSet) {

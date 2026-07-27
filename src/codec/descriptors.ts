@@ -12,6 +12,9 @@ import type { EngineVersion } from '../index.ts'
  * - `rawField` embeds a raw record's bare fields as the chunk payload.
  * - `eventCommands` payloads end with four 0x00 bytes; `moveCommands` are
  *   bounded by the chunk length alone.
+ * - `stringVector` is liblcf's sparse `Vector<DBString>`: runs of empty
+ *   strings compress into `0x800000000 - gap` BER markers between
+ *   length-prefixed strings.
  */
 export type ScalarKind = 'berInt' | 'boolean' | 'int8' | 'uint8' | 'int16' | 'uint32' | 'double'
 
@@ -21,6 +24,7 @@ export type FieldCodec
   = | { kind: 'scalar', scalar: ScalarKind }
     | { kind: 'string' }
     | { kind: 'vector', element: VectorElementKind }
+    | { kind: 'stringVector' }
     | { kind: 'berIntList' }
     | { kind: 'dbBitArray' }
     | { kind: 'flags', flagSet: string }
@@ -37,7 +41,10 @@ export type DefaultScalar = number | boolean | string | number[]
 /** e.g. Actor finalLevel 50 (2k) / 99 (2k3). */
 export type EngineSplitDefault = Record<EngineVersion, DefaultScalar>
 
-export type FieldDefaultValue = DefaultScalar | EngineSplitDefault
+/** A flag-set default expanded to its per-bit booleans, e.g. SavePicture flags. */
+export type FlagsDefault = Record<string, boolean>
+
+export type FieldDefaultValue = DefaultScalar | EngineSplitDefault | FlagsDefault
 
 export interface FieldDescriptor {
   key: string

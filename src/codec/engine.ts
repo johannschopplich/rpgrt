@@ -128,6 +128,13 @@ export function decodeChunkStream(recordName: string, reader: ByteReader, contex
       if (owner.isSizeChunk || owner.field.codec.kind === 'emptyBlock')
         continue
       const field = owner.field
+      // RPG_RT 2000 v1.61+ writes an explicit zero version chunk, but version 0
+      // has no wire form under 2k in the model (it encodes as absent, as liblcf
+      // writes it) – preserve the chunk's bytes verbatim instead.
+      if (field.codec.kind === 'databaseVersion' && context.engine === '2k' && chunk.bytes.length === 1 && chunk.bytes[0] === 0) {
+        unknownChunks.push({ id: chunk.id, bytes: chunk.bytes })
+        continue
+      }
       const fieldPath = `${path}.${field.key}`
       const chunkReader = new ByteReader(chunk.bytes)
       decodedFields[field.key] = inPath(fieldPath, () => decodeFieldPayload(field, chunk.bytes.length, chunkReader, context, fieldPath))
@@ -167,6 +174,8 @@ function decodeFieldPayload(field: FieldDescriptor, byteLength: number, reader: 
       return context.transcoder.decode(reader.readBytes(byteLength))
     case 'vector':
       return decodeVector(codec.element, byteLength, reader, path)
+    case 'stringVector':
+      return decodeStringVector(byteLength, reader, context)
     case 'dbBitArray':
       return Array.from(reader.readBytes(byteLength), byte => byte > 0)
     case 'flags':
@@ -198,6 +207,28 @@ function decodeVector(element: VectorElementKind, byteLength: number, reader: By
   for (let index = 0; index < byteLength / codec.byteWidth; index++)
     elements.push(codec.read(reader))
   return elements
+}
+
+// liblcf's sparse Vector<DBString>: a BER value beyond the 32-bit range is a
+// gap marker (0x800000000 minus the run length) standing for that many empty
+// strings; anything smaller is the next string's byte length.
+const STRING_VECTOR_GAP_BASE = 0x800000000
+
+function decodeStringVector(byteLength: number, reader: ByteReader, context: CodecContext): string[] {
+  const end = reader.offset + byteLength
+  const strings: string[] = []
+  while (reader.offset < end) {
+    const size = reader.readBerUnsigned64()
+    if (size > 0xFFFFFFFF) {
+      const gapEnd = strings.length + (STRING_VECTOR_GAP_BASE - size)
+      while (strings.length < gapEnd)
+        strings.push('')
+    }
+    else {
+      strings.push(context.transcoder.decode(reader.readBytes(size)))
+    }
+  }
+  return strings
 }
 
 function decodeFlags(flagSetName: string, bytes: Uint8Array): Record<string, boolean> {
@@ -327,14 +358,28 @@ export function encodeChunkStream(recordName: string, record: LcfRecord, writer:
   }
 
   for (const field of descriptor.fields) {
-    if (field.is2k3Only && context.engine === '2k')
-      continue
+    // A 2k3-only chunk in a 2k file (e.g. the Steam-era save count 0x5A in a
+    // 2000 map) is read like any other; dropping it on write, as liblcf does,
+    // would break the byte-identical round trip – so it is written back
+    // whenever it holds a non-default value.
+    if (field.is2k3Only && context.engine === '2k') {
+      if (field.codec.kind === 'emptyBlock')
+        continue
+      const declaredDefault = resolveDefault(field, context.engine)
+      const heldValue = record[field.key] ?? declaredDefault
+      if (isDefaultFieldValue(field.codec, heldValue, declaredDefault))
+        continue
+    }
     flushUnknownBefore(field.sizeId ?? field.id!)
     const fieldPath = `${path}.${field.key}`
 
     if (field.codec.kind === 'emptyBlock') {
-      writer.writeBer(field.id!)
-      writer.writeBer(0)
+      // An empty block carries no value, so it is always "default" – written
+      // only when the CSV persists it (true for every current row).
+      if (field.isPersistedIfDefault === true) {
+        writer.writeBer(field.id!)
+        writer.writeBer(0)
+      }
       continue
     }
 
@@ -400,6 +445,9 @@ function encodeFieldPayload(field: FieldDescriptor, value: unknown, context: Cod
     case 'vector':
       encodeVector(codec.element, value as (number | boolean)[], writer)
       break
+    case 'stringVector':
+      encodeStringVector(value as string[], writer, context)
+      break
     case 'dbBitArray':
       for (const flag of value as boolean[])
         writer.writeByte(flag ? 1 : 0)
@@ -440,6 +488,25 @@ function encodeVector(element: VectorElementKind, elements: (number | boolean)[]
   const codec = VECTOR_ELEMENT_CODECS[element]
   for (const value of elements)
     codec.write(writer, value)
+}
+
+// A trailing run of empty strings is never flushed, matching liblcf – the
+// vector's length shrinks to its last non-empty entry on a round trip.
+function encodeStringVector(strings: string[], writer: ByteWriter, context: CodecContext): void {
+  let gapLength = 0
+  for (const value of strings) {
+    if (value === '') {
+      gapLength++
+      continue
+    }
+    if (gapLength > 0) {
+      writer.writeBerUnsigned64(STRING_VECTOR_GAP_BASE - gapLength)
+      gapLength = 0
+    }
+    const stringBytes = context.transcoder.encode(value)
+    writer.writeBer(stringBytes.length)
+    writer.writeBytes(stringBytes)
+  }
 }
 
 function encodeFlags(flagSetName: string, flags: Record<string, boolean>, engine: EngineVersion, writer: ByteWriter): void {

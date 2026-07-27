@@ -1,9 +1,12 @@
-import type { DefaultScalar, FieldCodec, FieldDefaultValue } from '../../src/codec/descriptors.ts'
+import type { DefaultScalar, FieldCodec, FieldDefaultValue, FlagsDefault } from '../../src/codec/descriptors.ts'
+import type { FlagBit } from './tables.ts'
+import { toCamelCase } from './names.ts'
 
 /**
  * Default Value cells hold numbers, True/False, quoted strings, list
- * expressions like `[31]+[15]*143`, `2k|2k3` splits, and – in lsd structs –
- * symbolic constants (`kPanXDefault`), C integer expressions (`9 * 256`), and
+ * expressions like `[31]+[15]*143` and `[0,1,2]`, `2k|2k3` splits, and – in
+ * lsd and EasyRPG rows – symbolic constants (`kPanXDefault`), C integer
+ * expressions (`9 * 256`), `DBString(kDefaultTerm)` wrappers, and
  * record/comprehension literals (`Music{ "" }`, `[x for x in range(0, 144)]`).
  *
  * `constants` maps a symbol to its raw `constants.csv` value, scoped to the
@@ -47,6 +50,9 @@ function parseLiteral(text: string, codec: FieldCodec, constants?: ReadonlyMap<s
     return unescapeCString(text.slice(1, -1))
   if (text.startsWith('['))
     return parseListExpression(text)
+  const dbStringMatch = /^DBString\((?<symbol>\w+)\)$/.exec(text)
+  if (dbStringMatch)
+    return parseLiteral(dbStringMatch.groups!.symbol!, codec, constants)
   const constantValue = constants?.get(text)
   if (constantValue !== undefined)
     return parseLiteral(constantValue, codec, constants)
@@ -75,8 +81,11 @@ function evaluateIntExpression(text: string): number | undefined {
   return undefined
 }
 
-/** `[v]` terms with an optional `*count` repeat, joined by `+`. */
+/** `[v]` terms with an optional `*count` repeat, joined by `+`, or a plain `[v,v,…]` list. */
 function parseListExpression(text: string): number[] {
+  const plainListMatch = /^\[(?<values>-?\d+(?:\s*,\s*-?\d+)+)\]$/.exec(text)
+  if (plainListMatch)
+    return plainListMatch.groups!.values!.split(',').map(Number)
   const values: number[] = []
   for (const term of text.split('+')) {
     const match = /^\[(?<value>-?\d+)\](?:\*(?<repeat>\d+))?$/.exec(term.trim())
@@ -88,4 +97,20 @@ function parseListExpression(text: string): number[] {
       values.push(value)
   }
   return values
+}
+
+/**
+ * A flag-set default cell is a bitmask over the set's bits in order, mirroring
+ * liblcf's `flag_set`: bit n of the mask is the nth flag. Left
+ * as a bare number it would leak into decoded records where the type declares
+ * per-bit booleans.
+ */
+export function expandFlagsDefault(value: FieldDefaultValue, bits: FlagBit[]): FlagsDefault {
+  if (typeof value !== 'number')
+    throw new Error(`Flag-set default is not a bitmask: ${JSON.stringify(value)}`)
+  const flags: FlagsDefault = {}
+  bits.forEach((bit, index) => {
+    flags[toCamelCase(bit.fieldName)] = (value & (1 << index)) !== 0
+  })
+  return flags
 }

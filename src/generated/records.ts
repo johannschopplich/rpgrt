@@ -34,6 +34,13 @@ export interface EventPageConditionFlags {
   timer2: boolean
 }
 
+export interface ManiacMessageHookFlags {
+  userEvent: boolean
+  createWindow: boolean
+  destroyWindow: boolean
+  textRendering: boolean
+}
+
 export interface SavePictureFlags {
   eraseOnMapChange: boolean
   eraseOnBattleEnd: boolean
@@ -42,6 +49,49 @@ export interface SavePictureFlags {
   affectedByTint: boolean
   affectedByFlash: boolean
   affectedByShake: boolean
+}
+
+export interface EasyRpgEventRuntimeFlags {
+  reserved1: boolean
+}
+
+export interface EasyRpgFrameRuntimeFlags {
+  reserved1: boolean
+}
+
+export interface EasyRpgStateRuntimeFlags {
+  confOverrideActive: boolean
+  reserved1: boolean
+  reserved2: boolean
+  reserved3: boolean
+  patchDestinyOn: boolean
+  patchDestinyOff: boolean
+  patchDynrpgOn: boolean
+  patchDynrpgOff: boolean
+  patchManiacOn: boolean
+  patchManiacOff: boolean
+  patchCommonThisEventOn: boolean
+  patchCommonThisEventOff: boolean
+  patchUnlockPicsOn: boolean
+  patchUnlockPicsOff: boolean
+  patchKeypatchOn: boolean
+  patchKeypatchOff: boolean
+  patchRpg2k3CmdsOn: boolean
+  patchRpg2k3CmdsOff: boolean
+  useRpg2kBattleSystemOn: boolean
+  useRpg2kBattleSystemOff: boolean
+}
+
+export interface SaveEasyRpgWindowFlags {
+  drawFrame: boolean
+  borderMargin: boolean
+}
+
+export interface SaveEasyRpgTextFlags {
+  drawGradient: boolean
+  drawShadow: boolean
+  bold: boolean
+  italic: boolean
 }
 
 export interface Parameters {
@@ -116,6 +166,17 @@ export interface Actor {
   stateRanks: number[]
   attributeRanks: number[]
   battleCommands: number[]
+  easyrpgActorai: number
+  easyrpgPreventCritical: boolean
+  easyrpgRaiseEvasion: boolean
+  easyrpgImmuneToAttributeDownshifts: boolean
+  easyrpgIgnoreEvasion: boolean
+  easyrpgUnarmedHit: number
+  easyrpgUnarmedStateSet: boolean[]
+  easyrpgUnarmedStateChance: number
+  easyrpgUnarmedAttributeSet: boolean[]
+  easyrpgDualAttack: boolean
+  easyrpgAttackAll: boolean
   _unknown?: UnknownChunk[]
 }
 
@@ -208,6 +269,12 @@ export interface BattleCommands {
   deathTeleportX: number
   deathTeleportY: number
   deathTeleportFace: number
+  easyrpgDefaultAtbMode: number
+  easyrpgEnableBattleRowCommand: boolean
+  easyrpgSequentialOrder: boolean
+  easyrpgDisableRowFeature: boolean
+  easyrpgFixedActorFacingDirection: number
+  easyrpgFixedEnemyFacingDirection: number
   _unknown?: UnknownChunk[]
 }
 
@@ -331,6 +398,19 @@ export interface Skill {
   affectAttrDefence: boolean
   battlerAnimation: number
   battlerAnimationData: BattlerAnimationItemSkill[]
+  easyrpgBattle2k3Message: string
+  easyrpgIgnoreReflect: boolean
+  easyrpgStateHit: number
+  easyrpgAttributeHit: number
+  easyrpgIgnoreRestrictSkill: boolean
+  easyrpgIgnoreRestrictMagic: boolean
+  easyrpgEnableStatAbsorbing: boolean
+  easyrpgAffectedByEvadeAllPhysicalAttacks: boolean
+  easyrpgCriticalHitChance: number
+  easyrpgAffectedByRowModifiers: boolean
+  easyrpgHpType: number
+  easyrpgHpPercent: number
+  easyrpgHpCost: number
   _unknown?: UnknownChunk[]
 }
 
@@ -388,6 +468,8 @@ export interface Item {
   classSet: boolean[]
   rangedTrajectory: number
   rangedTarget: number
+  easyrpgUsingMessage: string
+  easyrpgMaxCount: number
   _unknown?: UnknownChunk[]
 }
 
@@ -432,6 +514,18 @@ export interface Enemy {
   stateRanks: number[]
   attributeRanks: number[]
   actions: EnemyAction[]
+  maniacUnarmedAnimation: number
+  easyrpgEnemyai: number
+  easyrpgPreventCritical: boolean
+  easyrpgRaiseEvasion: boolean
+  easyrpgImmuneToAttributeDownshifts: boolean
+  easyrpgIgnoreEvasion: boolean
+  easyrpgHit: number
+  easyrpgStateSet: boolean[]
+  easyrpgStateChance: number
+  easyrpgAttributeSet: boolean[]
+  easyrpgSuperGuard: boolean
+  easyrpgAttackAll: boolean
   _unknown?: UnknownChunk[]
 }
 
@@ -523,6 +617,8 @@ export interface Terrain {
   gridTopY: number
   gridElongation: number
   gridInclination: number
+  easyrpgDamageInPercent: boolean
+  easyrpgDamageCanKill: boolean
   _unknown?: UnknownChunk[]
 }
 
@@ -570,6 +666,7 @@ export interface State {
   spChangeVal: number
   spChangeMapSteps: number
   spChangeMapVal: number
+  easyrpgImmuneStates: boolean[]
   _unknown?: UnknownChunk[]
 }
 
@@ -701,6 +798,32 @@ export interface Terms {
   exitGameMessage: string
   yes: string
   no: string
+  maniacItemReceivedA: string
+  maniacLevelUpA: string
+  maniacLevelUpB: string
+  maniacLevelUpC: string
+  maniacExpReceivedA: string
+  maniacSkillLearnedA: string
+  easyrpgItemNumberSeparator: string
+  easyrpgSkillCostSeparator: string
+  easyrpgEquipmentArrow: string
+  easyrpgStatusSceneName: string
+  easyrpgStatusSceneClass: string
+  easyrpgStatusSceneTitle: string
+  easyrpgStatusSceneCondition: string
+  easyrpgStatusSceneFront: string
+  easyrpgStatusSceneBack: string
+  easyrpgOrderSceneConfirm: string
+  easyrpgOrderSceneRedo: string
+  easyrpgBattle2k3DoubleAttack: string
+  easyrpgBattle2k3Defend: string
+  easyrpgBattle2k3Observe: string
+  easyrpgBattle2k3Charge: string
+  easyrpgBattle2k3Selfdestruct: string
+  easyrpgBattle2k3Escape: string
+  easyrpgBattle2k3SpecialCombatBack: string
+  easyrpgBattle2k3Skill: string
+  easyrpgBattle2k3Item: string
   _unknown?: UnknownChunk[]
 }
 
@@ -781,6 +904,26 @@ export interface System {
   frameName: string
   invertAnimations: boolean
   showTitle: boolean
+  easyrpgAlternativeExp: number
+  easyrpgBattleOptions: number[]
+  easyrpgMaxActorHp: number
+  easyrpgMaxEnemyHp: number
+  easyrpgMaxDamage: number
+  easyrpgMaxExp: number
+  easyrpgMaxLevel: number
+  easyrpgMaxSavefiles: number
+  easyrpgMaxItemCount: number
+  easyrpgVariableMinValue: number
+  easyrpgVariableMaxValue: number
+  easyrpgMaxActorSp: number
+  easyrpgMaxEnemySp: number
+  easyrpgMaxStatBaseValue: number
+  easyrpgMaxStatBattleValue: number
+  easyrpgUseRpg2kBattleSystem: boolean
+  easyrpgBattleUseRpg2keStrings: boolean
+  easyrpgUseRpg2kBattleCommands: boolean
+  easyrpgDefaultActorai: number
+  easyrpgDefaultEnemyai: number
   _unknown?: UnknownChunk[]
 }
 
@@ -816,6 +959,8 @@ export interface Database {
   battlecommands: BattleCommands
   classes: Class[]
   battleranimations: BattlerAnimation[]
+  maniacStringVariables: StringVariable[]
+  _header?: string
   _unknown?: UnknownChunk[]
 }
 
@@ -902,6 +1047,7 @@ export interface MapUnit {
   events: Event[]
   saveCount2k3e: number
   saveCount: number
+  _header?: string
   _unknown?: UnknownChunk[]
 }
 
@@ -977,6 +1123,23 @@ export interface SaveSystem {
   saveCount: number
   saveSlot: number
   atbMode: number
+  maniacStrings: string[]
+  maniacMessageWindowWidth: number
+  maniacMessageWindowHeight: number
+  maniacMessageFontName: string
+  maniacMessageFontSize: number
+  maniacMessageHookFlags: ManiacMessageHookFlags
+  maniacMessageHookCommonEventId: number
+  maniacMessageHookCallbackSystemVariable: number
+  maniacMessageHookCallbackSystemStringVariable: number
+  maniacMessageHookCallbackUserVariable: number
+  maniacMessageHookCallbackUserStringVariable: number
+  maniacFrameskip: number
+  maniacPictureLimit: number
+  maniacOptions: number[]
+  maniacJoypadBindings: number[]
+  maniacMessageSpacingChar: number
+  maniacMessageSpacingLine: number
   _unknown?: UnknownChunk[]
 }
 
@@ -1054,6 +1217,12 @@ export interface SavePicture {
   timeLeft: number
   currentRotation: number
   currentWaver: number
+  easyrpgFlip: number
+  easyrpgBlendMode: number
+  easyrpgType: number
+  maniacCurrentMagnifyHeight: number
+  maniacImageData: number[]
+  maniacFinishMagnifyHeight: number
   _unknown?: UnknownChunk[]
 }
 
@@ -1097,6 +1266,10 @@ export interface SavePartyLocation {
   flashBlue: number
   flashCurrentLevel: number
   flashTimeLeft: number
+  easyrpgMoveFailureCount: number
+  easyrpgCloneMapId: number
+  easyrpgCloneEventId: number
+  easyrpgRuntimeFlags: EasyRpgEventRuntimeFlags
   boarding: boolean
   aboard: boolean
   vehicle: number
@@ -1113,6 +1286,8 @@ export interface SavePartyLocation {
   encounterCalling: boolean
   mapSaveCount: number
   databaseSaveCount: number
+  maniacHorizontalPanSpeed: number
+  maniacVerticalPanSpeed: number
   _unknown?: UnknownChunk[]
 }
 
@@ -1156,6 +1331,10 @@ export interface SaveVehicleLocation {
   flashBlue: number
   flashCurrentLevel: number
   flashTimeLeft: number
+  easyrpgMoveFailureCount: number
+  easyrpgCloneMapId: number
+  easyrpgCloneEventId: number
+  easyrpgRuntimeFlags: EasyRpgEventRuntimeFlags
   vehicle: number
   remainingAscent: number
   remainingDescent: number
@@ -1238,6 +1417,12 @@ export interface SaveEventExecFrame {
   eventId: number
   triggeredByDecisionKey: boolean
   subcommandPath: number[]
+  maniacEventInfo: number
+  maniacEventId: number
+  maniacEventPageId: number
+  maniacLoopInfoSize: number
+  maniacLoopInfo: number[]
+  easyrpgRuntimeFlags: EasyRpgFrameRuntimeFlags
   _unknown?: UnknownChunk[]
 }
 
@@ -1264,6 +1449,10 @@ export interface SaveEventExecState {
   keyinput2k3up: number
   keyinputTimed: boolean
   waitKeyEnter: boolean
+  easyrpgActive: boolean
+  easyrpgString: string
+  easyrpgParameters: number[]
+  easyrpgRuntimeFlags: EasyRpgStateRuntimeFlags
   _unknown?: UnknownChunk[]
 }
 
@@ -1307,6 +1496,10 @@ export interface SaveMapEventBase {
   flashBlue: number
   flashCurrentLevel: number
   flashTimeLeft: number
+  easyrpgMoveFailureCount: number
+  easyrpgCloneMapId: number
+  easyrpgCloneEventId: number
+  easyrpgRuntimeFlags: EasyRpgEventRuntimeFlags
   _unknown?: UnknownChunk[]
 }
 
@@ -1351,6 +1544,10 @@ export interface SaveMapEvent {
   flashBlue: number
   flashCurrentLevel: number
   flashTimeLeft: number
+  easyrpgMoveFailureCount: number
+  easyrpgCloneMapId: number
+  easyrpgCloneEventId: number
+  easyrpgRuntimeFlags: EasyRpgEventRuntimeFlags
   waitingExecution: boolean
   originalMoveRouteIndex: number
   triggeredByDecisionKey: boolean
@@ -1404,6 +1601,7 @@ export interface Save {
   panorama: SavePanorama
   foregroundEventExecstate: SaveEventExecState
   commonEvents: SaveCommonEvent[]
+  easyrpgData: SaveEasyRpgData
   _unknown?: UnknownChunk[]
 }
 
@@ -1463,4 +1661,41 @@ export interface TreeMap {
   treeOrder: number[]
   activeNode: number
   start: Start
+  _header?: string
+}
+
+export interface StringVariable {
+  id: number
+  name: string
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveEasyRpgData {
+  version: number
+  codepage: number
+  windows: SaveEasyRpgWindow[]
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveEasyRpgWindow {
+  id: number
+  texts: SaveEasyRpgText[]
+  width: number
+  height: number
+  systemName: string
+  messageStretch: number
+  flags: SaveEasyRpgWindowFlags
+  _unknown?: UnknownChunk[]
+}
+
+export interface SaveEasyRpgText {
+  text: string
+  positionX: number
+  positionY: number
+  fontName: string
+  fontSize: number
+  letterSpacing: number
+  lineSpacing: number
+  flags: SaveEasyRpgTextFlags
+  _unknown?: UnknownChunk[]
 }

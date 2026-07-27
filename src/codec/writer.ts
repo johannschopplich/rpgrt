@@ -50,15 +50,20 @@ export class ByteWriter {
 
   /** BER integer; negative values are written as their unsigned 32-bit form. */
   writeBer(value: number): void {
-    let unsigned = value >>> 0
-    if (unsigned < 0x80) {
-      this.writeByte(unsigned)
+    this.writeBerUnsigned64(value >>> 0)
+  }
+
+  /** Wide BER integer (string-vector gap markers reach 2^35). */
+  writeBerUnsigned64(value: number): void {
+    if (value < 0x80) {
+      this.writeByte(value)
       return
     }
     const groups: number[] = []
-    while (unsigned > 0) {
-      groups.push(unsigned & 0x7F)
-      unsigned = Math.floor(unsigned / 0x80)
+    let remaining = value
+    while (remaining > 0) {
+      groups.push(remaining % 0x80)
+      remaining = Math.floor(remaining / 0x80)
     }
     for (let index = groups.length - 1; index >= 1; index--)
       this.writeByte(groups[index]! | 0x80)

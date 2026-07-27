@@ -1,7 +1,7 @@
 import type { FieldCodec, FieldDefaultValue } from '../../src/codec/descriptors.ts'
 import type { EnumDef, FieldDef, FlagSetDef, LcfTables, StructDef, TypeExpression } from './tables.ts'
 import { approximateLiblcfName } from '../../src/translation/units.ts'
-import { parseDefaultCell } from './defaults.ts'
+import { expandFlagsDefault, parseDefaultCell } from './defaults.ts'
 import { toCamelCase, toObjectKey } from './names.ts'
 import { classifyNamedType, resolveEnum } from './tables.ts'
 
@@ -11,6 +11,12 @@ const GENERATED_HEADER = '// Generated from vendor/liblcf-csv by `pnpm run gener
 
 /** Raw structs that appear as chunk payloads (all other raw structs only occur inside vectors or at top level). */
 const EMBEDDABLE_RAW_STRUCTS = new Set(['Parameters', 'Equipment', 'Rect'])
+
+/**
+ * Top-level file records preserve a non-canonical header for write-back
+ * (Save excluded – liblcf hardcodes the .lsd header on write).
+ */
+const HEADER_PRESERVING_RECORDS = new Set(['MapUnit', 'Database', 'TreeMap'])
 
 /** liblcf's `Map` would shadow the ES built-in in every consumer file. */
 const RECORD_NAME_OVERRIDES: Record<string, string> = { Map: 'MapUnit' }
@@ -84,6 +90,9 @@ export function buildModel(tables: LcfTables, selected: StructDef[]): GeneratedM
         enumRef = `${enumDef.structName}${enumDef.enumName}`
         usedEnums.set(enumRef, enumDef)
       }
+      let defaultValue = parseDefaultCell(field.rawDefault, codec, constantsByStruct.get(field.structName))
+      if (codec.kind === 'flags' && defaultValue !== undefined)
+        defaultValue = expandFlagsDefault(defaultValue, tables.flagSetByStruct.get(codec.flagSet)!.bits)
       const key = toCamelCase(field.fieldName)
       return {
         key,
@@ -97,7 +106,7 @@ export function buildModel(tables: LcfTables, selected: StructDef[]): GeneratedM
         codec,
         enumRef,
         refRecord: field.type.kind === 'ref' ? toRecordName(field.type.targetStruct) : undefined,
-        default: parseDefaultCell(field.rawDefault, codec, constantsByStruct.get(field.structName)),
+        default: defaultValue,
         isPersistedIfDefault: field.isPersistedIfDefault,
         is2k3Only: field.is2k3Only,
       }
@@ -113,9 +122,10 @@ export function buildModel(tables: LcfTables, selected: StructDef[]): GeneratedM
 }
 
 /**
- * An inheriting struct's wire fields are its base's fields followed by its own.
- * Base chunk IDs (0x01–0x55) all precede derived IDs (0x65+), but sort by chunk
- * ID so a future inheritor with overlapping ranges still emits in wire order.
+ * An inheriting struct's wire fields are its base's fields followed by its own,
+ * each in CSV row order – exactly liblcf's `fields[]` emission order, which is
+ * not globally ascending once EasyRPG extension rows are appended. Matching it
+ * keeps EasyRPG-Player-written saves byte-identical on a round trip.
  */
 function resolvedFields(tables: LcfTables, struct: StructDef): FieldDef[] {
   const own = tables.fieldsByStruct.get(struct.name) ?? []
@@ -125,7 +135,6 @@ function resolvedFields(tables: LcfTables, struct: StructDef): FieldDef[] {
   if (baseStruct === undefined)
     throw new Error(`${struct.name} inherits unknown base struct ${struct.base}`)
   return [...resolvedFields(tables, baseStruct), ...own]
-    .sort((left, right) => (left.chunkId ?? 0) - (right.chunkId ?? 0))
 }
 
 function groupConstants(tables: LcfTables): Map<string, Map<string, string>> {
@@ -179,6 +188,8 @@ function resolveVectorCodec(tables: LcfTables, element: TypeExpression): FieldCo
     const elementKind = VECTOR_ELEMENT_BY_PRIMITIVE[element.name]
     if (elementKind !== undefined)
       return { kind: 'vector', element: elementKind }
+    if (element.name === 'DBString')
+      return { kind: 'stringVector' }
     if (element.name === 'EventCommand')
       return { kind: 'eventCommands' }
     if (element.name === 'MoveCommand')
@@ -214,6 +225,8 @@ export function emitStructs(model: GeneratedModel): string {
         continue
       lines.push(`  ${toObjectKey(field.key)}: ${fieldTsType(field.codec)}`)
     }
+    if (HEADER_PRESERVING_RECORDS.has(struct.name))
+      lines.push('  _header?: string')
     if (struct.framing !== 'raw')
       lines.push('  _unknown?: UnknownChunk[]')
     lines.push('}', '')
@@ -230,6 +243,8 @@ function fieldTsType(codec: FieldCodec): string {
       return 'string'
     case 'vector':
       return codec.element === 'boolean' ? 'boolean[]' : 'number[]'
+    case 'stringVector':
+      return 'string[]'
     case 'berIntList':
       return 'number[]'
     case 'dbBitArray':

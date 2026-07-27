@@ -9,10 +9,15 @@ import { FLAG_SETS, RECORD_DESCRIPTORS } from '../generated/descriptors.ts'
 export function resolveDefault(field: FieldDescriptor, engine: EngineVersion): unknown {
   const declared = field.default
   if (declared !== undefined) {
-    const value = typeof declared === 'object' && !Array.isArray(declared)
-      ? (declared as EngineSplitDefault)[engine]
-      : declared
-    return Array.isArray(value) ? [...value] : value
+    if (typeof declared === 'object' && !Array.isArray(declared)) {
+      // An engine-split default carries the '2k'/'2k3' keys; any other object
+      // is an expanded flag-set default.
+      if (!('2k' in declared))
+        return { ...declared }
+      const value = (declared as EngineSplitDefault)[engine]
+      return Array.isArray(value) ? [...value] : value
+    }
+    return Array.isArray(declared) ? [...declared] : declared
   }
   switch (field.codec.kind) {
     case 'scalar':
@@ -20,6 +25,7 @@ export function resolveDefault(field: FieldDescriptor, engine: EngineVersion): u
     case 'string':
       return ''
     case 'vector':
+    case 'stringVector':
     case 'berIntList':
     case 'dbBitArray':
     case 'array':

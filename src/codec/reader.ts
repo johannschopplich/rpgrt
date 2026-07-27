@@ -80,8 +80,12 @@ export class ByteReader {
     for (let index = 0; index < 5; index++) {
       const byte = this.readByte()
       value = value * 0x80 + (byte & 0x7F)
-      if ((byte & 0x80) === 0)
-        return value >>> 0
+      if ((byte & 0x80) === 0) {
+        // Five groups can carry 35 bits; the high three must be clear.
+        if (value > 0xFFFFFFFF)
+          throw new LcfError('BER integer exceeds 32 bits', { offset: this.offset })
+        return value
+      }
     }
     throw new LcfError('BER integer exceeds 32 bits', { offset: this.offset })
   }
@@ -89,6 +93,21 @@ export class ByteReader {
   /** BER integer reinterpreted as a signed 32-bit value (scalar Int32 fields). */
   readBer(): number {
     return this.readBerUnsigned() | 0
+  }
+
+  /**
+   * Wide BER integer (string-vector gap markers reach 2^35). Eight groups stay
+   * within the 2^53 float-exact range.
+   */
+  readBerUnsigned64(): number {
+    let value = 0
+    for (let index = 0; index < 8; index++) {
+      const byte = this.readByte()
+      value = value * 0x80 + (byte & 0x7F)
+      if ((byte & 0x80) === 0)
+        return value
+    }
+    throw new LcfError('BER integer exceeds 56 bits', { offset: this.offset })
   }
 }
 

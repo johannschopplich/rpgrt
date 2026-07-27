@@ -37,14 +37,16 @@ describe('lsd generator seams', () => {
     expect(fieldOf(model, 'Terms', 'shopGreeting1').liblcfName).toBeUndefined()
   })
 
-  it('gap A flattens SaveMapEventBase fields into inheritors, sorted by ascending chunk ID', () => {
+  it('gap A flattens SaveMapEventBase fields into inheritors in liblcf order: base first, then own', () => {
     const struct = model.structs.find(candidate => candidate.name === 'SavePartyLocation')!
     const ids = struct.fields.map(field => field.id!)
     // Base chunk IDs 0x01–0x55 and the derived struct's own 0x65+ both present.
     expect(ids).toContain(0x01)
     expect(ids).toContain(0x54)
     expect(ids).toContain(0x70)
-    expect(ids).toStrictEqual([...ids].sort((left, right) => left - right))
+    // liblcf emits the base's EasyRPG extension chunks (0xC9+) before the
+    // derived struct's own 0x65+ – base-then-own, not globally ascending.
+    expect(ids.indexOf(0xC9)).toBeLessThan(ids.indexOf(0x65))
   })
 
   it('gap A applies to SaveVehicleLocation and SaveMapEvent too', () => {
