@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      ansis:
-        specifier: ^4.3.1
-        version: 4.3.1
       chardet:
         specifier: ^2.2.0
         version: 2.2.0
@@ -20,6 +17,9 @@ importers:
       iconv-lite:
         specifier: ^0.7.3
         version: 0.7.3
+      uint8array-extras:
+        specifier: ^1.5.0
+        version: 1.5.0
     devDependencies:
       '@antfu/eslint-config':
         specifier: ^9.1.0
@@ -1866,6 +1866,10 @@ packages:
 
   ufo@1.6.4:
     resolution: {integrity: sha512-JFNbkD1Svwe0KvGi8GOeLcP4kAWQ609twvCdcHxq1oSL8svv39ZuSvajcD8B+5D0eL4+s1Is2D/O6KN3qcTeRA==}
+
+  uint8array-extras@1.5.0:
+    resolution: {integrity: sha512-rvKSBiC5zqCCiDZ9kAOszZcDvdAHwwIKJG33Ykj43OKcWsnmcBRL09YTU4nOeHZ8Y2a7l1MgTd08SBe9A8Qj6A==}
+    engines: {node: '>=18'}
 
   unconfig-core@7.5.0:
     resolution: {integrity: sha512-Su3FauozOGP44ZmKdHy2oE6LPjk51M/TRRjHv2HNCWiDvfvCoxC2lno6jevMA91MYAdCdwP05QnWdWpSbncX/w==}
@@ -3909,6 +3913,8 @@ snapshots:
   typescript@6.0.3: {}
 
   ufo@1.6.4: {}
+
+  uint8array-extras@1.5.0: {}
 
   unconfig-core@7.5.0:
     dependencies:
