@@ -181,11 +181,36 @@ describe('injection planning', () => {
 
   it('collects every abort reason instead of stopping at the first', () => {
     const plan = planInjection([collected('ldb/actors/1/name', 'Käthe')], [
-      { address: 'ldb/actors/1/name', source: 'Somebody', translation: 'Kate', info: [] },
+      { address: 'ldb/actors/1/name', source: 'Käthe', translation: 'Kate\nII', info: [] },
       { address: 'ldb/missing', source: 'x', translation: 'y', info: [] },
     ], context)
     expect(plan.applications).toEqual([])
     expect(plan.abortReasons).toHaveLength(2)
+  })
+
+  it('warns about a drifted source but applies via the address', () => {
+    const plan = planInjection([collected('ldb/actors/1/name', 'Käthe')], [
+      { address: 'ldb/actors/1/name', source: 'Somebody', translation: 'Kate', info: [] },
+    ], context)
+    expect(plan.abortReasons).toEqual([])
+    expect(plan.warnings).toEqual([expect.stringContaining('source text differs')])
+    expect(plan.applications).toHaveLength(1)
+  })
+
+  it('rejects a translation that drops or adds control codes', () => {
+    const plan = planInjection([collected('ldb/actors/1/name', String.raw`\c[3]Käthe\n[1]`)], [
+      { address: 'ldb/actors/1/name', source: String.raw`\c[3]Käthe\n[1]`, translation: String.raw`\c[4]Kate`, info: [] },
+    ], context)
+    expect(plan.applications).toEqual([])
+    expect(plan.abortReasons).toEqual([expect.stringMatching(String.raw`missing \\c\[3\] \\n\[1\], added \\c\[4\]`)])
+  })
+
+  it('accepts reordered control codes', () => {
+    const plan = planInjection([collected('ldb/actors/1/name', String.raw`\c[3]Käthe \n[1]`)], [
+      { address: 'ldb/actors/1/name', source: String.raw`\c[3]Käthe \n[1]`, translation: String.raw`\n[1] de \c[3]Kate`, info: [] },
+    ], context)
+    expect(plan.abortReasons).toEqual([])
+    expect(plan.applications).toHaveLength(1)
   })
 })
 

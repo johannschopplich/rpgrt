@@ -62,15 +62,17 @@ describe('poCatalogs', () => {
 })
 
 describe('unescapePoText', () => {
-  it('unescapes exactly backslash, newline and quote', () => {
+  it('unescapes backslash, newline, tab, carriage return and quote', () => {
     expect(unescapePoText('a\\nb')).toBe('a\nb')
     expect(unescapePoText('say \\"hi\\"')).toBe('say "hi"')
     expect(unescapePoText('one\\\\two')).toBe('one\\two')
+    expect(unescapePoText('tab\\there')).toBe('tab\there')
+    expect(unescapePoText('cr\\rlf')).toBe('cr\rlf')
   })
 
   it('aborts on any other escape', () => {
-    expect(() => unescapePoText('tab\\there')).toThrow('escape')
-    expect(() => unescapePoText('cr\\r')).toThrow('escape')
+    expect(() => unescapePoText('bell\\a')).toThrow('escape')
+    expect(() => unescapePoText('hex\\x41')).toThrow('escape')
   })
 })
 
@@ -168,7 +170,7 @@ describe('parsePoCatalog', () => {
   it('aborts on an unknown escape', () => {
     expect(() => parsePoCatalog(header + poText(
       'msgid "Alex"',
-      'msgstr "Ka\\te"',
+      'msgstr "Ka\\x74e"',
     ))).toThrow('escape')
   })
 })

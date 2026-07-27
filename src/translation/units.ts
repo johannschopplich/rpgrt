@@ -60,6 +60,35 @@ function removeControlChars(text: string): string {
 }
 
 /**
+ * Extracts control codes verbatim: a backslash, a command character, and an
+ * optional `[…]` argument (`\c[3]`, `\$`). `\\` is a literal backslash, so its
+ * second byte never starts a code.
+ */
+export function collectControlCodes(text: string): string[] {
+  const codes: string[] = []
+  for (let index = 0; index < text.length; index++) {
+    if (text[index] !== '\\')
+      continue
+    const commandChar = text[index + 1]
+    if (commandChar === undefined)
+      continue
+    if (commandChar === '\\') {
+      index++
+      continue
+    }
+    let codeEnd = index + 2
+    if (text[codeEnd] === '[') {
+      const closingBracket = text.indexOf(']', codeEnd)
+      if (closingBracket !== -1)
+        codeEnd = closingBracket + 1
+    }
+    codes.push(text.slice(index, codeEnd))
+    index = codeEnd - 1
+  }
+  return codes
+}
+
+/**
  * The regex inverse of the generator's camelCasing. CamelCase is not invertible
  * for names like `inn_a_greeting_1`, so the generator emits a `liblcfName`
  * override wherever this approximation would diverge from the CSV name.
@@ -165,13 +194,13 @@ export function collectMapUnits(mapUnit: MapUnit, mapId: number, fileName: strin
 
 export function collectTreeMapUnits(treeMap: TreeMap, fileName: string): CollectedUnit[] {
   const units: CollectedUnit[] = []
-  treeMap.maps.forEach((mapInfo, index) => {
+  treeMap.maps.forEach((mapInfo) => {
     if (mapInfo.type !== TreeMapMapType.map || mapInfo.name.length === 0)
       return
     units.push({
       address: `lmt/maps/${mapInfo.id}/name`,
       source: removeControlChars(mapInfo.name),
-      info: [`ID ${index + 1}`],
+      info: [`ID ${mapInfo.id}`],
       fileName,
       catalog: 'lmt',
       expectedLineCount: 1,

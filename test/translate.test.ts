@@ -234,7 +234,7 @@ describe('inject', () => {
     expect(readFileSync(join(gameDirectory, 'RPG_RT.ldb'))).toEqual(databaseBytesBefore)
   })
 
-  it('rejects stale dumps whose source text drifted', () => {
+  it('warns about a drifted source but applies via the address', () => {
     const gameDirectory = createGameDirectory()
     const dumpPath = join(createDirectory(), 'strings.json')
     extractGame(gameDirectory, { output: dumpPath })
@@ -243,7 +243,9 @@ describe('inject', () => {
     unit.source = 'Somebody Else'
     unit.translation = 'Kate'
     writeFileSync(dumpPath, JSON.stringify(dump))
-    expect(() => injectDump(gameDirectory, dumpPath)).toThrow('stale')
+    const result = injectDump(gameDirectory, dumpPath)
+    expect(result.warnings).toEqual([expect.stringContaining('source text differs')])
+    expect(result.appliedCount).toBe(1)
   })
 })
 

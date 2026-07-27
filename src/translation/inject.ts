@@ -3,6 +3,7 @@ import type { CatalogContext, ParsedPoEntry } from './po.ts'
 import type { CollectedUnit, DumpUnit } from './units.ts'
 import { LcfError } from '../codec/errors.ts'
 import { fallbackMatchKey, poCatalogs } from './po.ts'
+import { collectControlCodes } from './units.ts'
 
 /** One parsed PO catalog; its `fileName` doubles as the scope key for fallback matching. */
 export interface ParsedCatalog {
@@ -96,29 +97,69 @@ export interface InjectionApplication {
 export interface InjectionPlan {
   applications: InjectionApplication[]
   abortReasons: string[]
+  warnings: string[]
   untranslatedCount: number
 }
 
 /** Magic page tokens drive runtime page splits/merges – no static injection can honor them. */
 const MAGIC_PAGE_TOKENS = ['<easyrpg:new_page>', '<easyrpg:delete_page>']
 
-function validateTranslation(unit: DumpUnit, collected: CollectedUnit, context: InjectionContext): string | undefined {
+/** Multiset comparison – control codes may move with the translation's word order. */
+function controlCodeDifference(gameSource: string, translation: string): string | undefined {
+  const remainingCodes = new Map<string, number>()
+  for (const code of collectControlCodes(gameSource))
+    remainingCodes.set(code, (remainingCodes.get(code) ?? 0) + 1)
+  const addedCodes: string[] = []
+  for (const code of collectControlCodes(translation)) {
+    const count = remainingCodes.get(code) ?? 0
+    if (count > 1)
+      remainingCodes.set(code, count - 1)
+    else if (count === 1)
+      remainingCodes.delete(code)
+    else
+      addedCodes.push(code)
+  }
+  if (remainingCodes.size === 0 && addedCodes.length === 0)
+    return undefined
+  const parts: string[] = []
+  if (remainingCodes.size > 0)
+    parts.push(`missing ${[...remainingCodes.keys()].join(' ')}`)
+  if (addedCodes.length > 0)
+    parts.push(`added ${addedCodes.join(' ')}`)
+  return parts.join(', ')
+}
+
+interface TranslationValidation {
+  abortReason?: string
+  warning?: string
+}
+
+function validateTranslation(unit: DumpUnit, collected: CollectedUnit, context: InjectionContext): TranslationValidation {
   // Only entries that would be applied reach here – fuzzy (skipped in inject) and
   // untranslated (skipped in planInjection) units keep their non-fatal skip, so the
   // magic-token abort below never fires on them.
   const magicToken = MAGIC_PAGE_TOKENS.find(token => unit.translation.includes(token))
   if (magicToken !== undefined)
-    return `${unit.address}: runtime page-manipulation token ${magicToken} is not supported by static injection`
-  if (unit.source !== collected.source)
-    return `${unit.address}: source text differs from the game – the dump is stale, re-extract and merge`
+    return { abortReason: `${unit.address}: runtime page-manipulation token ${magicToken} is not supported by static injection` }
   const lines = unit.translation.split('\n')
-  if (collected.expectedLineCount !== undefined && lines.length !== collected.expectedLineCount)
-    return `${unit.address}: translation has ${lines.length} lines but exactly ${collected.expectedLineCount} required`
+  if (collected.expectedLineCount !== undefined && lines.length !== collected.expectedLineCount) {
+    // e.g. "Choice (2 options)" – a merged PO entry can fan out to occurrences
+    // with different line-count rules; name the one that failed.
+    const unitKind = collected.info.length > 1 ? ` – ${collected.info[collected.info.length - 1]}` : ''
+    return { abortReason: `${unit.address}: translation has ${lines.length} ${lines.length === 1 ? 'line' : 'lines'} but exactly ${collected.expectedLineCount} required${unitKind}` }
+  }
+  const codeDifference = controlCodeDifference(collected.source, unit.translation)
+  if (codeDifference !== undefined)
+    return { abortReason: `${unit.address}: translation changes control codes (${codeDifference}) – mark the entry fuzzy to skip it` }
   for (const line of lines) {
     if (context.transcoder.decode(context.transcoder.encode(line)) !== line)
-      return `${unit.address}: translation is not representable in ${context.encoding}`
+      return { abortReason: `${unit.address}: translation is not representable in ${context.encoding}` }
   }
-  return undefined
+  // The reference address is the primary key, so an edited msgid or a drifted
+  // game must not abort – but silent divergence would hide a stale dump.
+  if (unit.source !== collected.source)
+    return { warning: `${unit.address}: source text differs from the game – applying anyway; re-extract and merge if this is unexpected` }
+  return {}
 }
 
 export function planInjection(collectedUnits: CollectedUnit[], dumpUnits: DumpUnit[], context: InjectionContext): InjectionPlan {
@@ -130,6 +171,7 @@ export function planInjection(collectedUnits: CollectedUnit[], dumpUnits: DumpUn
   }
 
   const abortReasons: string[] = []
+  const warnings: string[] = []
   const applications: InjectionApplication[] = []
   let untranslatedCount = 0
   for (const unit of dumpUnits) {
@@ -142,11 +184,13 @@ export function planInjection(collectedUnits: CollectedUnit[], dumpUnits: DumpUn
       abortReasons.push(`${unit.address}: no such unit in the game`)
       continue
     }
-    const abortReason = validateTranslation(unit, collected, context)
-    if (abortReason !== undefined)
-      abortReasons.push(abortReason)
+    const validation = validateTranslation(unit, collected, context)
+    if (validation.warning !== undefined)
+      warnings.push(validation.warning)
+    if (validation.abortReason !== undefined)
+      abortReasons.push(validation.abortReason)
     else
       applications.push({ collected, lines: unit.translation.split('\n') })
   }
-  return { applications, abortReasons, untranslatedCount }
+  return { applications, abortReasons, warnings, untranslatedCount }
 }

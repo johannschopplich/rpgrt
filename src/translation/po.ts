@@ -34,9 +34,13 @@ export function poCatalogs(units: CollectedUnit[], context: CatalogContext): Map
   return catalogs
 }
 
-/** Only quote and backslash are escaped – newlines are structural in PO. */
+/** Newlines are structural in PO; tab and carriage return escape like gettext writes them. */
 function escapePoText(text: string): string {
-  return text.replaceAll('\\', '\\\\').replaceAll('"', '\\"')
+  return text
+    .replaceAll('\\', '\\\\')
+    .replaceAll('"', '\\"')
+    .replaceAll('\t', '\\t')
+    .replaceAll('\r', '\\r')
 }
 
 /** gettext multiline form: one quoted segment per line, `\n` between lines only. */
@@ -105,7 +109,7 @@ export interface ParsedPoEntry {
   isFuzzy: boolean
 }
 
-/** Inverse of `escapePoText`; any escape beyond the exported three aborts. */
+/** Inverse of `escapePoText`; any escape beyond the supported five aborts. */
 export function unescapePoText(text: string): string {
   let result = ''
   for (let index = 0; index < text.length; index++) {
@@ -117,12 +121,16 @@ export function unescapePoText(text: string): string {
     const escaped = text[index + 1]
     if (escaped === 'n')
       result += '\n'
+    else if (escaped === 't')
+      result += '\t'
+    else if (escaped === 'r')
+      result += '\r'
     else if (escaped === '"')
       result += '"'
     else if (escaped === '\\')
       result += '\\'
     else
-      throw new LcfError(`unsupported escape "\\${escaped ?? ''}" – only \\\\, \\n and \\" are allowed`)
+      throw new LcfError(`unsupported escape "\\${escaped ?? ''}" – only \\\\, \\n, \\t, \\r and \\" are allowed`)
     index++
   }
   return result
