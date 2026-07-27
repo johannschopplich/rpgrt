@@ -2,9 +2,9 @@ import type { ArgsDef, CommandDef } from 'citty'
 import type { LcfRecord } from '../codec/engine.ts'
 import type { EngineVersion } from '../index.ts'
 import type { EncodingSource, EngineSource, LcfFileKind } from './resolve.ts'
-import { Buffer } from 'node:buffer'
-import { readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { defineCommand } from 'citty'
+import { base64ToUint8Array, uint8ArrayToBase64 } from 'uint8array-extras'
 import { bytesEqual } from '../codec/bytes.ts'
 import { LcfError } from '../codec/errors.ts'
 import { createTranscoder } from '../encoding.ts'
@@ -20,6 +20,8 @@ interface JsonEnvelope {
 
 export interface ConvertResult {
   outputPath: string
+  /** Where a pre-existing LCF target was moved before overwriting (JSON→LCF only). */
+  backupPath?: string
   format: LcfFileKind
   engine: EngineVersion
   engineSource: EngineSource
@@ -33,10 +35,13 @@ export interface ConvertOptions {
   output?: string
   engine?: string
   encoding?: string
+  /** Overwrite an existing JSON output (LCF targets are backed up instead). */
+  isForce?: boolean
+  onWarning?: (message: string) => void
 }
 
-function decodeLcf(bytes: Uint8Array, kind: LcfFileKind, engine: EngineVersion, encoding: string): LcfRecord {
-  return LCF_CODECS[kind].decode(bytes, { engine, transcoder: createTranscoder(encoding) })
+function decodeLcf(bytes: Uint8Array, kind: LcfFileKind, engine: EngineVersion, encoding: string, onWarning?: (message: string) => void): LcfRecord {
+  return LCF_CODECS[kind].decode(bytes, { engine, transcoder: createTranscoder(encoding), onWarning })
 }
 
 function encodeLcf(record: LcfRecord, kind: LcfFileKind, engine: EngineVersion, encoding: string): Uint8Array {
@@ -46,7 +51,7 @@ function encodeLcf(record: LcfRecord, kind: LcfFileKind, engine: EngineVersion, 
 function stringifyEnvelope(envelope: JsonEnvelope): string {
   const json = JSON.stringify(
     envelope,
-    (_key, value: unknown) => value instanceof Uint8Array ? Buffer.from(value).toString('base64') : value,
+    (_key, value: unknown) => value instanceof Uint8Array ? uint8ArrayToBase64(value) : value,
     2,
   )
   return `${json}\n`
@@ -81,10 +86,12 @@ function reviveUnknownChunks(value: unknown): void {
   else if (value !== null && typeof value === 'object') {
     const record = value as LcfRecord
     if (Array.isArray(record._unknown)) {
-      record._unknown = record._unknown.map((chunk: { id: number, bytes: string }) => ({
-        id: chunk.id,
-        bytes: new Uint8Array(Buffer.from(chunk.bytes, 'base64')),
-      }))
+      record._unknown = record._unknown.map((chunk: unknown) => {
+        const { id, bytes } = (chunk ?? {}) as { id?: unknown, bytes?: unknown }
+        if (typeof id !== 'number' || typeof bytes !== 'string')
+          throw new LcfError(`Malformed _unknown chunk – expected { id: number, bytes: base64 string }, got ${JSON.stringify(chunk)}`)
+        return { id, bytes: base64ToUint8Array(bytes) }
+      })
     }
     for (const [key, element] of Object.entries(record)) {
       if (key !== '_unknown')
@@ -110,9 +117,19 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
     const engine = options.engine === undefined ? envelope.engine : parseEngineFlag(options.engine)
     const encoding = options.encoding ?? envelope.encoding
     const outputPath = options.output ?? lcfOutputPath(inputPath, envelope.format)
-    writeFileSync(outputPath, encodeLcf(envelope.data, envelope.format, engine, encoding))
+    const bytes = encodeLcf(envelope.data, envelope.format, engine, encoding)
+    // Overwriting a game file is the whole point of converting back, but the
+    // previous bytes must survive: the target becomes the backup first, so a
+    // failed write never leaves the only copy half-written.
+    let backupPath: string | undefined
+    if (existsSync(outputPath)) {
+      backupPath = `${outputPath}.rpgrt-bak`
+      renameSync(outputPath, backupPath)
+    }
+    writeFileSync(outputPath, bytes)
     return {
       outputPath,
+      backupPath,
       format: envelope.format,
       engine,
       engineSource: options.engine === undefined ? 'envelope' : 'flag',
@@ -126,10 +143,16 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
     throw new LcfError(`Unsupported file extension – expected .lmu, .ldb, .lmt, .lsd, or .json: ${inputPath}`)
   const bytes = new Uint8Array(readFileSync(inputPath))
   const { engine, engineSource, encoding, encodingSource } = resolveFileContext(inputPath, bytes, kind, options)
-  const envelope: JsonEnvelope = { format: kind, engine, encoding, data: decodeLcf(bytes, kind, engine, encoding) }
+  const envelope: JsonEnvelope = { format: kind, engine, encoding, data: decodeLcf(bytes, kind, engine, encoding, options.onWarning) }
   const outputPath = options.output ?? `${inputPath}.json`
-  writeFileSync(outputPath, stringifyEnvelope(envelope))
-  const isByteIdentical = bytesEqual(encodeLcf(envelope.data, kind, engine, encoding), bytes)
+  if (options.isForce !== true && existsSync(outputPath))
+    throw new LcfError(`${outputPath} already exists – pass --force to overwrite`)
+  const jsonText = stringifyEnvelope(envelope)
+  writeFileSync(outputPath, jsonText)
+  // Probe through the serialized text, not the in-memory record – JSON has no
+  // NaN, so only re-parsing sees what a reader of the document will get.
+  const reparsedEnvelope = parseEnvelope(jsonText, outputPath)
+  const isByteIdentical = bytesEqual(encodeLcf(reparsedEnvelope.data, kind, engine, encoding), bytes)
   return { outputPath, format: kind, engine, engineSource, encoding, encodingSource, isByteIdentical }
 }
 
@@ -138,6 +161,7 @@ export interface ConvertArgs extends ArgsDef {
   output: { type: 'string', alias: string, description: string }
   engine: { type: 'string', description: string }
   encoding: { type: 'string', description: string }
+  force: { type: 'boolean', description: string }
 }
 
 const convertArgs: ConvertArgs = {
@@ -145,6 +169,7 @@ const convertArgs: ConvertArgs = {
   output: { type: 'string', alias: 'o', description: 'Output path (defaults next to the input)' },
   engine: { type: 'string', description: 'Engine version: 2k or 2k3 (overrides detection)' },
   encoding: { type: 'string', description: 'Text encoding, e.g. Shift_JIS or 1252 (overrides detection)' },
+  force: { type: 'boolean', description: 'Overwrite an existing JSON output (LCF targets are backed up instead)' },
 }
 
 export const convertCommand: CommandDef<ConvertArgs> = defineCommand({
@@ -154,9 +179,17 @@ export const convertCommand: CommandDef<ConvertArgs> = defineCommand({
   },
   args: convertArgs,
   run({ args }) {
-    const result = convertFile(args.input, { output: args.output, engine: args.engine, encoding: args.encoding })
+    const result = convertFile(args.input, {
+      output: args.output,
+      engine: args.engine,
+      encoding: args.encoding,
+      isForce: args.force,
+      onWarning: message => console.error(`Warning: ${args.input}: ${message}`),
+    })
     console.error(`${args.input} → ${result.outputPath}`)
     console.error(`  ${describeFileContext(result)}`)
+    if (result.backupPath !== undefined)
+      console.error(`  previous file moved to ${result.backupPath}`)
     if (result.isByteIdentical === false)
       console.error('  warning: converting back will not reproduce the source byte for byte – check --engine and --encoding')
   },

@@ -2,7 +2,7 @@ import type { ArgsDef, CommandDef } from 'citty'
 import type { EngineVersion } from '../index.ts'
 import type { CollectedUnit, Dump, DumpUnit } from '../translation/units.ts'
 import type { LoadedGame } from './game.ts'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { defineCommand } from 'citty'
 import { LcfError } from '../codec/errors.ts'
@@ -18,6 +18,18 @@ export interface ExtractOptions {
   isPo?: boolean
   engine?: string
   encoding?: string
+  /** Overwrite existing output files. */
+  isForce?: boolean
+  onWarning?: (message: string) => void
+}
+
+/** All-or-nothing: refuse before the first byte is written, naming every conflict. */
+function assertOutputsWritable(outputPaths: string[], isForce: boolean | undefined): void {
+  if (isForce === true)
+    return
+  const existingPaths = outputPaths.filter(outputPath => existsSync(outputPath))
+  if (existingPaths.length > 0)
+    throw new LcfError(`Output already exists – pass --force to overwrite: ${existingPaths.join(', ')}`)
 }
 
 export interface ExtractResult {
@@ -49,15 +61,17 @@ export function extractGame(directory: string, options: ExtractOptions = {}): Ex
   if (options.isSplit === true && options.isPo === true)
     throw new LcfError('--split and --po are mutually exclusive – PO output is always per file')
 
-  const game = loadGame(directory, { engine: options.engine, encoding: options.encoding })
+  const game = loadGame(directory, { engine: options.engine, encoding: options.encoding, onWarning: options.onWarning })
   const units = collectGameUnits(game)
   const outputPaths: string[] = []
 
   if (options.isPo === true) {
     const outputDirectory = options.output ?? 'po'
-    mkdirSync(outputDirectory, { recursive: true })
     const projectName = basename(directory)
-    for (const [catalogFileName, catalogUnits] of poCatalogs(units, toCatalogContext(game))) {
+    const catalogs = poCatalogs(units, toCatalogContext(game))
+    assertOutputsWritable([...catalogs.keys()].map(catalogFileName => join(outputDirectory, catalogFileName)), options.isForce)
+    mkdirSync(outputDirectory, { recursive: true })
+    for (const [catalogFileName, catalogUnits] of catalogs) {
       const outputPath = join(outputDirectory, catalogFileName)
       writeFileSync(outputPath, formatPoCatalog(catalogUnits, projectName))
       outputPaths.push(outputPath)
@@ -65,8 +79,9 @@ export function extractGame(directory: string, options: ExtractOptions = {}): Ex
   }
   else if (options.isSplit === true) {
     const outputDirectory = options.output ?? 'strings'
-    mkdirSync(outputDirectory, { recursive: true })
     const fileNames = [...new Set(units.map(unit => unit.fileName))]
+    assertOutputsWritable(fileNames.map(fileName => join(outputDirectory, `${fileName}.json`)), options.isForce)
+    mkdirSync(outputDirectory, { recursive: true })
     for (const fileName of fileNames) {
       const outputPath = join(outputDirectory, `${fileName}.json`)
       writeDump(outputPath, game.engine, game.encoding, units.filter(unit => unit.fileName === fileName).map(toDumpUnit))
@@ -75,6 +90,7 @@ export function extractGame(directory: string, options: ExtractOptions = {}): Ex
   }
   else {
     const outputPath = options.output ?? 'strings.json'
+    assertOutputsWritable([outputPath], options.isForce)
     writeDump(outputPath, game.engine, game.encoding, units.map(toDumpUnit))
     outputPaths.push(outputPath)
   }
@@ -97,6 +113,7 @@ export interface ExtractArgs extends ArgsDef {
   po: { type: 'boolean', description: string }
   engine: { type: 'string', description: string }
   encoding: { type: 'string', description: string }
+  force: { type: 'boolean', description: string }
 }
 
 const extractArgs: ExtractArgs = {
@@ -106,6 +123,7 @@ const extractArgs: ExtractArgs = {
   po: { type: 'boolean', description: 'Write lcftrans-compatible PO catalogs instead of JSON' },
   engine: { type: 'string', description: 'Engine version: 2k or 2k3 (overrides detection)' },
   encoding: { type: 'string', description: 'Text encoding, e.g. Shift_JIS or 1252 (overrides detection)' },
+  force: { type: 'boolean', description: 'Overwrite existing output files' },
 }
 
 export const extractCommand: CommandDef<ExtractArgs> = defineCommand({
@@ -121,6 +139,8 @@ export const extractCommand: CommandDef<ExtractArgs> = defineCommand({
       isPo: args.po,
       engine: args.engine,
       encoding: args.encoding,
+      isForce: args.force,
+      onWarning: message => console.error(`Warning: ${message}`),
     })
     console.error(`${result.unitCount} text units → ${result.outputPaths.length === 1 ? result.outputPaths[0] : `${result.outputPaths.length} files`}`)
     console.error(`  ${describeFileContext(result)}`)

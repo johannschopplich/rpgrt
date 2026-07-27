@@ -10,12 +10,13 @@ import { LcfError } from '../codec/errors.ts'
 import { encodeDatabase, encodeMapUnit, encodeTreeMap } from '../index.ts'
 import { planInjection, resolvePoDumps } from '../translation/inject.ts'
 import { parsePoCatalog } from '../translation/po.ts'
-import { collectGameUnits, loadGame, toCatalogContext } from './game.ts'
+import { collectGameUnits, loadGame, toCatalogContext, withFileContext } from './game.ts'
 import { describeFileContext } from './resolve.ts'
 
 export interface InjectOptions {
   engine?: string
   encoding?: string
+  onWarning?: (message: string) => void
 }
 
 export interface InjectResult {
@@ -23,6 +24,8 @@ export interface InjectResult {
   untranslatedCount: number
   /** `#, fuzzy` entries skipped as untranslated (PO input only). */
   fuzzySkippedCount: number
+  /** Non-fatal anomalies, e.g. a translation applied over drifted source text. */
+  warnings: string[]
   writtenFileNames: string[]
   engine: LoadedGame['engine']
   engineSource: EngineSource
@@ -109,7 +112,7 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
   if (source.format === 'po') {
     // PO carries no engine/encoding, and fallback matching needs the collected
     // units, so the game must load before parsing.
-    game = loadGame(directory, { engine: options.engine, encoding: options.encoding })
+    game = loadGame(directory, { engine: options.engine, encoding: options.encoding, onWarning: options.onWarning })
     engineSource = game.engineSource
     encodingSource = game.encodingSource
     collectedUnits = collectGameUnits(game)
@@ -125,6 +128,7 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
     game = loadGame(directory, {
       engine: options.engine ?? dumps[0]!.engine,
       encoding: options.encoding ?? dumps[0]!.encoding,
+      onWarning: options.onWarning,
     })
     // The dump's engine/encoding were passed through the flag slot above, so the
     // game's source reads `flag` – re-derive it as `dump` instead.
@@ -158,13 +162,13 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
   const codecOptions = { engine: game.engine, transcoder: game.transcoder }
   const pendingWrites: { filePath: string, tempPath: string, backupPath: string, bytes: Uint8Array }[] = []
   for (const fileName of dirtyFileNames) {
-    let bytes: Uint8Array
-    if (fileName === game.databaseFileName)
-      bytes = encodeDatabase(game.database, codecOptions)
-    else if (fileName === game.treeMapFileName)
-      bytes = encodeTreeMap(game.treeMap!, codecOptions)
-    else
-      bytes = encodeMapUnit(game.maps.find(map => map.fileName === fileName)!.mapUnit, codecOptions)
+    const bytes = withFileContext(fileName, () => {
+      if (fileName === game.databaseFileName)
+        return encodeDatabase(game.database, codecOptions)
+      if (fileName === game.treeMapFileName)
+        return encodeTreeMap(game.treeMap!, codecOptions)
+      return encodeMapUnit(game.maps.find(map => map.fileName === fileName)!.mapUnit, codecOptions)
+    })
     const filePath = join(directory, fileName)
     pendingWrites.push({ filePath, tempPath: `${filePath}.rpgrt-tmp`, backupPath: `${filePath}.rpgrt-bak`, bytes })
   }
@@ -182,8 +186,6 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
       backedUpWrites.push(pendingWrite)
       renameSync(pendingWrite.tempPath, pendingWrite.filePath)
     }
-    for (const { backupPath } of backedUpWrites)
-      rmSync(backupPath, { force: true })
   }
   catch (error) {
     const unrestoredFileNames: string[] = []
@@ -201,11 +203,23 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
       throw new LcfError(`Writing failed and rollback left ${unrestoredFileNames.join(', ')} unrestored – recover them from their .rpgrt-bak siblings. Original error: ${(error as Error).message}`)
     throw new LcfError(`Nothing was written – the write phase failed and every file was restored: ${(error as Error).message}`)
   }
+  // Every rename is committed – leftover backups are cleanup, never rollback
+  // state, so a failure here must not trigger the restore path above.
+  const warnings = [...plan.warnings]
+  for (const { backupPath } of backedUpWrites) {
+    try {
+      rmSync(backupPath, { force: true })
+    }
+    catch {
+      warnings.push(`Could not remove leftover backup ${basename(backupPath)}`)
+    }
+  }
 
   return {
     appliedCount: plan.applications.length,
     untranslatedCount,
     fuzzySkippedCount,
+    warnings,
     writtenFileNames: dirtyFileNames,
     engine: game.engine,
     engineSource,
@@ -235,7 +249,13 @@ export const injectCommand: CommandDef<InjectArgs> = defineCommand({
   },
   args: injectArgs,
   run({ args }) {
-    const result = injectDump(args.game, args.dump, { engine: args.engine, encoding: args.encoding })
+    const result = injectDump(args.game, args.dump, {
+      engine: args.engine,
+      encoding: args.encoding,
+      onWarning: message => console.error(`Warning: ${message}`),
+    })
+    for (const warning of result.warnings)
+      console.error(`Warning: ${warning}`)
     const fuzzyNote = result.fuzzySkippedCount > 0 ? `, ${result.fuzzySkippedCount} fuzzy entr${result.fuzzySkippedCount === 1 ? 'y' : 'ies'} skipped` : ''
     console.error(`${result.appliedCount} translation(s) applied, ${result.untranslatedCount} unit(s) still untranslated${fuzzyNote}`)
     console.error(`  ${describeFileContext(result)}`)

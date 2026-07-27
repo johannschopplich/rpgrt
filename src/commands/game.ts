@@ -35,6 +35,20 @@ export interface LoadedGame {
 export interface GameLoadOptions {
   engine?: string
   encoding?: string
+  /** Receives recoverable anomalies, prefixed with the file they concern. Silent when omitted. */
+  onWarning?: (message: string) => void
+}
+
+/** Codec errors name their file – a 50-map game must say which map is corrupt. */
+export function withFileContext<T>(fileName: string, run: () => T): T {
+  try {
+    return run()
+  }
+  catch (error) {
+    if (error instanceof LcfError)
+      throw new LcfError(`${fileName}: ${error.rawMessage}`, { path: error.path, offset: error.offset })
+    throw error
+  }
 }
 
 export function toCatalogContext(game: LoadedGame): CatalogContext {
@@ -66,14 +80,18 @@ export function loadGame(directory: string, options: GameLoadOptions = {}): Load
   const databaseBytes = new Uint8Array(readFileSync(databasePath))
   const { engine, engineSource, encoding, encodingSource } = resolveFileContext(databasePath, databaseBytes, 'ldb', options)
   const transcoder = createTranscoder(encoding)
-  const codecOptions = { engine, transcoder }
+  const codecOptionsFor = (fileName: string): Parameters<typeof decodeDatabase>[1] => ({
+    engine,
+    transcoder,
+    onWarning: message => options.onWarning?.(`${fileName}: ${message}`),
+  })
 
-  const database = decodeDatabase(databaseBytes, codecOptions)
+  const database = withFileContext(databaseFileName, () => decodeDatabase(databaseBytes, codecOptionsFor(databaseFileName)))
 
   const treeMapFileName = entryNames.find(name => name.toLowerCase() === 'rpg_rt.lmt')
   const treeMap = treeMapFileName === undefined
     ? undefined
-    : decodeTreeMap(new Uint8Array(readFileSync(join(directory, treeMapFileName))), codecOptions)
+    : withFileContext(treeMapFileName, () => decodeTreeMap(new Uint8Array(readFileSync(join(directory, treeMapFileName))), codecOptionsFor(treeMapFileName)))
 
   const maps: LoadedMap[] = []
   const skippedFileNames: string[] = []
@@ -86,7 +104,7 @@ export function loadGame(directory: string, options: GameLoadOptions = {}): Load
     maps.push({
       fileName,
       mapId: Number.parseInt(mapIdText, 10),
-      mapUnit: decodeMapUnit(new Uint8Array(readFileSync(join(directory, fileName))), codecOptions),
+      mapUnit: withFileContext(fileName, () => decodeMapUnit(new Uint8Array(readFileSync(join(directory, fileName))), codecOptionsFor(fileName))),
     })
   }
 

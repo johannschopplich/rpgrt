@@ -3,10 +3,10 @@ import type { CodecOptions, EngineVersion } from '../index.ts'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { bytesEqual } from '../codec/bytes.ts'
-import { collectStringBytes } from '../codec/detection-sample.ts'
+import { collectDatabaseSampleBytes, collectStringBytes } from '../codec/detection-sample.ts'
 import { LcfError } from '../codec/errors.ts'
 import { ByteReader, readChunkStream } from '../codec/reader.ts'
-import { createTranscoder, detectEncoding, encodingFromIni } from '../encoding.ts'
+import { createTranscoder, detectEncoding, encodingFromIni, isKnownEncoding } from '../encoding.ts'
 import { RECORD_DESCRIPTORS } from '../generated/descriptors.ts'
 import { decodeDatabase, decodeMapUnit, decodeSave, decodeTreeMap, encodeDatabase, encodeMapUnit, encodeSave, encodeTreeMap } from '../index.ts'
 
@@ -35,7 +35,7 @@ export interface ResolvedEngine {
 
 export interface ResolvedEncoding {
   encoding: string
-  encodingSource: 'flag' | 'ini' | 'detected' | 'fallback'
+  encodingSource: 'flag' | 'save' | 'ini' | 'detected' | 'fallback'
 }
 
 /** `envelope` and `dump` cover metadata a JSON document or extract dump carries with itself. */
@@ -53,6 +53,7 @@ const ENGINE_SOURCE_LABELS: Record<EngineSource, string> = {
 
 const ENCODING_SOURCE_LABELS: Record<EncodingSource, string> = {
   flag: 'from --encoding',
+  save: 'from the save\'s own codepage',
   ini: 'from RPG_RT.ini',
   detected: 'detected',
   fallback: 'fallback – pass --encoding if wrong',
@@ -123,6 +124,8 @@ export function parseEngineFlag(engineFlag: string): EngineVersion {
 export interface ResolveOptions {
   engine?: string
   encoding?: string
+  /** Receives recoverable resolution anomalies, e.g. an unusable ini hint. Silent when omitted. */
+  onWarning?: (message: string) => void
 }
 
 export type FileContext = ResolvedEngine & ResolvedEncoding
@@ -134,12 +137,19 @@ export type FileContext = ResolvedEngine & ResolvedEncoding
  * no 2k3 data, so 2k describes it fully; 2k3 decoding never drops data from a
  * 2k file, so it is the fallback.
  */
-export function decideEngine(inputs: { engineFlag?: string, kind: LcfFileKind, bytes: Uint8Array, databaseBytes?: Uint8Array }): ResolvedEngine {
-  const { engineFlag, kind, bytes, databaseBytes } = inputs
+export function decideEngine(inputs: { engineFlag?: string, kind: LcfFileKind, bytes: Uint8Array, databaseBytes?: Uint8Array, onWarning?: (message: string) => void }): ResolvedEngine {
+  const { engineFlag, kind, bytes, databaseBytes, onWarning } = inputs
   if (engineFlag !== undefined)
     return { engine: parseEngineFlag(engineFlag), engineSource: 'flag' }
-  if (databaseBytes !== undefined)
-    return { engine: scanDatabaseEngine(databaseBytes), engineSource: 'database' }
+  if (databaseBytes !== undefined) {
+    // A corrupt sibling database must not take down the file it sits next to.
+    try {
+      return { engine: scanDatabaseEngine(databaseBytes), engineSource: 'database' }
+    }
+    catch (error) {
+      onWarning?.(`Ignoring the unreadable sibling RPG_RT.ldb for engine detection (${error instanceof Error ? error.message : String(error)})`)
+    }
+  }
   if (reencodesIdentically(bytes, kind, '2k'))
     return { engine: '2k', engineSource: 'roundTrip' }
   if (reencodesIdentically(bytes, kind, '2k3'))
@@ -149,25 +159,38 @@ export function decideEngine(inputs: { engineFlag?: string, kind: LcfFileKind, b
 
 /**
  * Precedence ladder for the encoding: an explicit (validated) flag, then the
- * `Encoding` hint in RPG_RT.ini, then charset detection over a string sample,
- * then windows-1252.
+ * codepage an EasyRPG save carries for its own text, then the `Encoding` hint
+ * in RPG_RT.ini, then charset detection over a string sample, then
+ * windows-1252. An unusable save or ini hint warns and falls through instead
+ * of failing – detection is still available.
  */
-export function decideEncoding(inputs: { encodingFlag?: string, iniText?: string, getSampleBytes?: () => Uint8Array | undefined }): ResolvedEncoding {
-  const { encodingFlag, iniText, getSampleBytes } = inputs
+export function decideEncoding(inputs: { encodingFlag?: string, getSaveCodepage?: () => number | undefined, iniText?: string, getSampleBytes?: () => Uint8Array | undefined, onWarning?: (message: string) => void }): ResolvedEncoding {
+  const { encodingFlag, getSaveCodepage, iniText, getSampleBytes, onWarning } = inputs
   if (encodingFlag !== undefined) {
     createTranscoder(encodingFlag)
     return { encoding: encodingFlag, encodingSource: 'flag' }
   }
+  const saveCodepage = getSaveCodepage?.()
+  if (saveCodepage !== undefined) {
+    const saveEncoding = `cp${saveCodepage}`
+    if (isKnownEncoding(saveEncoding))
+      return { encoding: saveEncoding, encodingSource: 'save' }
+    onWarning?.(`The save names unknown codepage ${saveCodepage} – falling back to detection`)
+  }
   if (iniText !== undefined) {
     const iniEncoding = encodingFromIni(iniText)
-    if (iniEncoding !== undefined)
-      return { encoding: iniEncoding, encodingSource: 'ini' }
+    if (iniEncoding !== undefined) {
+      if (isKnownEncoding(iniEncoding))
+        return { encoding: iniEncoding, encodingSource: 'ini' }
+      onWarning?.(`RPG_RT.ini names unknown encoding ${JSON.stringify(iniEncoding)} – falling back to detection`)
+    }
   }
   // Deferred so a flag or ini hint never pays for the sample's whole-database decode.
   const sampleBytes = getSampleBytes?.()
   const detectedEncoding = sampleBytes === undefined ? undefined : detectEncoding(sampleBytes)
   if (detectedEncoding !== undefined)
     return { encoding: detectedEncoding, encodingSource: 'detected' }
+  onWarning?.(`No encoding could be determined – assuming ${FALLBACK_ENCODING}`)
   return { encoding: FALLBACK_ENCODING, encodingSource: 'fallback' }
 }
 
@@ -182,24 +205,38 @@ export function resolveFileContext(filePath: string, bytes: Uint8Array, kind: Lc
         const databasePath = findSibling(filePath, 'rpg_rt.ldb')
         return databasePath === undefined ? undefined : new Uint8Array(readFileSync(databasePath))
       })()
-  const resolvedEngine = decideEngine({ engineFlag: options.engine, kind, bytes, databaseBytes })
+  const resolvedEngine = decideEngine({ engineFlag: options.engine, kind, bytes, databaseBytes, onWarning: options.onWarning })
   const iniPath = findSibling(filePath, 'rpg_rt.ini')
   const iniText = iniPath === undefined ? undefined : readFileSync(iniPath, 'latin1')
   const resolvedEncoding = decideEncoding({
     encodingFlag: options.encoding,
+    getSaveCodepage: kind === 'lsd' ? () => saveCodepage(bytes, resolvedEngine.engine) : undefined,
     iniText,
     getSampleBytes: () => collectDetectionSample(bytes, kind, resolvedEngine.engine, databaseBytes),
+    onWarning: options.onWarning,
   })
   return { ...resolvedEngine, ...resolvedEncoding }
+}
+
+/** EasyRPG Player records the codepage its save text was written with. */
+function saveCodepage(bytes: Uint8Array, engine: EngineVersion): number | undefined {
+  try {
+    const save = decodeSave(bytes, { engine })
+    const codepage = save.easyrpgData.codepage
+    return codepage > 0 ? codepage : undefined
+  }
+  catch {
+    return undefined
+  }
 }
 
 /** The database holds most of a game's text, so prefer it as the detection sample. */
 function collectDetectionSample(bytes: Uint8Array, kind: LcfFileKind, engine: EngineVersion, databaseBytes?: Uint8Array): Uint8Array | undefined {
   try {
     if (kind === 'ldb')
-      return collectStringBytes(decodeDatabase(bytes, { engine }))
+      return collectDatabaseSampleBytes(decodeDatabase(bytes, { engine }))
     if (databaseBytes !== undefined)
-      return collectStringBytes(decodeDatabase(databaseBytes, { engine: scanDatabaseEngine(databaseBytes) }))
+      return collectDatabaseSampleBytes(decodeDatabase(databaseBytes, { engine: scanDatabaseEngine(databaseBytes) }))
     return collectStringBytes(LCF_CODECS[kind].decode(bytes, { engine }))
   }
   catch {
