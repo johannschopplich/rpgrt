@@ -27,8 +27,8 @@ function assertNoUnknownArgs(argDefs: ArgsDef, args: Record<string, unknown>): v
   const unknownArguments = Object.keys(args)
     .filter(key => !knownKeys.has(key))
     .map(key => key.length === 1 ? `-${key}` : `--${key}`)
-  for (const surplus of (args._ as string[]).slice(positionalCount))
-    unknownArguments.push(JSON.stringify(surplus))
+  for (const surplusPositional of (args._ as string[]).slice(positionalCount))
+    unknownArguments.push(JSON.stringify(surplusPositional))
   if (unknownArguments.length > 0)
     throw new LcfError(`Unknown argument(s): ${unknownArguments.join(', ')} – see --help`)
 }

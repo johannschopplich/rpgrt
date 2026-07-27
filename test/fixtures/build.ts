@@ -1,11 +1,9 @@
 import type { Database, MapUnit, Save, TreeMap } from '../../src/index.ts'
 import { defaultRecord, encodeDatabase, encodeMapUnit, encodeSave, encodeTreeMap } from '../../src/index.ts'
 
-/**
- * Self-authored fixture builders – the committed binaries in this directory
- * are their output, verified byte-for-byte by fixtures.test.ts. Regenerate
- * with `pnpm run make-fixtures` after changing a builder.
- */
+// Self-authored fixture builders – the committed binaries in this directory
+// are their output. Regenerate with `pnpm run make-fixtures` after a change.
+
 export interface Fixture {
   fileName: string
   engine: '2k' | '2k3'

@@ -121,12 +121,12 @@ function controlCodeDifference(gameSource: string, translation: string): string 
   }
   if (remainingCodes.size === 0 && addedCodes.length === 0)
     return undefined
-  const parts: string[] = []
+  const differenceDescriptions: string[] = []
   if (remainingCodes.size > 0)
-    parts.push(`missing ${[...remainingCodes.keys()].join(' ')}`)
+    differenceDescriptions.push(`missing ${[...remainingCodes.keys()].join(' ')}`)
   if (addedCodes.length > 0)
-    parts.push(`added ${addedCodes.join(' ')}`)
-  return parts.join(', ')
+    differenceDescriptions.push(`added ${addedCodes.join(' ')}`)
+  return differenceDescriptions.join(', ')
 }
 
 interface TranslationValidation {
