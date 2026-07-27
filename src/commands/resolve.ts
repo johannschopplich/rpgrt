@@ -1,46 +1,30 @@
 import type { LcfRecord } from '../codec/engine.ts'
-import type { CodecOptions, EngineVersion } from '../index.ts'
+import type { LcfFileKind } from '../codec/formats.ts'
+import type { EngineVersion, WarningSink } from '../index.ts'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { bytesEqual } from '../codec/bytes.ts'
 import { collectDatabaseSampleBytes, collectStringBytes } from '../codec/detection-sample.ts'
 import { LcfError } from '../codec/errors.ts'
+import { decodeLcfFile, encodeLcfFile, LCF_FORMATS } from '../codec/formats.ts'
 import { ByteReader, readChunkStream } from '../codec/reader.ts'
 import { createTranscoder, detectEncoding, encodingFromIni, isKnownEncoding } from '../encoding.ts'
 import { RECORD_DESCRIPTORS } from '../generated/descriptors.ts'
-import { decodeDatabase, decodeMapUnit, decodeSave, decodeTreeMap, encodeDatabase, encodeMapUnit, encodeSave, encodeTreeMap } from '../index.ts'
+import { decodeDatabase, decodeSave } from '../index.ts'
 
-export type LcfFileKind = 'lmu' | 'ldb' | 'lmt' | 'lsd'
+/** `envelope` and `dump` are hint provenances – metadata a JSON document or extract dump carries with itself. */
+export type EngineSource = 'flag' | 'envelope' | 'dump' | 'database' | 'roundTrip' | 'fallback'
+export type EncodingSource = 'flag' | 'envelope' | 'dump' | 'save' | 'ini' | 'detected' | 'fallback'
 
-export interface KindCodec {
-  decode: (bytes: Uint8Array, options: CodecOptions) => LcfRecord
-  encode: (record: LcfRecord, options: CodecOptions) => Uint8Array
-}
-
-/**
- * The generated record interfaces carry no index signature, so their codec
- * pairs are not assignable to the uniform LcfRecord shape without this cast.
- */
-export const LCF_CODECS: Record<LcfFileKind, KindCodec> = {
-  lmu: { decode: decodeMapUnit, encode: encodeMapUnit },
-  ldb: { decode: decodeDatabase, encode: encodeDatabase },
-  lmt: { decode: decodeTreeMap, encode: encodeTreeMap },
-  lsd: { decode: decodeSave, encode: encodeSave },
-} as unknown as Record<LcfFileKind, KindCodec>
-
-export interface ResolvedEngine {
+export interface FileContext {
   engine: EngineVersion
-  engineSource: 'flag' | 'database' | 'roundTrip' | 'fallback'
-}
-
-export interface ResolvedEncoding {
+  engineSource: EngineSource
   encoding: string
-  encodingSource: 'flag' | 'save' | 'ini' | 'detected' | 'fallback'
+  encodingSource: EncodingSource
 }
 
-/** `envelope` and `dump` cover metadata a JSON document or extract dump carries with itself. */
-export type EngineSource = ResolvedEngine['engineSource'] | 'envelope' | 'dump'
-export type EncodingSource = ResolvedEncoding['encodingSource'] | 'envelope' | 'dump'
+type ResolvedEngine = Pick<FileContext, 'engine' | 'engineSource'>
+type ResolvedEncoding = Pick<FileContext, 'encoding' | 'encodingSource'>
 
 const ENGINE_SOURCE_LABELS: Record<EngineSource, string> = {
   flag: 'from --engine',
@@ -66,11 +50,6 @@ export function describeFileContext(context: { engine: EngineVersion, engineSour
 }
 
 export const FALLBACK_ENCODING = 'windows-1252'
-
-export function lcfFileKind(filePath: string): LcfFileKind | undefined {
-  const match = filePath.toLowerCase().match(/\.(lmu|ldb|lmt|lsd)$/)
-  return match ? match[1] as LcfFileKind : undefined
-}
 
 /** Case-insensitive sibling lookup – game folders mix RPG_RT.ldb and rpg_rt.ldb in the wild. */
 function findSibling(filePath: string, siblingName: string): string | undefined {
@@ -106,9 +85,9 @@ export function scanDatabaseEngine(databaseBytes: Uint8Array): EngineVersion {
 
 function reencodesIdentically(bytes: Uint8Array, kind: LcfFileKind, engine: EngineVersion): boolean {
   const options = { engine }
-  const { decode, encode } = LCF_CODECS[kind]
+  const format = LCF_FORMATS[kind]
   try {
-    return bytesEqual(encode(decode(bytes, options), options), bytes)
+    return bytesEqual(encodeLcfFile(decodeLcfFile<LcfRecord>(bytes, format, options), format, options), bytes)
   }
   catch {
     return false
@@ -121,26 +100,43 @@ export function parseEngineFlag(engineFlag: string): EngineVersion {
   return engineFlag
 }
 
-export interface ResolveOptions {
-  engine?: string
-  encoding?: string
-  /** Receives recoverable resolution anomalies, e.g. an unusable ini hint. Silent when omitted. */
-  onWarning?: (message: string) => void
+/** An engine or encoding the caller already knows, with its provenance for reporting. */
+export interface EngineHint {
+  engine: string
+  source: 'flag' | 'envelope' | 'dump'
 }
 
-export type FileContext = ResolvedEngine & ResolvedEncoding
+export interface EncodingHint {
+  encoding: string
+  source: 'flag' | 'envelope' | 'dump'
+}
+
+export interface ResolveInputs {
+  engineHint?: EngineHint
+  encodingHint?: EncodingHint
+  /** Receives recoverable resolution anomalies, e.g. an unusable ini hint. Silent when omitted. */
+  onWarning?: WarningSink
+}
+
+/** The common case: hints from optional --engine/--encoding flag values. */
+export function flagHints(engineFlag?: string, encodingFlag?: string): Pick<ResolveInputs, 'engineHint' | 'encodingHint'> {
+  return {
+    engineHint: engineFlag === undefined ? undefined : { engine: engineFlag, source: 'flag' },
+    encodingHint: encodingFlag === undefined ? undefined : { encoding: encodingFlag, source: 'flag' },
+  }
+}
 
 /**
- * Precedence ladder for the engine: an explicit flag, then the sibling
+ * Precedence ladder for the engine: an explicit hint, then the sibling
  * database's chunk profile, then a byte-identical re-encode probe, then 2k3 as
  * the safe guess. A file that re-encodes identically under both engines carries
  * no 2k3 data, so 2k describes it fully; 2k3 decoding never drops data from a
  * 2k file, so it is the fallback.
  */
-export function decideEngine(inputs: { engineFlag?: string, kind: LcfFileKind, bytes: Uint8Array, databaseBytes?: Uint8Array, onWarning?: (message: string) => void }): ResolvedEngine {
-  const { engineFlag, kind, bytes, databaseBytes, onWarning } = inputs
-  if (engineFlag !== undefined)
-    return { engine: parseEngineFlag(engineFlag), engineSource: 'flag' }
+function decideEngine(inputs: { engineHint?: EngineHint, kind: LcfFileKind, bytes: Uint8Array, databaseBytes?: Uint8Array, onWarning?: WarningSink }): ResolvedEngine {
+  const { engineHint, kind, bytes, databaseBytes, onWarning } = inputs
+  if (engineHint !== undefined)
+    return { engine: parseEngineFlag(engineHint.engine), engineSource: engineHint.source }
   if (databaseBytes !== undefined) {
     // A corrupt sibling database must not take down the file it sits next to.
     try {
@@ -158,17 +154,17 @@ export function decideEngine(inputs: { engineFlag?: string, kind: LcfFileKind, b
 }
 
 /**
- * Precedence ladder for the encoding: an explicit (validated) flag, then the
+ * Precedence ladder for the encoding: an explicit (validated) hint, then the
  * codepage an EasyRPG save carries for its own text, then the `Encoding` hint
  * in RPG_RT.ini, then charset detection over a string sample, then
  * windows-1252. An unusable save or ini hint warns and falls through instead
  * of failing – detection is still available.
  */
-export function decideEncoding(inputs: { encodingFlag?: string, getSaveCodepage?: () => number | undefined, iniText?: string, getSampleBytes?: () => Uint8Array | undefined, onWarning?: (message: string) => void }): ResolvedEncoding {
-  const { encodingFlag, getSaveCodepage, iniText, getSampleBytes, onWarning } = inputs
-  if (encodingFlag !== undefined) {
-    createTranscoder(encodingFlag)
-    return { encoding: encodingFlag, encodingSource: 'flag' }
+function decideEncoding(inputs: { encodingHint?: EncodingHint, getSaveCodepage?: () => number | undefined, iniText?: string, getSampleBytes?: () => Uint8Array | undefined, onWarning?: WarningSink }): ResolvedEncoding {
+  const { encodingHint, getSaveCodepage, iniText, getSampleBytes, onWarning } = inputs
+  if (encodingHint !== undefined) {
+    createTranscoder(encodingHint.encoding)
+    return { encoding: encodingHint.encoding, encodingSource: encodingHint.source }
   }
   const saveCodepage = getSaveCodepage?.()
   if (saveCodepage !== undefined) {
@@ -198,22 +194,22 @@ export function decideEncoding(inputs: { encodingFlag?: string, getSaveCodepage?
  * Gathers the sibling database and ini once, then hands them to the pure
  * deciders. A .ldb resolves against its own bytes and needs no sibling read.
  */
-export function resolveFileContext(filePath: string, bytes: Uint8Array, kind: LcfFileKind, options: ResolveOptions): FileContext {
+export function resolveFileContext(filePath: string, bytes: Uint8Array, kind: LcfFileKind, inputs: ResolveInputs = {}): FileContext {
   const databaseBytes = kind === 'ldb'
     ? bytes
     : (() => {
         const databasePath = findSibling(filePath, 'rpg_rt.ldb')
         return databasePath === undefined ? undefined : new Uint8Array(readFileSync(databasePath))
       })()
-  const resolvedEngine = decideEngine({ engineFlag: options.engine, kind, bytes, databaseBytes, onWarning: options.onWarning })
+  const resolvedEngine = decideEngine({ engineHint: inputs.engineHint, kind, bytes, databaseBytes, onWarning: inputs.onWarning })
   const iniPath = findSibling(filePath, 'rpg_rt.ini')
   const iniText = iniPath === undefined ? undefined : readFileSync(iniPath, 'latin1')
   const resolvedEncoding = decideEncoding({
-    encodingFlag: options.encoding,
+    encodingHint: inputs.encodingHint,
     getSaveCodepage: kind === 'lsd' ? () => saveCodepage(bytes, resolvedEngine.engine) : undefined,
     iniText,
     getSampleBytes: () => collectDetectionSample(bytes, kind, resolvedEngine.engine, databaseBytes),
-    onWarning: options.onWarning,
+    onWarning: inputs.onWarning,
   })
   return { ...resolvedEngine, ...resolvedEncoding }
 }
@@ -237,7 +233,7 @@ function collectDetectionSample(bytes: Uint8Array, kind: LcfFileKind, engine: En
       return collectDatabaseSampleBytes(decodeDatabase(bytes, { engine }))
     if (databaseBytes !== undefined)
       return collectDatabaseSampleBytes(decodeDatabase(databaseBytes, { engine: scanDatabaseEngine(databaseBytes) }))
-    return collectStringBytes(LCF_CODECS[kind].decode(bytes, { engine }))
+    return collectStringBytes(decodeLcfFile<LcfRecord>(bytes, LCF_FORMATS[kind], { engine }))
   }
   catch {
     return undefined

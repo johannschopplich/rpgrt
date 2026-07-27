@@ -1,5 +1,5 @@
 import type { ArgsDef, CommandDef } from 'citty'
-import type { EngineVersion } from '../index.ts'
+import type { EngineVersion, WarningSink } from '../index.ts'
 import type { CollectedUnit, Dump, DumpUnit } from '../translation/units.ts'
 import type { LoadedGame } from './game.ts'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
@@ -8,7 +8,7 @@ import { defineCommand } from 'citty'
 import { LcfError } from '../codec/errors.ts'
 import { formatPoCatalog, poCatalogs } from '../translation/po.ts'
 import { collectGameUnits, loadGame, toCatalogContext } from './game.ts'
-import { describeFileContext } from './resolve.ts'
+import { describeFileContext, flagHints } from './resolve.ts'
 
 export type { Dump, DumpUnit } from '../translation/units.ts'
 
@@ -20,7 +20,7 @@ export interface ExtractOptions {
   encoding?: string
   /** Overwrite existing output files. */
   isForce?: boolean
-  onWarning?: (message: string) => void
+  onWarning?: WarningSink
 }
 
 /** All-or-nothing: refuse before the first byte is written, naming every conflict. */
@@ -61,7 +61,7 @@ export function extractGame(directory: string, options: ExtractOptions = {}): Ex
   if (options.isSplit === true && options.isPo === true)
     throw new LcfError('--split and --po are mutually exclusive – PO output is always per file')
 
-  const game = loadGame(directory, { engine: options.engine, encoding: options.encoding, onWarning: options.onWarning })
+  const game = loadGame(directory, { ...flagHints(options.engine, options.encoding), onWarning: options.onWarning })
   const units = collectGameUnits(game)
   const outputPaths: string[] = []
 

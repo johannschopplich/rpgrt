@@ -1,22 +1,24 @@
 import type { ArgsDef, CommandDef } from 'citty'
+import type { WarningSink } from '../index.ts'
 import type { ParsedCatalog } from '../translation/inject.ts'
 import type { CollectedUnit, Dump, DumpUnit } from '../translation/units.ts'
 import type { LoadedGame } from './game.ts'
 import type { EncodingSource, EngineSource } from './resolve.ts'
-import { readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { defineCommand } from 'citty'
 import { LcfError } from '../codec/errors.ts'
-import { encodeDatabase, encodeMapUnit, encodeTreeMap } from '../index.ts'
+import { encodeLcfFile, lcfFormatFor } from '../codec/formats.ts'
 import { planInjection, resolvePoDumps } from '../translation/inject.ts'
 import { parsePoCatalog } from '../translation/po.ts'
+import { writeFilesAtomically } from './atomic-write.ts'
 import { collectGameUnits, loadGame, toCatalogContext, withFileContext } from './game.ts'
-import { describeFileContext } from './resolve.ts'
+import { describeFileContext, flagHints } from './resolve.ts'
 
 export interface InjectOptions {
   engine?: string
   encoding?: string
-  onWarning?: (message: string) => void
+  onWarning?: WarningSink
 }
 
 export interface InjectResult {
@@ -98,56 +100,63 @@ function parsePoCatalogFile(filePath: string): ParsedCatalog {
   }
 }
 
-export function injectDump(directory: string, dumpPath: string, options: InjectOptions = {}): InjectResult {
-  const source = classifyDumpSource(dumpPath)
+interface ResolvedDumpSource {
+  game: LoadedGame
+  collectedUnits: CollectedUnit[]
+  dumpUnits: DumpUnit[]
+  fuzzySkippedCount: number
+  abortReasons: string[]
+  /** Absent for JSON dumps – merged entries are only countable after planning. */
+  untranslatedCount?: number
+}
 
-  let game: LoadedGame
-  let collectedUnits: CollectedUnit[]
-  let dumpUnits: DumpUnit[]
-  let untranslatedCount = 0
-  let fuzzySkippedCount = 0
-  let extraAbortReasons: string[]
-  let engineSource: EngineSource
-  let encodingSource: EncodingSource
+function resolveDumpSource(directory: string, source: DumpSource, dumpPath: string, options: InjectOptions): ResolvedDumpSource {
   if (source.format === 'po') {
     // PO carries no engine/encoding, and fallback matching needs the collected
     // units, so the game must load before parsing.
-    game = loadGame(directory, { engine: options.engine, encoding: options.encoding, onWarning: options.onWarning })
-    engineSource = game.engineSource
-    encodingSource = game.encodingSource
-    collectedUnits = collectGameUnits(game)
+    const game = loadGame(directory, { ...flagHints(options.engine, options.encoding), onWarning: options.onWarning })
+    const collectedUnits = collectGameUnits(game)
     const parsedCatalogs = source.filePaths.map(parsePoCatalogFile)
     const resolution = resolvePoDumps(parsedCatalogs, collectedUnits, toCatalogContext(game))
-    dumpUnits = resolution.units
-    untranslatedCount = resolution.untranslatedCount
-    fuzzySkippedCount = resolution.fuzzySkippedCount
-    extraAbortReasons = resolution.abortReasons
+    return {
+      game,
+      collectedUnits,
+      dumpUnits: resolution.units,
+      fuzzySkippedCount: resolution.fuzzySkippedCount,
+      abortReasons: resolution.abortReasons,
+      untranslatedCount: resolution.untranslatedCount,
+    }
   }
-  else {
-    const dumps = readJsonDumps(source.filePaths, dumpPath)
-    game = loadGame(directory, {
-      engine: options.engine ?? dumps[0]!.engine,
-      encoding: options.encoding ?? dumps[0]!.encoding,
-      onWarning: options.onWarning,
-    })
-    // The dump's engine/encoding were passed through the flag slot above, so the
-    // game's source reads `flag` – re-derive it as `dump` instead.
-    engineSource = options.engine !== undefined ? game.engineSource : 'dump'
-    encodingSource = options.encoding !== undefined ? game.encodingSource : 'dump'
-    collectedUnits = collectGameUnits(game)
-    dumpUnits = dumps.flatMap(dump => dump.units)
-    fuzzySkippedCount = 0
-    extraAbortReasons = []
+  const dumps = readJsonDumps(source.filePaths, dumpPath)
+  const game = loadGame(directory, {
+    engineHint: options.engine !== undefined
+      ? { engine: options.engine, source: 'flag' }
+      : { engine: dumps[0]!.engine, source: 'dump' },
+    encodingHint: options.encoding !== undefined
+      ? { encoding: options.encoding, source: 'flag' }
+      : { encoding: dumps[0]!.encoding, source: 'dump' },
+    onWarning: options.onWarning,
+  })
+  return {
+    game,
+    collectedUnits: collectGameUnits(game),
+    dumpUnits: dumps.flatMap(dump => dump.units),
+    fuzzySkippedCount: 0,
+    abortReasons: [],
   }
+}
+
+export function injectDump(directory: string, dumpPath: string, options: InjectOptions = {}): InjectResult {
+  const source = classifyDumpSource(dumpPath)
+  const { game, collectedUnits, dumpUnits, fuzzySkippedCount, abortReasons: sourceAbortReasons, untranslatedCount: poUntranslatedCount } = resolveDumpSource(directory, source, dumpPath, options)
 
   const plan = planInjection(collectedUnits, dumpUnits, {
     transcoder: game.transcoder,
     encoding: game.encoding,
   })
-  if (source.format === 'json')
-    untranslatedCount = plan.untranslatedCount
+  const untranslatedCount = poUntranslatedCount ?? plan.untranslatedCount
 
-  const abortReasons = [...extraAbortReasons, ...plan.abortReasons]
+  const abortReasons = [...sourceAbortReasons, ...plan.abortReasons]
   if (abortReasons.length > 0) {
     const shownAbortReasons = abortReasons.slice(0, 20)
     if (abortReasons.length > shownAbortReasons.length)
@@ -160,60 +169,17 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
 
   const dirtyFileNames = [...new Set(plan.applications.map(({ collected }) => collected.fileName))].sort()
   const codecOptions = { engine: game.engine, transcoder: game.transcoder }
-  const pendingWrites: { filePath: string, tempPath: string, backupPath: string, bytes: Uint8Array }[] = []
-  for (const fileName of dirtyFileNames) {
-    const bytes = withFileContext(fileName, () => {
-      if (fileName === game.databaseFileName)
-        return encodeDatabase(game.database, codecOptions)
-      if (fileName === game.treeMapFileName)
-        return encodeTreeMap(game.treeMap!, codecOptions)
-      return encodeMapUnit(game.maps.find(map => map.fileName === fileName)!.mapUnit, codecOptions)
-    })
-    const filePath = join(directory, fileName)
-    pendingWrites.push({ filePath, tempPath: `${filePath}.rpgrt-tmp`, backupPath: `${filePath}.rpgrt-bak`, bytes })
-  }
-  // Temps are staged beside their targets so every rename stays on one volume
-  // and is atomic. Crash or power loss between renames remains out of scope.
-  // Only files whose original made it into a backup need (or may) be restored –
-  // probing the filesystem instead would mistake a stray occupant of the backup
-  // path for a backup.
-  const backedUpWrites: typeof pendingWrites = []
-  try {
-    for (const { tempPath, bytes } of pendingWrites)
-      writeFileSync(tempPath, bytes)
-    for (const pendingWrite of pendingWrites) {
-      renameSync(pendingWrite.filePath, pendingWrite.backupPath)
-      backedUpWrites.push(pendingWrite)
-      renameSync(pendingWrite.tempPath, pendingWrite.filePath)
-    }
-  }
-  catch (error) {
-    const unrestoredFileNames: string[] = []
-    for (const { filePath, backupPath } of backedUpWrites) {
-      try {
-        renameSync(backupPath, filePath)
-      }
-      catch {
-        unrestoredFileNames.push(basename(filePath))
-      }
-    }
-    for (const { tempPath } of pendingWrites)
-      rmSync(tempPath, { force: true })
-    if (unrestoredFileNames.length > 0)
-      throw new LcfError(`Writing failed and rollback left ${unrestoredFileNames.join(', ')} unrestored – recover them from their .rpgrt-bak siblings. Original error: ${(error as Error).message}`)
-    throw new LcfError(`Nothing was written – the write phase failed and every file was restored: ${(error as Error).message}`)
-  }
-  // Every rename is committed – leftover backups are cleanup, never rollback
-  // state, so a failure here must not trigger the restore path above.
-  const warnings = [...plan.warnings]
-  for (const { backupPath } of backedUpWrites) {
-    try {
-      rmSync(backupPath, { force: true })
-    }
-    catch {
-      warnings.push(`Could not remove leftover backup ${basename(backupPath)}`)
-    }
-  }
+  const pendingWrites = dirtyFileNames.map((fileName) => {
+    const record = fileName === game.databaseFileName
+      ? game.database
+      : fileName === game.treeMapFileName
+        ? game.treeMap!
+        : game.maps.find(map => map.fileName === fileName)!.mapUnit
+    const bytes = withFileContext(fileName, () => encodeLcfFile(record, lcfFormatFor(fileName)!, codecOptions))
+    return { filePath: join(directory, fileName), bytes }
+  })
+  const writeResult = writeFilesAtomically(pendingWrites)
+  const warnings = [...plan.warnings, ...writeResult.warnings]
 
   return {
     appliedCount: plan.applications.length,
@@ -222,9 +188,9 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
     warnings,
     writtenFileNames: dirtyFileNames,
     engine: game.engine,
-    engineSource,
+    engineSource: game.engineSource,
     encoding: game.encoding,
-    encodingSource,
+    encodingSource: game.encodingSource,
   }
 }
 

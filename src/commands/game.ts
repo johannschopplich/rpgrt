@@ -1,7 +1,7 @@
 import type { Database, EngineVersion, MapUnit, Transcoder, TreeMap } from '../index.ts'
 import type { CatalogContext } from '../translation/po.ts'
 import type { CollectedUnit } from '../translation/units.ts'
-import type { ResolvedEncoding, ResolvedEngine } from './resolve.ts'
+import type { EncodingSource, EngineSource, ResolveInputs } from './resolve.ts'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { LcfError } from '../codec/errors.ts'
@@ -19,9 +19,9 @@ export interface LoadedMap {
 export interface LoadedGame {
   directory: string
   engine: EngineVersion
-  engineSource: ResolvedEngine['engineSource']
+  engineSource: EngineSource
   encoding: string
-  encodingSource: ResolvedEncoding['encodingSource']
+  encodingSource: EncodingSource
   transcoder: Transcoder
   databaseFileName: string
   database: Database
@@ -30,13 +30,6 @@ export interface LoadedGame {
   maps: LoadedMap[]
   /** .lmu files without a MapNNNN name – they have no addressable map ID. */
   skippedFileNames: string[]
-}
-
-export interface GameLoadOptions {
-  engine?: string
-  encoding?: string
-  /** Receives recoverable anomalies, prefixed with the file they concern. Silent when omitted. */
-  onWarning?: (message: string) => void
 }
 
 /** Codec errors name their file – a 50-map game must say which map is corrupt. */
@@ -68,7 +61,7 @@ export function collectGameUnits(game: LoadedGame): CollectedUnit[] {
   return units
 }
 
-export function loadGame(directory: string, options: GameLoadOptions = {}): LoadedGame {
+export function loadGame(directory: string, inputs: ResolveInputs = {}): LoadedGame {
   if (!statSync(directory, { throwIfNoEntry: false })?.isDirectory())
     throw new LcfError(`Not a directory: ${directory}`)
   const entryNames = readdirSync(directory)
@@ -78,12 +71,16 @@ export function loadGame(directory: string, options: GameLoadOptions = {}): Load
 
   const databasePath = join(directory, databaseFileName)
   const databaseBytes = new Uint8Array(readFileSync(databasePath))
-  const { engine, engineSource, encoding, encodingSource } = resolveFileContext(databasePath, databaseBytes, 'ldb', options)
+  // Resolution warnings concern the database the context is derived from.
+  const { engine, engineSource, encoding, encodingSource } = resolveFileContext(databasePath, databaseBytes, 'ldb', {
+    ...inputs,
+    onWarning: message => inputs.onWarning?.(`${databaseFileName}: ${message}`),
+  })
   const transcoder = createTranscoder(encoding)
   const codecOptionsFor = (fileName: string): Parameters<typeof decodeDatabase>[1] => ({
     engine,
     transcoder,
-    onWarning: message => options.onWarning?.(`${fileName}: ${message}`),
+    onWarning: message => inputs.onWarning?.(`${fileName}: ${message}`),
   })
 
   const database = withFileContext(databaseFileName, () => decodeDatabase(databaseBytes, codecOptionsFor(databaseFileName)))

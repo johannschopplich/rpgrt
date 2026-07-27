@@ -1,14 +1,17 @@
 import type { ArgsDef, CommandDef } from 'citty'
 import type { LcfRecord } from '../codec/engine.ts'
-import type { EngineVersion } from '../index.ts'
-import type { EncodingSource, EngineSource, LcfFileKind } from './resolve.ts'
-import { existsSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import type { LcfFileKind } from '../codec/formats.ts'
+import type { EngineVersion, WarningSink } from '../index.ts'
+import type { EncodingSource, EngineSource } from './resolve.ts'
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { defineCommand } from 'citty'
 import { base64ToUint8Array, uint8ArrayToBase64 } from 'uint8array-extras'
 import { bytesEqual } from '../codec/bytes.ts'
 import { LcfError } from '../codec/errors.ts'
+import { decodeLcfFile, encodeLcfFile, LCF_FORMATS, lcfFormatFor } from '../codec/formats.ts'
 import { createTranscoder } from '../encoding.ts'
-import { describeFileContext, LCF_CODECS, lcfFileKind, parseEngineFlag, resolveFileContext } from './resolve.ts'
+import { writeFilesAtomically } from './atomic-write.ts'
+import { describeFileContext, flagHints, parseEngineFlag, resolveFileContext } from './resolve.ts'
 
 /** The self-describing JSON document `convert` writes; converting back needs no flags. */
 interface JsonEnvelope {
@@ -37,15 +40,15 @@ export interface ConvertOptions {
   encoding?: string
   /** Overwrite an existing JSON output (LCF targets are backed up instead). */
   isForce?: boolean
-  onWarning?: (message: string) => void
+  onWarning?: WarningSink
 }
 
-function decodeLcf(bytes: Uint8Array, kind: LcfFileKind, engine: EngineVersion, encoding: string, onWarning?: (message: string) => void): LcfRecord {
-  return LCF_CODECS[kind].decode(bytes, { engine, transcoder: createTranscoder(encoding), onWarning })
+function decodeLcf(bytes: Uint8Array, kind: LcfFileKind, engine: EngineVersion, encoding: string, onWarning?: WarningSink): LcfRecord {
+  return decodeLcfFile<LcfRecord>(bytes, LCF_FORMATS[kind], { engine, transcoder: createTranscoder(encoding), onWarning })
 }
 
 function encodeLcf(record: LcfRecord, kind: LcfFileKind, engine: EngineVersion, encoding: string): Uint8Array {
-  return LCF_CODECS[kind].encode(record, { engine, transcoder: createTranscoder(encoding) })
+  return encodeLcfFile(record, LCF_FORMATS[kind], { engine, transcoder: createTranscoder(encoding) })
 }
 
 function stringifyEnvelope(envelope: JsonEnvelope): string {
@@ -87,10 +90,10 @@ function reviveUnknownChunks(value: unknown): void {
     const record = value as LcfRecord
     if (Array.isArray(record._unknown)) {
       record._unknown = record._unknown.map((chunk: unknown) => {
-        const { id, bytes } = (chunk ?? {}) as { id?: unknown, bytes?: unknown }
-        if (typeof id !== 'number' || typeof bytes !== 'string')
-          throw new LcfError(`Malformed _unknown chunk – expected { id: number, bytes: base64 string }, got ${JSON.stringify(chunk)}`)
-        return { id, bytes: base64ToUint8Array(bytes) }
+        const { id, bytes, beforeId } = (chunk ?? {}) as { id?: unknown, bytes?: unknown, beforeId?: unknown }
+        if (typeof id !== 'number' || typeof bytes !== 'string' || (beforeId !== undefined && typeof beforeId !== 'number'))
+          throw new LcfError(`Malformed _unknown chunk – expected { id: number, bytes: base64 string, beforeId?: number }, got ${JSON.stringify(chunk)}`)
+        return beforeId === undefined ? { id, bytes: base64ToUint8Array(bytes) } : { id, bytes: base64ToUint8Array(bytes), beforeId }
       })
     }
     for (const [key, element] of Object.entries(record)) {
@@ -102,7 +105,7 @@ function reviveUnknownChunks(value: unknown): void {
 
 function lcfOutputPath(inputPath: string, format: LcfFileKind): string {
   const strippedPath = inputPath.replace(/\.json$/i, '')
-  return lcfFileKind(strippedPath) === format ? strippedPath : `${strippedPath}.${format}`
+  return lcfFormatFor(strippedPath)?.kind === format ? strippedPath : `${strippedPath}.${format}`
 }
 
 export function convertFile(inputPath: string, options: ConvertOptions = {}): ConvertResult {
@@ -119,17 +122,11 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
     const outputPath = options.output ?? lcfOutputPath(inputPath, envelope.format)
     const bytes = encodeLcf(envelope.data, envelope.format, engine, encoding)
     // Overwriting a game file is the whole point of converting back, but the
-    // previous bytes must survive: the target becomes the backup first, so a
-    // failed write never leaves the only copy half-written.
-    let backupPath: string | undefined
-    if (existsSync(outputPath)) {
-      backupPath = `${outputPath}.rpgrt-bak`
-      renameSync(outputPath, backupPath)
-    }
-    writeFileSync(outputPath, bytes)
+    // previous bytes must survive – the backup is kept, not cleaned up.
+    const writeResult = writeFilesAtomically([{ filePath: outputPath, bytes }], { keepBackups: true })
     return {
       outputPath,
-      backupPath,
+      backupPath: writeResult.backupPaths[0],
       format: envelope.format,
       engine,
       engineSource: options.engine === undefined ? 'envelope' : 'flag',
@@ -138,11 +135,11 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
     }
   }
 
-  const kind = lcfFileKind(inputPath)
+  const kind = lcfFormatFor(inputPath)?.kind
   if (kind === undefined)
     throw new LcfError(`Unsupported file extension – expected .lmu, .ldb, .lmt, .lsd, or .json: ${inputPath}`)
   const bytes = new Uint8Array(readFileSync(inputPath))
-  const { engine, engineSource, encoding, encodingSource } = resolveFileContext(inputPath, bytes, kind, options)
+  const { engine, engineSource, encoding, encodingSource } = resolveFileContext(inputPath, bytes, kind, { ...flagHints(options.engine, options.encoding), onWarning: options.onWarning })
   const envelope: JsonEnvelope = { format: kind, engine, encoding, data: decodeLcf(bytes, kind, engine, encoding, options.onWarning) }
   const outputPath = options.output ?? `${inputPath}.json`
   if (options.isForce !== true && existsSync(outputPath))
