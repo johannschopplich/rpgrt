@@ -1,6 +1,5 @@
 import type { FieldCodec, FieldDefaultValue } from '../../src/codec/descriptors.ts'
 import type { EnumDef, FieldDef, FlagSetDef, LcfTables, StructDef, TypeExpression } from './tables.ts'
-import { approximateLiblcfName } from '../../src/translation/units.ts'
 import { expandFlagsDefault, parseDefaultCell } from './defaults.ts'
 import { toCamelCase, toObjectKey } from './names.ts'
 import { classifyNamedType, resolveEnum } from './tables.ts'
@@ -14,9 +13,10 @@ const EMBEDDABLE_RAW_STRUCTS = new Set(['Parameters', 'Equipment', 'Rect'])
 
 /**
  * Top-level file records preserve a non-canonical header for write-back
- * (Save excluded – liblcf hardcodes the .lsd header on write).
+ * (Save excluded – liblcf hardcodes the .lsd header on write). Must agree with
+ * LCF_FORMATS' isHeaderPreserving; the generator test pins that.
  */
-const HEADER_PRESERVING_RECORDS = new Set(['MapUnit', 'Database', 'TreeMap'])
+export const HEADER_PRESERVING_RECORDS: Set<string> = new Set(['MapUnit', 'Database', 'TreeMap'])
 
 /** liblcf's `Map` would shadow the ES built-in in every consumer file. */
 const RECORD_NAME_OVERRIDES: Record<string, string> = { Map: 'MapUnit' }
@@ -49,7 +49,7 @@ const VECTOR_ELEMENT_BY_PRIMITIVE: Record<string, 'boolean' | 'uint8' | 'int16' 
 
 interface GeneratedField {
   key: string
-  liblcfName: string | undefined
+  liblcfName: string
   id: number | undefined
   sizeId: number | undefined
   sizeKind: 'byteLength' | 'elementCount' | undefined
@@ -96,7 +96,7 @@ export function buildModel(tables: LcfTables, selected: StructDef[]): GeneratedM
       const key = toCamelCase(field.fieldName)
       return {
         key,
-        liblcfName: approximateLiblcfName(key) === field.fieldName ? undefined : field.fieldName,
+        liblcfName: field.fieldName,
         id: field.chunkId,
         sizeId: field.sizeChunkId,
         sizeKind: field.sizeChunkId === undefined
@@ -302,9 +302,7 @@ export function emitDescriptors(model: GeneratedModel): string {
 }
 
 function printField(field: GeneratedField): string {
-  const properties = [`key: '${field.key}'`]
-  if (field.liblcfName !== undefined)
-    properties.push(`liblcfName: '${field.liblcfName}'`)
+  const properties = [`key: '${field.key}'`, `liblcfName: '${field.liblcfName}'`]
   if (field.id !== undefined)
     properties.push(`id: ${printChunkId(field.id)}`)
   if (field.sizeId !== undefined) {

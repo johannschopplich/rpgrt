@@ -88,26 +88,15 @@ export function collectControlCodes(text: string): string[] {
   return codes
 }
 
-/**
- * The regex inverse of the generator's camelCasing. CamelCase is not invertible
- * for names like `inn_a_greeting_1`, so the generator emits a `liblcfName`
- * override wherever this approximation would diverge from the CSV name.
- */
-export function approximateLiblcfName(fieldKey: string): string {
-  return fieldKey.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()
-}
-
-const LIBLCF_NAME_OVERRIDES = new Map<string, string>()
+const LIBLCF_NAMES = new Map<string, string>()
 for (const record of Object.values(RECORD_DESCRIPTORS)) {
-  for (const field of record.fields) {
-    if (field.liblcfName !== undefined)
-      LIBLCF_NAME_OVERRIDES.set(field.key, field.liblcfName)
-  }
+  for (const field of record.fields)
+    LIBLCF_NAMES.set(field.key, field.liblcfName)
 }
 
 /** liblcf field name for msgctxt – lcftrans matches on it verbatim. */
 function toLiblcfName(fieldKey: string): string {
-  return LIBLCF_NAME_OVERRIDES.get(fieldKey) ?? approximateLiblcfName(fieldKey)
+  return LIBLCF_NAMES.get(fieldKey)!
 }
 
 const DATABASE_TEXT_FIELDS: [arrayKey: string, fieldKeys: string[]][] = [
