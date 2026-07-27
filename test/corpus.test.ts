@@ -30,6 +30,16 @@ function firstDifference(expected: Uint8Array, actual: Uint8Array): number {
   return expected.length === actual.length ? -1 : shorter
 }
 
+// Corpus games that name their engine are held to it – trying both would let
+// a regression in one engine hide behind the other happening to round-trip.
+function knownEngines(gameName: string): EngineVersion[] {
+  if (/2000/.test(gameName))
+    return ['2k']
+  if (/2003|maniac/i.test(gameName))
+    return ['2k3']
+  return ['2k', '2k3']
+}
+
 describe.skipIf(gameNames.length === 0)('corpus byte identity', () => {
   for (const gameName of gameNames) {
     const gameDirectory = join(corpusDirectory, gameName)
@@ -41,7 +51,7 @@ describe.skipIf(gameNames.length === 0)('corpus byte identity', () => {
       it.each(fileNames)('%s', (fileName) => {
         const bytes = new Uint8Array(readFileSync(join(gameDirectory, fileName)))
         const failures: string[] = []
-        for (const engine of ['2k', '2k3'] as const) {
+        for (const engine of knownEngines(gameName)) {
           let encoded: Uint8Array
           try {
             encoded = reencode(bytes, fileName, engine)

@@ -34,6 +34,33 @@ jobs:
       - run: pnpm install
       - run: pnpm run test:types
 
+  generate-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install
+      - run: pnpm run generate
+      - run: pnpm run make-fixtures
+      # add -N makes newly emitted files show up in the diff too
+      - run: git add -N . && git diff --exit-code
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install
+      - run: pnpm run build
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -43,5 +70,14 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      # GPL-3.0 corpus, fetched at test time rather than committed into this MIT repo.
+      - name: Fetch EasyRPG TestGame corpus
+        run: |
+          git init /tmp/TestGame
+          git -C /tmp/TestGame remote add origin https://github.com/EasyRPG/TestGame.git
+          git -C /tmp/TestGame fetch --depth 1 origin 978550540ebb348a000e576989e5b57d8c5904b5
+          git -C /tmp/TestGame checkout FETCH_HEAD
+          mkdir -p test/corpus
+          cp -R /tmp/TestGame/TestGame-2000 /tmp/TestGame/TestGame-2003 /tmp/TestGame/TestGame-Maniac test/corpus/
       - run: pnpm install
       - run: pnpm run test
