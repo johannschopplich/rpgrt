@@ -1,6 +1,6 @@
 import type { ArgsDef, CommandDef } from 'citty'
 import process from 'node:process'
-import { defineCommand, runMain } from 'citty'
+import { defineCommand } from 'citty'
 import packageJson from '../package.json' with { type: 'json' }
 import { LcfError } from './codec/errors.ts'
 import { convertCommand } from './commands/convert.ts'
@@ -57,7 +57,7 @@ function withCleanErrors<T extends ArgsDef>(command: CommandDef<T>): CommandDef<
   }
 }
 
-const main = defineCommand({
+export const mainCommand: CommandDef = defineCommand({
   meta: {
     name: packageJson.name,
     version: packageJson.version,
@@ -69,5 +69,3 @@ const main = defineCommand({
     inject: withCleanErrors(injectCommand),
   },
 })
-
-runMain(main)

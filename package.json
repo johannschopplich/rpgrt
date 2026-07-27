@@ -48,7 +48,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "node src/cli.ts",
+    "dev": "node src/bin.ts",
     "build": "tsdown",
     "generate": "node scripts/generate.ts",
     "make-fixtures": "node scripts/make-fixtures.ts",

@@ -1,28 +1,16 @@
 import type { Database, MapUnit } from '../src/index.ts'
-import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import process from 'node:process'
-import { fileURLToPath } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
-import { defaultRecord } from '../src/codec/defaults.ts'
+import { runCommand } from 'citty'
+import { describe, expect, it, vi } from 'vitest'
+import { mainCommand } from '../src/cli.ts'
 import { convertFile } from '../src/commands/convert.ts'
 import { extractGame } from '../src/commands/extract.ts'
-import { encodeDatabase, encodeMapUnit } from '../src/index.ts'
+import { defaultRecord, encodeDatabase, encodeMapUnit } from '../src/index.ts'
+import { useTemporaryDirectories } from './helpers.ts'
 
-const temporaryDirectories: string[] = []
-
-function createDirectory(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'rpgrt-commands-'))
-  temporaryDirectories.push(directory)
-  return directory
-}
-
-afterEach(() => {
-  while (temporaryDirectories.length > 0)
-    rmSync(temporaryDirectories.pop()!, { recursive: true, force: true })
-})
+const createDirectory = useTemporaryDirectories()
 
 function writeMap(directory: string): string {
   const mapPath = join(directory, 'Map0001.lmu')
@@ -30,22 +18,54 @@ function writeMap(directory: string): string {
   return mapPath
 }
 
-describe('cli argument rejection', () => {
-  const cliPath = fileURLToPath(new URL('../src/cli.ts', import.meta.url))
+class ProcessExitError extends Error {
+  readonly exitCode: number
 
-  function runCli(...argv: string[]): { status: number | null, stderr: string } {
-    return spawnSync(process.execPath, [cliPath, ...argv], { encoding: 'utf8' })
+  constructor(exitCode: number) {
+    super(`process.exit(${exitCode})`)
+    this.exitCode = exitCode
   }
+}
 
-  it('rejects an unknown flag', () => {
-    const result = runCli('convert', 'file.lmu', '--nope')
-    expect(result.status).toBe(1)
+/**
+ * Runs the command tree in-process. `runCommand` instead of `runMain` so
+ * citty's own catch-all (which would print and exit a second time under the
+ * stubbed `process.exit`) stays out of the way – the `withCleanErrors`
+ * boundary in cli.ts is the behavior under test.
+ */
+async function runCli(...argv: string[]): Promise<{ exitCode: number, stderr: string }> {
+  const stderrLines: string[] = []
+  const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation((...parts: unknown[]) => {
+    stderrLines.push(parts.join(' '))
+  })
+  const processExitSpy = vi.spyOn(process, 'exit').mockImplementation((code) => {
+    throw new ProcessExitError(typeof code === 'number' ? code : 0)
+  })
+  try {
+    await runCommand(mainCommand, { rawArgs: argv })
+    return { exitCode: 0, stderr: stderrLines.join('\n') }
+  }
+  catch (error) {
+    if (error instanceof ProcessExitError)
+      return { exitCode: error.exitCode, stderr: stderrLines.join('\n') }
+    throw error
+  }
+  finally {
+    consoleErrorSpy.mockRestore()
+    processExitSpy.mockRestore()
+  }
+}
+
+describe('cli argument rejection', () => {
+  it('rejects an unknown flag', async () => {
+    const result = await runCli('convert', 'file.lmu', '--nope')
+    expect(result.exitCode).toBe(1)
     expect(result.stderr).toContain('Unknown argument(s): --nope')
   })
 
-  it('rejects surplus positionals', () => {
-    const result = runCli('convert', 'a.lmu', 'b.lmu')
-    expect(result.status).toBe(1)
+  it('rejects surplus positionals', async () => {
+    const result = await runCli('convert', 'a.lmu', 'b.lmu')
+    expect(result.exitCode).toBe(1)
     expect(result.stderr).toContain('"b.lmu"')
   })
 })
