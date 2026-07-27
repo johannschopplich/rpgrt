@@ -50,8 +50,8 @@ function villageMap(): Uint8Array {
 
 function worldTreeMap(): Uint8Array {
   const treeMap = defaultRecord('TreeMap', '2k') as unknown as TreeMap
-  const mapInfo = (id: number, name: string, type: number, parent: number): TreeMap['maps'][0] =>
-    ({ ...defaultRecord('MapInfo', '2k'), id, name, type, parentMap: parent } as never)
+  const mapInfo = (id: number, name: string, type: number, parentMapId: number): TreeMap['maps'][0] =>
+    ({ ...defaultRecord('MapInfo', '2k'), id, name, type, parentMap: parentMapId } as never)
   treeMap.maps = [mapInfo(0, 'Fixture', 0, 0), mapInfo(1, 'Dorf', 1, 0), mapInfo(2, 'Höhle', 1, 1)]
   treeMap.treeOrder = [0, 1, 2]
   treeMap.start = { ...treeMap.start, partyMapId: 1, partyX: 5, partyY: 6 }

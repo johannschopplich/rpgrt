@@ -91,10 +91,10 @@ export function formatPoCatalog(units: TextUnit[], projectName: string): string 
       // reads back to re-address the translation, surviving msgid edits.
       text += `#: ${unit.address}\n`
     }
-    const first = group[0]!
-    if (first.context !== undefined)
-      text += `msgctxt "${escapePoText(first.context)}"\n`
-    text += formatPoString('msgid', first.source.split('\n'))
+    const firstUnit = group[0]!
+    if (firstUnit.context !== undefined)
+      text += `msgctxt "${escapePoText(firstUnit.context)}"\n`
+    text += formatPoString('msgid', firstUnit.source.split('\n'))
     text += 'msgstr ""\n'
   }
   return text
@@ -111,29 +111,29 @@ export interface ParsedPoEntry {
 
 /** Inverse of `escapePoText`; any escape beyond the supported five aborts. */
 export function unescapePoText(text: string): string {
-  let result = ''
+  let unescapedText = ''
   for (let index = 0; index < text.length; index++) {
     const char = text[index]!
     if (char !== '\\') {
-      result += char
+      unescapedText += char
       continue
     }
-    const escaped = text[index + 1]
-    if (escaped === 'n')
-      result += '\n'
-    else if (escaped === 't')
-      result += '\t'
-    else if (escaped === 'r')
-      result += '\r'
-    else if (escaped === '"')
-      result += '"'
-    else if (escaped === '\\')
-      result += '\\'
+    const escapeChar = text[index + 1]
+    if (escapeChar === 'n')
+      unescapedText += '\n'
+    else if (escapeChar === 't')
+      unescapedText += '\t'
+    else if (escapeChar === 'r')
+      unescapedText += '\r'
+    else if (escapeChar === '"')
+      unescapedText += '"'
+    else if (escapeChar === '\\')
+      unescapedText += '\\'
     else
-      throw new LcfError(`unsupported escape "\\${escaped ?? ''}" – only \\\\, \\n, \\t, \\r and \\" are allowed`)
+      throw new LcfError(`unsupported escape "\\${escapeChar ?? ''}" – only \\\\, \\n, \\t, \\r and \\" are allowed`)
     index++
   }
-  return result
+  return unescapedText
 }
 
 /** Reads the quoted payload of a keyword or continuation line, escapes left intact. */

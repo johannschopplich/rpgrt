@@ -204,12 +204,12 @@ function scanChoiceOptionIndices(commands: EventCommand[], choiceIndex: number):
   const choiceIndent = commands[choiceIndex]!.indent
   const optionIndices: number[] = []
   for (let scanIndex = choiceIndex + 1; scanIndex < commands.length; scanIndex++) {
-    const scanned = commands[scanIndex]!
-    if (scanned.indent !== choiceIndent)
+    const scannedCommand = commands[scanIndex]!
+    if (scannedCommand.indent !== choiceIndent)
       continue
-    if (scanned.code === SHOW_CHOICE_OPTION && (scanned.parameters[0] ?? 0) < MAX_CHOICE_OPTIONS)
+    if (scannedCommand.code === SHOW_CHOICE_OPTION && (scannedCommand.parameters[0] ?? 0) < MAX_CHOICE_OPTIONS)
       optionIndices.push(scanIndex)
-    else if (scanned.code === SHOW_CHOICE_END)
+    else if (scannedCommand.code === SHOW_CHOICE_END)
       break
   }
   return optionIndices
@@ -314,7 +314,7 @@ function collectCommandUnits(
             catalog,
             expectedLineCount: options.length,
             // Other applies can shift command indices, so the choice position
-            // and its option positions are re-scanned when applying.
+            // and its option positions are re-scannedCommand when applying.
             applyTranslation: (lines) => {
               const currentIndices = scanChoiceOptionIndices(commands, commands.indexOf(command))
               currentIndices.forEach((optionIndex, optionOffset) => (commands[optionIndex]!.string = lines[optionOffset]!))

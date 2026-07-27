@@ -6,9 +6,9 @@ export function parseCsv(text: string): string[][] {
   let isInsideQuotes = false
 
   for (let index = 0; index < text.length; index++) {
-    const char = text[index]!
+    const character = text[index]!
     if (isInsideQuotes) {
-      if (char === '"') {
+      if (character === '"') {
         if (text[index + 1] === '"') {
           cell += '"'
           index++
@@ -18,18 +18,18 @@ export function parseCsv(text: string): string[][] {
         }
       }
       else {
-        cell += char
+        cell += character
       }
     }
-    else if (char === '"') {
+    else if (character === '"') {
       isInsideQuotes = true
     }
-    else if (char === ',') {
+    else if (character === ',') {
       row.push(cell)
       cell = ''
     }
-    else if (char === '\n' || char === '\r') {
-      if (char === '\r' && text[index + 1] === '\n')
+    else if (character === '\n' || character === '\r') {
+      if (character === '\r' && text[index + 1] === '\n')
         index++
       row.push(cell)
       cell = ''
@@ -37,7 +37,7 @@ export function parseCsv(text: string): string[][] {
       row = []
     }
     else {
-      cell += char
+      cell += character
     }
   }
 

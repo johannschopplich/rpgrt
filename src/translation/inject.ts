@@ -72,10 +72,10 @@ export function resolvePoDumps<T extends Pick<CollectedUnit, 'address' | 'source
         addresses = matches.map(unit => unit.address)
       }
       for (const address of addresses) {
-        const existing = emittedByAddress.get(address)
-        if (existing === undefined)
+        const existingUnit = emittedByAddress.get(address)
+        if (existingUnit === undefined)
           emittedByAddress.set(address, { address, source: entry.source, translation: entry.translation, context, info: [] })
-        else if (existing.translation !== entry.translation)
+        else if (existingUnit.translation !== entry.translation)
           abortReasons.push(`${fileName}: address ${address} received conflicting translations`)
       }
     }
@@ -90,7 +90,7 @@ export interface InjectionContext {
 }
 
 export interface InjectionApplication {
-  collected: CollectedUnit
+  collectedUnit: CollectedUnit
   lines: string[]
 }
 
@@ -135,7 +135,7 @@ interface TranslationValidation {
   warning?: string
 }
 
-function validateTranslation(unit: DumpUnit, collected: CollectedUnit, context: InjectionContext): TranslationValidation {
+function validateTranslation(unit: DumpUnit, collectedUnit: CollectedUnit, context: InjectionContext): TranslationValidation {
   // Only entries that would be applied reach here – fuzzy (skipped in
   // `resolvePoDumps`) and untranslated (skipped in `planInjection`) units keep
   // their non-fatal skip, so the magic-token abort below never fires on them.
@@ -143,13 +143,13 @@ function validateTranslation(unit: DumpUnit, collected: CollectedUnit, context: 
   if (magicToken !== undefined)
     return { abortReason: `${unit.address}: runtime page-manipulation token ${magicToken} is not supported by static injection` }
   const lines = unit.translation.split('\n')
-  if (collected.expectedLineCount !== undefined && lines.length !== collected.expectedLineCount) {
+  if (collectedUnit.expectedLineCount !== undefined && lines.length !== collectedUnit.expectedLineCount) {
     // e.g. "Choice (2 options)" – a merged PO entry can fan out to occurrences
     // with different line-count rules; name the one that failed.
-    const unitKind = collected.info.length > 1 ? ` – ${collected.info[collected.info.length - 1]}` : ''
-    return { abortReason: `${unit.address}: translation has ${lines.length} ${lines.length === 1 ? 'line' : 'lines'} but exactly ${collected.expectedLineCount} required${unitKind}` }
+    const unitKind = collectedUnit.info.length > 1 ? ` – ${collectedUnit.info[collectedUnit.info.length - 1]}` : ''
+    return { abortReason: `${unit.address}: translation has ${lines.length} ${lines.length === 1 ? 'line' : 'lines'} but exactly ${collectedUnit.expectedLineCount} required${unitKind}` }
   }
-  const codeDifference = controlCodeDifference(collected.source, unit.translation)
+  const codeDifference = controlCodeDifference(collectedUnit.source, unit.translation)
   if (codeDifference !== undefined)
     return { abortReason: `${unit.address}: translation changes control codes (${codeDifference}) – mark the entry fuzzy to skip it` }
   for (const line of lines) {
@@ -158,17 +158,17 @@ function validateTranslation(unit: DumpUnit, collected: CollectedUnit, context: 
   }
   // The reference address is the primary key, so an edited msgid or a drifted
   // game must not abort – but silent divergence would hide a stale dump.
-  if (unit.source !== collected.source)
+  if (unit.source !== collectedUnit.source)
     return { warning: `${unit.address}: source text differs from the game – applying anyway; re-extract and merge if this is unexpected` }
   return {}
 }
 
 export function planInjection(collectedUnits: CollectedUnit[], dumpUnits: DumpUnit[], context: InjectionContext): InjectionPlan {
   const unitsByAddress = new Map<string, CollectedUnit>()
-  for (const collected of collectedUnits) {
-    if (unitsByAddress.has(collected.address))
-      throw new LcfError(`Duplicate unit address ${collected.address} – this is a bug in rpgrt`)
-    unitsByAddress.set(collected.address, collected)
+  for (const collectedUnit of collectedUnits) {
+    if (unitsByAddress.has(collectedUnit.address))
+      throw new LcfError(`Duplicate unit address ${collectedUnit.address} – this is a bug in rpgrt`)
+    unitsByAddress.set(collectedUnit.address, collectedUnit)
   }
 
   const abortReasons: string[] = []
@@ -180,18 +180,18 @@ export function planInjection(collectedUnits: CollectedUnit[], dumpUnits: DumpUn
       untranslatedCount++
       continue
     }
-    const collected = unitsByAddress.get(unit.address)
-    if (collected === undefined) {
+    const collectedUnit = unitsByAddress.get(unit.address)
+    if (collectedUnit === undefined) {
       abortReasons.push(`${unit.address}: no such unit in the game`)
       continue
     }
-    const validation = validateTranslation(unit, collected, context)
+    const validation = validateTranslation(unit, collectedUnit, context)
     if (validation.warning !== undefined)
       warnings.push(validation.warning)
     if (validation.abortReason !== undefined)
       abortReasons.push(validation.abortReason)
     else
-      applications.push({ collected, lines: unit.translation.split('\n') })
+      applications.push({ collectedUnit, lines: unit.translation.split('\n') })
   }
   return { applications, abortReasons, warnings, untranslatedCount }
 }

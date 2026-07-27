@@ -1,7 +1,7 @@
 export class ByteWriter {
   private buffer = new Uint8Array(1024)
   private byteLength = 0
-  private readonly scratch = new DataView(new ArrayBuffer(8))
+  private readonly scratchView = new DataView(new ArrayBuffer(8))
 
   private reserve(extraByteCount: number): void {
     const required = this.byteLength + extraByteCount
@@ -42,10 +42,10 @@ export class ByteWriter {
   }
 
   writeDouble(value: number): void {
-    this.scratch.setFloat64(0, value, true)
+    this.scratchView.setFloat64(0, value, true)
     this.reserve(8)
     for (let index = 0; index < 8; index++)
-      this.buffer[this.byteLength++] = this.scratch.getUint8(index)
+      this.buffer[this.byteLength++] = this.scratchView.getUint8(index)
   }
 
   /** BER integer; negative values are written as their unsigned 32-bit form. */

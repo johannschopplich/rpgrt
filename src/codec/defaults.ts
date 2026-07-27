@@ -7,17 +7,17 @@ import { FLAG_SETS, RECORD_DESCRIPTORS } from '../generated/descriptors.ts'
  * compares against to decide whether a chunk can be omitted.
  */
 export function resolveDefault(field: FieldDescriptor, engine: EngineVersion): unknown {
-  const declared = field.default
-  if (declared !== undefined) {
-    if (typeof declared === 'object' && !Array.isArray(declared)) {
+  const declaredDefault = field.default
+  if (declaredDefault !== undefined) {
+    if (typeof declaredDefault === 'object' && !Array.isArray(declaredDefault)) {
       // Engine-split defaults and expanded flag sets share this object slot;
       // the `2k` key disambiguates only because no flag set has a bit named `2k`.
-      if (!('2k' in declared))
-        return { ...declared }
-      const value = (declared as EngineSplitDefault)[engine]
+      if (!('2k' in declaredDefault))
+        return { ...declaredDefault }
+      const value = (declaredDefault as EngineSplitDefault)[engine]
       return Array.isArray(value) ? [...value] : value
     }
-    return Array.isArray(declared) ? [...declared] : declared
+    return Array.isArray(declaredDefault) ? [...declaredDefault] : declaredDefault
   }
   switch (field.codec.kind) {
     case 'scalar':

@@ -88,13 +88,13 @@ describe('resolvePoDumps', () => {
   })
 
   it('counts untranslated work in game units, not merged entries', () => {
-    const collected = [
+    const collectedUnits = [
       unit({ address: 'ldb/actors/1/name', source: 'Alex', context: 'actors.name' }),
       unit({ address: 'ldb/actors/2/name', source: 'Alex', context: 'actors.name' }),
     ]
     const resolution = resolvePoDumps(
       [catalog('RPG_RT.ldb.po', entry({ context: 'actors.name', source: 'Alex', translation: '' }))],
-      collected,
+      collectedUnits,
       catalogContext,
     )
     expect(resolution.units).toEqual([])
@@ -123,20 +123,20 @@ describe('resolvePoDumps', () => {
   })
 
   it('matches a foreign entry with no #: by (msgctxt, source) scoped to the filename', () => {
-    const collected = [unit({ address: 'ldb/actors/1/name', source: 'Alex', context: 'actors.name' })]
+    const collectedUnits = [unit({ address: 'ldb/actors/1/name', source: 'Alex', context: 'actors.name' })]
     const resolution = resolvePoDumps(
       [catalog('RPG_RT.ldb.po', entry({ context: 'actors.name', source: 'Alex', translation: 'Kate' }))],
-      collected,
+      collectedUnits,
       catalogContext,
     )
     expect(resolution.units.map(dumpUnit => dumpUnit.address)).toEqual(['ldb/actors/1/name'])
   })
 
   it('does not reach across catalog files for a fallback match', () => {
-    const collected = [unit({ address: 'ldb/actors/1/name', source: 'Alex', context: 'actors.name' })]
+    const collectedUnits = [unit({ address: 'ldb/actors/1/name', source: 'Alex', context: 'actors.name' })]
     const resolution = resolvePoDumps(
       [catalog('Map0001.po', entry({ context: 'actors.name', source: 'Alex', translation: 'Kate' }))],
-      collected,
+      collectedUnits,
       catalogContext,
     )
     expect(resolution.units).toEqual([])
@@ -144,7 +144,7 @@ describe('resolvePoDumps', () => {
   })
 
   it('normalizes a foreign msgctxt "" to no-context so it still matches', () => {
-    const collected = [unit({
+    const collectedUnits = [unit({
       address: 'lmu/1/events/1/pages/1/commands/0',
       source: 'Willkommen',
       fileName: 'Map0001.lmu',
@@ -152,7 +152,7 @@ describe('resolvePoDumps', () => {
     })]
     const resolution = resolvePoDumps(
       [catalog('Map0001.po', entry({ context: '', source: 'Willkommen', translation: 'Welcome' }))],
-      collected,
+      collectedUnits,
       catalogContext,
     )
     expect(resolution.units.map(dumpUnit => dumpUnit.address)).toEqual(['lmu/1/events/1/pages/1/commands/0'])

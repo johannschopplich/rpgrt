@@ -253,9 +253,9 @@ function loadFields(filePaths: string[], structByName: Map<string, StructDef>): 
       isPersistedIfDefault: persistRaw === '1',
       is2k3Only: is2k3Raw === '1',
     }
-    const list = fieldsByStruct.get(structName)
-    if (list)
-      list.push(field)
+    const structFields = fieldsByStruct.get(structName)
+    if (structFields)
+      structFields.push(field)
     else
       fieldsByStruct.set(structName, [field])
   }
@@ -267,17 +267,17 @@ function loadFields(filePaths: string[], structByName: Map<string, StructDef>): 
 
 function loadEnums(filePaths: string[]): EnumDef[] {
   const enums: EnumDef[] = []
-  const byKey = new Map<string, EnumDef>()
+  const enumDefByKey = new Map<string, EnumDef>()
   for (const row of filePaths.flatMap(filePath => loadRows(filePath, ['Structure', 'Entry', 'Value', 'Index']))) {
     const [structName, enumName, label, valueRaw] = row as [string, string, string, string]
     const value = Number.parseInt(valueRaw, 10)
     if (Number.isNaN(value))
       throw new Error(`Bad enum value for ${structName}.${enumName}.${label}: ${valueRaw}`)
     const key = `${structName}\u0000${enumName}`
-    let enumDef = byKey.get(key)
+    let enumDef = enumDefByKey.get(key)
     if (!enumDef) {
       enumDef = { structName, enumName, members: [] }
-      byKey.set(key, enumDef)
+      enumDefByKey.set(key, enumDef)
       enums.push(enumDef)
     }
     enumDef.members.push({ label, value })
@@ -303,13 +303,13 @@ const ENUM_REFERENCE_ALIASES: Record<string, string> = {
  */
 export function resolveEnum(tables: LcfTables, rawReference: string): EnumDef {
   const enumReference = ENUM_REFERENCE_ALIASES[rawReference] ?? rawReference
-  const qualified = tables.enums.filter(def => `${def.structName}_${def.enumName}` === enumReference)
-  if (qualified.length === 1)
-    return qualified[0]!
-  const bare = tables.enums.filter(def => def.enumName === enumReference)
-  if (bare.length === 1)
-    return bare[0]!
-  throw new Error(`Cannot resolve enum reference: ${enumReference} (${qualified.length + bare.length} candidates)`)
+  const qualifiedMatches = tables.enums.filter(def => `${def.structName}_${def.enumName}` === enumReference)
+  if (qualifiedMatches.length === 1)
+    return qualifiedMatches[0]!
+  const bareMatches = tables.enums.filter(def => def.enumName === enumReference)
+  if (bareMatches.length === 1)
+    return bareMatches[0]!
+  throw new Error(`Cannot resolve enum reference: ${enumReference} (${qualifiedMatches.length + bareMatches.length} candidates)`)
 }
 
 function loadFlagSets(filePaths: string[]): Map<string, FlagSetDef> {
@@ -353,20 +353,20 @@ export function classifyNamedType(tables: LcfTables, name: string): NamedTypeCla
  * vendored CSVs should be a loud failure, not silent extra output.
  */
 export function selectStructs(tables: LcfTables, formats: LcfFormat[]): StructDef[] {
-  const requested = new Set(formats)
-  const selected = tables.structs.filter(struct => requested.has(struct.format))
-  for (const struct of selected) {
+  const requestedFormats = new Set(formats)
+  const selectedStructs = tables.structs.filter(struct => requestedFormats.has(struct.format))
+  for (const struct of selectedStructs) {
     for (const field of tables.fieldsByStruct.get(struct.name) ?? []) {
       for (const structName of referencedStructs(tables, field.type)) {
-        const target = tables.structByName.get(structName)
-        if (!target)
+        const targetStruct = tables.structByName.get(structName)
+        if (!targetStruct)
           throw new Error(`${struct.name}.${field.fieldName} references unknown struct ${structName}`)
-        if (!requested.has(target.format))
+        if (!requestedFormats.has(targetStruct.format))
           throw new Error(`${struct.name}.${field.fieldName} references ${structName} outside formats ${formats.join(', ')}`)
       }
     }
   }
-  return selected
+  return selectedStructs
 }
 
 /** Structs embedded as values; `Ref<>` targets are plain IDs, not embeddings. */

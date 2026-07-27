@@ -5,8 +5,8 @@ import { loadTables, selectStructs } from './lib/tables.ts'
 
 const rootDirectory = join(import.meta.dirname, '..')
 const tables = loadTables(join(rootDirectory, 'vendor/liblcf-csv'))
-const selected = selectStructs(tables, ['ldb', 'lmt', 'lmu', 'lsd'])
-const model = buildModel(tables, selected)
+const selectedStructs = selectStructs(tables, ['ldb', 'lmt', 'lmu', 'lsd'])
+const model = buildModel(tables, selectedStructs)
 
 const outputDirectory = join(rootDirectory, 'src/generated')
 mkdirSync(outputDirectory, { recursive: true })

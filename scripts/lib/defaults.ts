@@ -72,12 +72,12 @@ function unescapeCString(text: string): string {
 
 /** The only C expressions in the CSVs: a single `*` or `<<` on integer literals. */
 function evaluateIntExpression(text: string): number | undefined {
-  const multiply = /^(-?\d+)\s*\*\s*(-?\d+)$/.exec(text)
-  if (multiply)
-    return Number(multiply[1]) * Number(multiply[2])
-  const shift = /^(-?\d+)\s*<<\s*(-?\d+)$/.exec(text)
-  if (shift)
-    return Number(shift[1]) << Number(shift[2])
+  const multiplyMatch = /^(-?\d+)\s*\*\s*(-?\d+)$/.exec(text)
+  if (multiplyMatch)
+    return Number(multiplyMatch[1]) * Number(multiplyMatch[2])
+  const shiftMatch = /^(-?\d+)\s*<<\s*(-?\d+)$/.exec(text)
+  if (shiftMatch)
+    return Number(shiftMatch[1]) << Number(shiftMatch[2])
   return undefined
 }
 

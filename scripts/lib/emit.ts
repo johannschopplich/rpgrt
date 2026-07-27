@@ -128,35 +128,35 @@ export function buildModel(tables: LcfTables, selected: StructDef[]): GeneratedM
  * keeps EasyRPG-Player-written saves byte-identical on a round trip.
  */
 function resolvedFields(tables: LcfTables, struct: StructDef): FieldDef[] {
-  const own = tables.fieldsByStruct.get(struct.name) ?? []
+  const ownFields = tables.fieldsByStruct.get(struct.name) ?? []
   if (struct.base === undefined)
-    return own
+    return ownFields
   const baseStruct = tables.structByName.get(struct.base)
   if (baseStruct === undefined)
     throw new Error(`${struct.name} inherits unknown base struct ${struct.base}`)
-  return [...resolvedFields(tables, baseStruct), ...own]
+  return [...resolvedFields(tables, baseStruct), ...ownFields]
 }
 
 function groupConstants(tables: LcfTables): Map<string, Map<string, string>> {
-  const byStruct = new Map<string, Map<string, string>>()
+  const constantsByStruct = new Map<string, Map<string, string>>()
   for (const constant of tables.constants) {
-    let symbols = byStruct.get(constant.structName)
+    let symbols = constantsByStruct.get(constant.structName)
     if (symbols === undefined) {
       symbols = new Map()
-      byStruct.set(constant.structName, symbols)
+      constantsByStruct.set(constant.structName, symbols)
     }
     symbols.set(constant.name, constant.rawValue)
   }
-  return byStruct
+  return constantsByStruct
 }
 
 function resolveFieldCodec(tables: LcfTables, type: TypeExpression): FieldCodec {
   switch (type.kind) {
     case 'named': {
-      const named = classifyNamedType(tables, type.name)
-      if (named === 'primitive')
+      const namedTypeClass = classifyNamedType(tables, type.name)
+      if (namedTypeClass === 'primitive')
         return SCALAR_BY_PRIMITIVE[type.name]!
-      if (named === 'flags')
+      if (namedTypeClass === 'flags')
         return { kind: 'flags', flagSet: type.name.slice(0, -'_Flags'.length) }
       const struct = tables.structByName.get(type.name)!
       if (struct.framing === 'raw') {
@@ -334,12 +334,12 @@ function printValue(value: unknown): string {
   if (typeof value === 'string') {
     // Control characters (the kEmptyName sentinel is U+0001) become visible
     // escapes – a raw byte in generated source would not survive formatters.
-    const escaped = value
+    const escapedText = value
       .replaceAll('\\', '\\\\')
       .replaceAll('\'', '\\\'')
       // eslint-disable-next-line no-control-regex
       .replace(/[\x00-\x1F\x7F]/g, character => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`)
-    return `'${escaped}'`
+    return `'${escapedText}'`
   }
   if (typeof value === 'number' || typeof value === 'boolean')
     return String(value)

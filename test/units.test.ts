@@ -129,13 +129,13 @@ describe('database units', () => {
 
   it('collects whitelisted fields with liblcf contexts', () => {
     const units = collectDatabaseUnits(databaseWithText(), 'RPG_RT.ldb')
-    const byAddress = new Map(units.map(unit => [unit.address, unit]))
-    expect(byAddress.get('ldb/actors/1/skillName')?.context).toBe('actors.skill_name')
-    expect(byAddress.get('ldb/skills/3/usingMessage1')?.context).toBe('skills.using_message1')
-    expect(byAddress.get('ldb/terms/victory')?.context).toBe('terms.victory')
-    expect(byAddress.get('ldb/terms/innAGreeting1')?.context).toBe('terms.inn_a_greeting_1')
-    expect(byAddress.get('ldb/commonevents/2/commands/0')?.catalog).toBe('common')
-    expect(byAddress.get('ldb/troops/4/pages/1/commands/0')?.catalog).toBe('battle')
+    const unitByAddress = new Map(units.map(unit => [unit.address, unit]))
+    expect(unitByAddress.get('ldb/actors/1/skillName')?.context).toBe('actors.skill_name')
+    expect(unitByAddress.get('ldb/skills/3/usingMessage1')?.context).toBe('skills.using_message1')
+    expect(unitByAddress.get('ldb/terms/victory')?.context).toBe('terms.victory')
+    expect(unitByAddress.get('ldb/terms/innAGreeting1')?.context).toBe('terms.inn_a_greeting_1')
+    expect(unitByAddress.get('ldb/commonevents/2/commands/0')?.catalog).toBe('common')
+    expect(unitByAddress.get('ldb/troops/4/pages/1/commands/0')?.catalog).toBe('battle')
     expect(units.every(unit => unit.fileName === 'RPG_RT.ldb')).toBe(true)
   })
 })
@@ -154,23 +154,23 @@ describe('map tree units', () => {
 describe('injection planning', () => {
   const context = { transcoder: createTranscoder('cp1252'), encoding: 'cp1252' }
 
-  function collected(address: string, source: string): CollectedUnit {
+  function collectedUnit(address: string, source: string): CollectedUnit {
     return { address, source, info: [], fileName: 'RPG_RT.ldb', catalog: 'terms', expectedLineCount: 1, applyTranslation: () => {} }
   }
 
   it('pairs dump units to collected units and validates them', () => {
-    const plan = planInjection([collected('ldb/actors/1/name', 'Käthe'), collected('ldb/terms/victory', 'Sieg!')], [
+    const plan = planInjection([collectedUnit('ldb/actors/1/name', 'Käthe'), collectedUnit('ldb/terms/victory', 'Sieg!')], [
       { address: 'ldb/actors/1/name', source: 'Käthe', translation: 'Kate', info: [] },
       { address: 'ldb/terms/victory', source: 'Sieg!', translation: '', info: [] },
       { address: 'ldb/ghost/9/name', source: 'x', translation: 'y', info: [] },
     ], context)
     expect(plan.untranslatedCount).toBe(1)
-    expect(plan.applications.map(application => application.collected.address)).toEqual(['ldb/actors/1/name'])
+    expect(plan.applications.map(application => application.collectedUnit.address)).toEqual(['ldb/actors/1/name'])
     expect(plan.abortReasons).toEqual(['ldb/ghost/9/name: no such unit in the game'])
   })
 
   it('rejects a magic page-manipulation token', () => {
-    const plan = planInjection([collected('ldb/actors/1/name', 'Käthe')], [
+    const plan = planInjection([collectedUnit('ldb/actors/1/name', 'Käthe')], [
       { address: 'ldb/actors/1/name', source: 'Käthe', translation: 'Kate<easyrpg:new_page>', info: [] },
     ], context)
     expect(plan.applications).toEqual([])
@@ -179,7 +179,7 @@ describe('injection planning', () => {
   })
 
   it('collects every abort reason instead of stopping at the first', () => {
-    const plan = planInjection([collected('ldb/actors/1/name', 'Käthe')], [
+    const plan = planInjection([collectedUnit('ldb/actors/1/name', 'Käthe')], [
       { address: 'ldb/actors/1/name', source: 'Käthe', translation: 'Kate\nII', info: [] },
       { address: 'ldb/missing', source: 'x', translation: 'y', info: [] },
     ], context)
@@ -188,7 +188,7 @@ describe('injection planning', () => {
   })
 
   it('warns about a drifted source but applies via the address', () => {
-    const plan = planInjection([collected('ldb/actors/1/name', 'Käthe')], [
+    const plan = planInjection([collectedUnit('ldb/actors/1/name', 'Käthe')], [
       { address: 'ldb/actors/1/name', source: 'Somebody', translation: 'Kate', info: [] },
     ], context)
     expect(plan.abortReasons).toEqual([])
@@ -197,7 +197,7 @@ describe('injection planning', () => {
   })
 
   it('rejects a translation that drops or adds control codes', () => {
-    const plan = planInjection([collected('ldb/actors/1/name', String.raw`\c[3]Käthe\n[1]`)], [
+    const plan = planInjection([collectedUnit('ldb/actors/1/name', String.raw`\c[3]Käthe\n[1]`)], [
       { address: 'ldb/actors/1/name', source: String.raw`\c[3]Käthe\n[1]`, translation: String.raw`\c[4]Kate`, info: [] },
     ], context)
     expect(plan.applications).toEqual([])
@@ -205,7 +205,7 @@ describe('injection planning', () => {
   })
 
   it('accepts reordered control codes', () => {
-    const plan = planInjection([collected('ldb/actors/1/name', String.raw`\c[3]Käthe \n[1]`)], [
+    const plan = planInjection([collectedUnit('ldb/actors/1/name', String.raw`\c[3]Käthe \n[1]`)], [
       { address: 'ldb/actors/1/name', source: String.raw`\c[3]Käthe \n[1]`, translation: String.raw`\n[1] de \c[3]Kate`, info: [] },
     ], context)
     expect(plan.abortReasons).toEqual([])

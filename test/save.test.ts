@@ -45,22 +45,22 @@ describe.each(engines)('save round trip (%s)', (engine) => {
   })
 
   it('preserves double bit patterns: subnormal, -0.0, and a large TDateTime value', () => {
-    const subnormal = 5e-324
-    const large = 45000.123456789
+    const subnormalValue = 5e-324
+    const largeValue = 45000.123456789
     const save = makeSave(engine)
     save.pictures = [{
       ...defaultRecord('SavePicture', engine),
       id: 1,
-      startX: subnormal,
+      startX: subnormalValue,
       currentX: -0,
-      currentY: large,
+      currentY: largeValue,
     }] as unknown as Save['pictures']
 
     const decoded = decodeSave(encodeSave(save, { engine }), { engine })
     const picture = decoded.pictures[0]!
-    expect(picture.startX).toBe(subnormal)
+    expect(picture.startX).toBe(subnormalValue)
     expect(Object.is(picture.currentX, -0)).toBe(true)
-    expect(picture.currentY).toBe(large)
+    expect(picture.currentY).toBe(largeValue)
   })
 
   it('preserves a sparse id-indexed actor array', () => {
@@ -146,7 +146,7 @@ describe('save wire bytes', () => {
     const terminator = [0x00]
     const actorChunkStream = [...name, ...title, ...skillsSize, ...skillsData, ...equipped, ...statusData, ...terminator]
     const count = [0x02]
-    const expected = [...count, 0x02, ...actorChunkStream, 0x07, ...actorChunkStream]
+    const expectedBytes = [...count, 0x02, ...actorChunkStream, 0x07, ...actorChunkStream]
 
     const save = makeSave('2k')
     save.actors = [
@@ -154,7 +154,7 @@ describe('save wire bytes', () => {
       { ...defaultRecord('SaveActor', '2k'), id: 7 },
     ] as unknown as Save['actors']
     // `actors` is top-level chunk id 0x6C.
-    expect([...topLevelChunk(encodeSave(save, { engine: '2k' }), 0x6C).bytes]).toEqual(expected)
+    expect([...topLevelChunk(encodeSave(save, { engine: '2k' }), 0x6C).bytes]).toEqual(expectedBytes)
   })
 
   it('merges the SaveMapEventBase chunk ids into the party location, sorted', () => {
@@ -194,15 +194,15 @@ describe('save wire bytes', () => {
     // with lower ids – only the `beforeId` anchor can place it.
     const save = makeSave('2k3')
     save.partyLocation = { ...save.partyLocation, boarding: true } as unknown as Save['partyLocation']
-    const decoded = decodeSave(encodeSave(save, { engine: '2k3' }), { engine: '2k3' })
-    decoded.partyLocation._unknown = [{ id: 0xCD, bytes: Uint8Array.from([0xAA, 0xBB]), beforeId: 0x65 }]
+    const decodedSave = decodeSave(encodeSave(save, { engine: '2k3' }), { engine: '2k3' })
+    decodedSave.partyLocation._unknown = [{ id: 0xCD, bytes: Uint8Array.from([0xAA, 0xBB]), beforeId: 0x65 }]
 
-    const bytes = encodeSave(decoded, { engine: '2k3' })
+    const bytes = encodeSave(decodedSave, { engine: '2k3' })
     const partyChunkIds = [...readChunkStream(new ByteReader(topLevelChunk(bytes, 0x68).bytes), 'id-zero')].map(chunk => chunk.id)
     expect(partyChunkIds.indexOf(0xCD)).toBe(partyChunkIds.indexOf(0x65) - 1)
 
     const again = decodeSave(bytes, { engine: '2k3' })
-    expect(again.partyLocation._unknown).toStrictEqual(decoded.partyLocation._unknown)
+    expect(again.partyLocation._unknown).toStrictEqual(decodedSave.partyLocation._unknown)
     expect(bytesEqual(encodeSave(again, { engine: '2k3' }), bytes)).toBe(true)
   })
 

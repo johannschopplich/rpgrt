@@ -9,13 +9,13 @@ const gameNames = existsSync(corpusDirectory)
   ? readdirSync(corpusDirectory, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name)
   : []
 
-function firstDifference(expected: Uint8Array, actual: Uint8Array): number {
-  const shorter = Math.min(expected.length, actual.length)
+function firstDifference(expectedBytes: Uint8Array, actualBytes: Uint8Array): number {
+  const shorter = Math.min(expectedBytes.length, actualBytes.length)
   for (let index = 0; index < shorter; index++) {
-    if (expected[index] !== actual[index])
+    if (expectedBytes[index] !== actualBytes[index])
       return index
   }
-  return expected.length === actual.length ? -1 : shorter
+  return expectedBytes.length === actualBytes.length ? -1 : shorter
 }
 
 // Corpus games that name their engine are held to it – trying both would let
@@ -40,18 +40,18 @@ describe.skipIf(gameNames.length === 0)('corpus byte identity', () => {
         const bytes = new Uint8Array(readFileSync(join(gameDirectory, fileName)))
         const failures: string[] = []
         for (const engine of knownEngines(gameName)) {
-          let encoded: Uint8Array
+          let encodedBytes: Uint8Array
           try {
-            encoded = reencode(bytes, fileName, engine)
+            encodedBytes = reencode(bytes, fileName, engine)
           }
           catch (error) {
             failures.push(`${engine}: ${(error as Error).message}`)
             continue
           }
-          const difference = firstDifference(bytes, encoded)
-          if (difference === -1)
+          const differenceOffset = firstDifference(bytes, encodedBytes)
+          if (differenceOffset === -1)
             return
-          failures.push(`${engine}: first difference at byte ${difference} (source ${bytes.length} bytes, encoded ${encoded.length})`)
+          failures.push(`${engine}: first difference at byte ${differenceOffset} (source ${bytes.length} bytes, encoded ${encodedBytes.length})`)
         }
         expect.fail(failures.join('\n'))
       })

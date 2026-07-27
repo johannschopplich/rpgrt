@@ -123,7 +123,7 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
     const bytes = encodeLcf(envelope.data, envelope.format, engine, encoding)
     // Overwriting a game file is the whole point of converting back, but the
     // previous bytes must survive – the backup is kept, not cleaned up.
-    const writeResult = writeFilesAtomically([{ filePath: outputPath, bytes }], { keepBackups: true })
+    const writeResult = writeFilesAtomically([{ filePath: outputPath, bytes }], { shouldKeepBackups: true })
     return {
       outputPath,
       backupPath: writeResult.backupPaths[0],

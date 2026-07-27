@@ -21,7 +21,7 @@ describe('writeFilesAtomically', () => {
     const directory = createDirectory()
     const filePath = join(directory, 'a.bin')
     writeFileSync(filePath, 'old')
-    const result = writeFilesAtomically([{ filePath, bytes: Uint8Array.from([1]) }], { keepBackups: true })
+    const result = writeFilesAtomically([{ filePath, bytes: Uint8Array.from([1]) }], { shouldKeepBackups: true })
     expect(result.backupPaths).toEqual([`${filePath}.rpgrt-bak`])
     expect(readFileSync(`${filePath}.rpgrt-bak`, 'utf8')).toBe('old')
   })
@@ -29,7 +29,7 @@ describe('writeFilesAtomically', () => {
   it('writes a new file without creating a backup', () => {
     const directory = createDirectory()
     const filePath = join(directory, 'new.bin')
-    const result = writeFilesAtomically([{ filePath, bytes: Uint8Array.from([7]) }], { keepBackups: true })
+    const result = writeFilesAtomically([{ filePath, bytes: Uint8Array.from([7]) }], { shouldKeepBackups: true })
     expect(result.backupPaths).toEqual([])
     expect([...new Uint8Array(readFileSync(filePath))]).toEqual([7])
   })

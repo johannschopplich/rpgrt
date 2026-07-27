@@ -164,10 +164,10 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
     throw new LcfError(`Nothing was written – ${abortReasons.length} translation(s) failed validation:\n${shownAbortReasons.join('\n')}`)
   }
 
-  for (const { collected, lines } of plan.applications)
-    collected.applyTranslation(lines)
+  for (const { collectedUnit, lines } of plan.applications)
+    collectedUnit.applyTranslation(lines)
 
-  const dirtyFileNames = [...new Set(plan.applications.map(({ collected }) => collected.fileName))].sort()
+  const dirtyFileNames = [...new Set(plan.applications.map(({ collectedUnit }) => collectedUnit.fileName))].sort()
   const codecOptions = { engine: game.engine, transcoder: game.transcoder }
   const pendingWrites = dirtyFileNames.map((fileName) => {
     const record = fileName === game.databaseFileName

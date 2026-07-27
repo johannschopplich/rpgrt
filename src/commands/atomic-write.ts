@@ -18,10 +18,10 @@ export interface AtomicWriteResult {
  * All-or-nothing: every file is replaced (as `<file>` with the previous bytes
  * in `<file>.rpgrt-bak`) or none is. Temps are staged beside their targets so
  * every rename stays on one volume and is atomic. Crash or power loss between
- * renames remains out of scope. With `keepBackups` the backups survive the
+ * renames remains out of scope. With `shouldKeepBackups` the backups survive the
  * commit; otherwise they are removed, and a failed removal only warns.
  */
-export function writeFilesAtomically(writes: PendingWrite[], options: { keepBackups?: boolean } = {}): AtomicWriteResult {
+export function writeFilesAtomically(writes: PendingWrite[], options: { shouldKeepBackups?: boolean } = {}): AtomicWriteResult {
   const stagedWrites = writes.map(write => ({
     ...write,
     tempPath: `${write.filePath}.rpgrt-tmp`,
@@ -78,7 +78,7 @@ export function writeFilesAtomically(writes: PendingWrite[], options: { keepBack
       throw new LcfError(`Writing failed and rollback left ${unrestoredFileNames.join(', ')} unrestored – recover them from their .rpgrt-bak siblings. Original error: ${(error as Error).message}`)
     throw new LcfError(`Nothing was written – the write phase failed and every file was restored: ${(error as Error).message}`)
   }
-  if (options.keepBackups === true)
+  if (options.shouldKeepBackups === true)
     return { backupPaths: backedUpWrites.map(write => write.backupPath), warnings: [] }
   // Every rename is committed – leftover backups are cleanup, never rollback
   // state, so a failure here must not trigger the restore path above.

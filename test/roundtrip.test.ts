@@ -115,10 +115,10 @@ describe('map unit wire bytes', () => {
     const upperLayer = [0x48, 0x00]
     const events = [0x51, 0x01, 0x00]
     const terminator = [0x00]
-    const expected = [...header, ...scrollType, ...lowerLayer, ...upperLayer, ...events, ...terminator]
+    const expectedBytes = [...header, ...scrollType, ...lowerLayer, ...upperLayer, ...events, ...terminator]
     for (const engine of engines) {
       const mapUnit = defaultRecord('MapUnit', engine) as unknown as MapUnit
-      expect([...encodeMapUnit(mapUnit, { engine })]).toEqual(expected)
+      expect([...encodeMapUnit(mapUnit, { engine })]).toEqual(expectedBytes)
     }
   })
 
