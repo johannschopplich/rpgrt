@@ -15,6 +15,8 @@ export interface CodecContext {
 
 export type LcfRecord = Record<string, unknown>
 
+const EMPTY_PAYLOAD = new Uint8Array(0)
+
 // RPG_RT omits these Terms chunks when default in a 2k3 database even though
 // they are persist-if-default.
 const TERMS_2K3_OMITTED_CHUNK_IDS = new Set([0x01, 0x03])
@@ -107,6 +109,24 @@ function chunkOwners(recordName: string): Map<number, ChunkOwner> {
   return owners
 }
 
+const emissionRanksByRecord = new Map<string, Map<number, number>>()
+
+/** Position of each chunk id in the record's emission order, size chunks included. */
+function chunkEmissionRanks(recordName: string): Map<number, number> {
+  let ranks = emissionRanksByRecord.get(recordName)
+  if (ranks === undefined) {
+    ranks = new Map()
+    for (const field of RECORD_DESCRIPTORS[recordName]!.fields) {
+      if (field.sizeId !== undefined)
+        ranks.set(field.sizeId, ranks.size)
+      if (field.id !== undefined)
+        ranks.set(field.id, ranks.size)
+    }
+    emissionRanksByRecord.set(recordName, ranks)
+  }
+  return ranks
+}
+
 // --- Decoding ---------------------------------------------------------------
 
 export function decodeChunkStream(recordName: string, reader: ByteReader, context: CodecContext, path: string, isEndOfDataTerminated = false): LcfRecord {
@@ -114,6 +134,13 @@ export function decodeChunkStream(recordName: string, reader: ByteReader, contex
   const owners = chunkOwners(recordName)
   const decodedFields: LcfRecord = {}
   const unknownChunks: UnknownChunk[] = []
+
+  // Preserved chunks re-enter the stream just before the known chunk that
+  // followed them, so anchor each run once its successor arrives.
+  const anchorPendingUnknowns = (chunkId: number): void => {
+    for (let index = unknownChunks.length - 1; index >= 0 && unknownChunks[index]!.beforeId === undefined; index--)
+      unknownChunks[index]!.beforeId = chunkId
+  }
 
   inPath(path, () => {
     const terminator = isEndOfDataTerminated ? 'end-of-data' : 'id-zero'
@@ -123,18 +150,19 @@ export function decodeChunkStream(recordName: string, reader: ByteReader, contex
         unknownChunks.push({ id: chunk.id, bytes: chunk.bytes })
         continue
       }
+      // RPG_RT 2000 v1.61+ writes an explicit zero version chunk, but version 0
+      // has no wire form under 2k in the model (it encodes as absent, as liblcf
+      // writes it) – preserve the chunk's bytes verbatim instead.
+      if (owner.field.codec.kind === 'databaseVersion' && context.engine === '2k' && chunk.bytes.length === 1 && chunk.bytes[0] === 0) {
+        unknownChunks.push({ id: chunk.id, bytes: chunk.bytes })
+        continue
+      }
+      anchorPendingUnknowns(chunk.id)
       // Size chunk values are recomputed on encode; the data chunk's own length
       // is authoritative.
       if (owner.isSizeChunk || owner.field.codec.kind === 'emptyBlock')
         continue
       const field = owner.field
-      // RPG_RT 2000 v1.61+ writes an explicit zero version chunk, but version 0
-      // has no wire form under 2k in the model (it encodes as absent, as liblcf
-      // writes it) – preserve the chunk's bytes verbatim instead.
-      if (field.codec.kind === 'databaseVersion' && context.engine === '2k' && chunk.bytes.length === 1 && chunk.bytes[0] === 0) {
-        unknownChunks.push({ id: chunk.id, bytes: chunk.bytes })
-        continue
-      }
       const fieldPath = `${path}.${field.key}`
       const chunkReader = new ByteReader(chunk.bytes)
       decodedFields[field.key] = inPath(fieldPath, () => decodeFieldPayload(field, chunk.bytes.length, chunkReader, context, fieldPath))
@@ -218,14 +246,14 @@ function decodeStringVector(byteLength: number, reader: ByteReader, context: Cod
   const end = reader.offset + byteLength
   const strings: string[] = []
   while (reader.offset < end) {
-    const size = reader.readBerUnsigned64()
-    if (size > 0xFFFFFFFF) {
-      const gapEnd = strings.length + (STRING_VECTOR_GAP_BASE - size)
+    const sizeOrGapMarker = reader.readBerUnsigned64()
+    if (sizeOrGapMarker > 0xFFFFFFFF) {
+      const gapEnd = strings.length + (STRING_VECTOR_GAP_BASE - sizeOrGapMarker)
       while (strings.length < gapEnd)
         strings.push('')
     }
     else {
-      strings.push(context.transcoder.decode(reader.readBytes(size)))
+      strings.push(context.transcoder.decode(reader.readBytes(sizeOrGapMarker)))
     }
   }
   return strings
@@ -339,11 +367,18 @@ export function decodeTreeMap(reader: ByteReader, context: CodecContext, path: s
 
 export function encodeChunkStream(recordName: string, record: LcfRecord, writer: ByteWriter, context: CodecContext, path: string, hasTerminator: boolean): void {
   const descriptor = RECORD_DESCRIPTORS[recordName]!
+  const emissionRanks = chunkEmissionRanks(recordName)
   const unknownChunks = (record._unknown as UnknownChunk[] | undefined) ?? []
   let unknownIndex = 0
 
-  const flushUnknownBefore = (chunkId: number): void => {
-    while (unknownIndex < unknownChunks.length && unknownChunks[unknownIndex]!.id < chunkId) {
+  // Each preserved chunk re-enters just before its anchor; comparing emission
+  // ranks instead of anchor ids keeps a chunk from waiting on an anchor that
+  // was edited back to its default and is no longer written.
+  const anchorRank = (chunk: UnknownChunk): number =>
+    chunk.beforeId === undefined ? Number.POSITIVE_INFINITY : emissionRanks.get(chunk.beforeId) ?? Number.POSITIVE_INFINITY
+
+  const flushUnknownThrough = (rank: number): void => {
+    while (unknownIndex < unknownChunks.length && anchorRank(unknownChunks[unknownIndex]!) <= rank) {
       const chunk = unknownChunks[unknownIndex++]!
       writer.writeBer(chunk.id)
       writer.writeBer(chunk.bytes.length)
@@ -352,16 +387,17 @@ export function encodeChunkStream(recordName: string, record: LcfRecord, writer:
   }
 
   const writeChunk = (chunkId: number, payload: Uint8Array): void => {
+    flushUnknownThrough(emissionRanks.get(chunkId)!)
     writer.writeBer(chunkId)
     writer.writeBer(payload.length)
     writer.writeBytes(payload)
   }
 
   for (const field of descriptor.fields) {
-    // A 2k3-only chunk in a 2k file (e.g. the Steam-era save count 0x5A in a
-    // 2000 map) is read like any other; dropping it on write, as liblcf does,
-    // would break the byte-identical round trip – so it is written back
-    // whenever it holds a non-default value.
+    // liblcf drops 2k3-only chunks when writing a 2k file; writing back any
+    // non-default value keeps the byte-identical round trip. Flags decode with
+    // the full 2k3 bit list, so they must pack the same way on the way out.
+    let fieldContext = context
     if (field.is2k3Only && context.engine === '2k') {
       if (field.codec.kind === 'emptyBlock')
         continue
@@ -369,17 +405,15 @@ export function encodeChunkStream(recordName: string, record: LcfRecord, writer:
       const heldValue = record[field.key] ?? declaredDefault
       if (isDefaultFieldValue(field.codec, heldValue, declaredDefault))
         continue
+      if (field.codec.kind === 'flags')
+        fieldContext = { ...context, engine: '2k3' }
     }
-    flushUnknownBefore(field.sizeId ?? field.id!)
     const fieldPath = `${path}.${field.key}`
 
     if (field.codec.kind === 'emptyBlock') {
-      // An empty block carries no value, so it is always "default" – written
-      // only when the CSV persists it (true for every current row).
-      if (field.isPersistedIfDefault === true) {
-        writer.writeBer(field.id!)
-        writer.writeBer(0)
-      }
+      // An empty block carries no value, so it is always "default".
+      if (field.isPersistedIfDefault === true)
+        writeChunk(field.id!, EMPTY_PAYLOAD)
       continue
     }
 
@@ -397,7 +431,7 @@ export function encodeChunkStream(recordName: string, record: LcfRecord, writer:
 
     let payload: Uint8Array | undefined
     if (shouldWriteData || (shouldWriteSize && field.sizeKind === 'byteLength'))
-      payload = inPath(fieldPath, () => encodeFieldPayload(field, value, context, fieldPath))
+      payload = inPath(fieldPath, () => encodeFieldPayload(field, value, fieldContext, fieldPath))
     if (shouldWriteSize) {
       const sizeValue = field.sizeKind === 'elementCount' ? (value as unknown[]).length : payload!.length
       const sizePayload = new ByteWriter()
@@ -407,7 +441,7 @@ export function encodeChunkStream(recordName: string, record: LcfRecord, writer:
     if (shouldWriteData)
       writeChunk(field.id!, payload!)
   }
-  flushUnknownBefore(Number.POSITIVE_INFINITY)
+  flushUnknownThrough(Number.POSITIVE_INFINITY)
   if (hasTerminator)
     writer.writeByte(0)
 }

@@ -10,8 +10,7 @@ export function resolveDefault(field: FieldDescriptor, engine: EngineVersion): u
   const declared = field.default
   if (declared !== undefined) {
     if (typeof declared === 'object' && !Array.isArray(declared)) {
-      // An engine-split default carries the '2k'/'2k3' keys; any other object
-      // is an expanded flag-set default.
+      // A non-engine-split object default is an expanded flag set.
       if (!('2k' in declared))
         return { ...declared }
       const value = (declared as EngineSplitDefault)[engine]

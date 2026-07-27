@@ -196,12 +196,30 @@ describe('save wire bytes', () => {
     }
   })
 
+  it('re-emits an unknown chunk at its anchored stream position, not by id order', () => {
+    // SavePartyLocation emits extension chunks 0xC9-0xCC between canonical
+    // 0x55 and 0x65, so an unknown chunk in that region precedes known chunks
+    // with lower ids – only the beforeId anchor can place it.
+    const save = makeSave('2k3')
+    save.partyLocation = { ...save.partyLocation, boarding: true } as unknown as Save['partyLocation']
+    const decoded = decodeSave(encodeSave(save, { engine: '2k3' }), { engine: '2k3' })
+    decoded.partyLocation._unknown = [{ id: 0xCD, bytes: Uint8Array.from([0xAA, 0xBB]), beforeId: 0x65 }]
+
+    const bytes = encodeSave(decoded, { engine: '2k3' })
+    const partyChunkIds = [...readChunkStream(new ByteReader(topLevelChunk(bytes, 0x68).bytes), 'id-zero')].map(chunk => chunk.id)
+    expect(partyChunkIds.indexOf(0xCD)).toBe(partyChunkIds.indexOf(0x65) - 1)
+
+    const again = decodeSave(bytes, { engine: '2k3' })
+    expect(again.partyLocation._unknown).toStrictEqual(decoded.partyLocation._unknown)
+    expect(bytesEqual(encodeSave(again, { engine: '2k3' }), bytes)).toBe(true)
+  })
+
   it('compresses empty runs in the maniac string vector into gap markers', () => {
     const save = makeSave('2k3')
     save.system = { ...save.system, maniacStrings: ['alpha', '', '', '', 'beta', '', ''] }
     const bytes = encodeSave(save, { engine: '2k3' })
 
-    // system is top-level chunk id 0x65; maniacStrings is 0x24 inside it. The
+    // The system record is top-level chunk 0x65; maniacStrings is 0x24 inside it. The
     // three-element gap encodes as BER 0x800000000 - 3 = wire ff ff ff ff 7d.
     const systemChunk = topLevelChunk(bytes, 0x65)
     const stringsChunk = [...readChunkStream(new ByteReader(systemChunk.bytes), 'id-zero')].find(chunk => chunk.id === 0x24)!

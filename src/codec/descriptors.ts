@@ -48,8 +48,8 @@ export type FieldDefaultValue = DefaultScalar | EngineSplitDefault | FlagsDefaul
 
 export interface FieldDescriptor {
   key: string
-  /** The liblcf field name when the camelCased key cannot be regex-inverted back to it. */
-  liblcfName?: string
+  /** The CSV field name – msgctxt values for lcftrans interop are built from it. */
+  liblcfName: string
   /** Chunk ID; absent for the positional fields of raw records. */
   id?: number
   /** Chunk ID of the companion size chunk RPG_RT expects before the data chunk. */
@@ -80,4 +80,10 @@ export interface FlagBitDescriptor {
 export interface UnknownChunk {
   id: number
   bytes: Uint8Array
+  /**
+   * Id of the known chunk that followed in the stream; absent for a trailing
+   * chunk. Field ids are not globally ascending (extension chunks follow
+   * higher canonical ids), so the numeric id alone cannot place the chunk.
+   */
+  beforeId?: number
 }

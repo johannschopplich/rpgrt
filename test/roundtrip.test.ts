@@ -86,6 +86,23 @@ describe('database version framing', () => {
   })
 })
 
+describe('2k3-only chunk write-back in a 2k file', () => {
+  it('packs a written-back 2k3-only flags chunk with its full bit list', () => {
+    // Terrain.specialFlags holds only 2k3-only bits; a 2k encode would pack an
+    // empty bit list and lose the chunk's value.
+    const database = defaultRecord('Database', '2k') as unknown as Database
+    database.terrains = [{
+      ...defaultRecord('Terrain', '2k'),
+      id: 1,
+      specialFlags: { backParty: true, backEnemies: false, lateralParty: false, lateralEnemies: false },
+    }] as unknown as Database['terrains']
+    const bytes = encodeDatabase(database, { engine: '2k' })
+    const decoded = decodeDatabase(bytes, { engine: '2k' })
+    expect(decoded.terrains[0]!.specialFlags.backParty).toBe(true)
+    expect([...encodeDatabase(decoded, { engine: '2k' })]).toEqual([...bytes])
+  })
+})
+
 const MAP_UNIT_HEADER_LENGTH = 'LcfMapUnit'.length + 1
 
 describe('map unit wire bytes', () => {
