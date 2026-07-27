@@ -42,6 +42,10 @@ function singleByteTable(encoding: string): SingleByteTable | undefined {
   return table
 }
 
+export function isKnownEncoding(encoding: string): boolean {
+  return iconv.encodingExists(encoding)
+}
+
 /** The encoding name follows iconv-lite naming. */
 export function createTranscoder(encoding: string): Transcoder {
   if (!iconv.encodingExists(encoding))
@@ -100,20 +104,51 @@ function normalizeEncodingHint(hint: string): string {
 }
 
 /**
+ * liblcf remaps detector verdicts to the Windows code pages RPG_RT-era games
+ * actually used: the ISO variants misdecode 0x80–0x9F as C1
+ * controls, and the plain multi-byte names lack the Windows extensions.
+ */
+const DETECTED_ENCODING_NORMALIZATION: Record<string, string> = {
+  'Shift_JIS': 'cp932',
+  'EUC-KR': 'cp949',
+  'GB18030': 'cp936',
+  'ISO-8859-1': 'windows-1252',
+  'ISO-8859-2': 'windows-1250',
+  'ISO-8859-5': 'windows-1251',
+  'ISO-8859-6': 'windows-1256',
+  'ISO-8859-7': 'windows-1253',
+  'ISO-8859-8': 'windows-1255',
+}
+
+/** Verdicts that are never right for a legacy game file. */
+const IGNORED_DETECTION_VERDICTS = new Set(['ASCII', 'UTF-16BE', 'UTF-16LE'])
+
+/**
  * Runs charset detection over string bytes; returns an iconv-lite encoding
  * name or undefined. Candidates are tried in confidence order, and one is
- * accepted only if it reproduces the sample byte for byte – a confidently
- * wrong guess (e.g. Shift_JIS for a Western game) must never corrupt data.
+ * accepted only if it reproduces the sample byte for byte. That gate only
+ * rejects multi-byte misfires (e.g. Shift_JIS for a Western game) – every
+ * single-byte encoding round-trips all 256 bytes by construction, so among
+ * those the detector's ranking and the normalization table carry the decision.
  */
 export function detectEncoding(stringBytes: Uint8Array): string | undefined {
   if (stringBytes.length === 0)
     return undefined
-  for (const candidate of analyse(stringBytes)) {
-    // An ASCII verdict carries no information – every candidate encoding is an ASCII superset.
-    if (candidate.name === 'ASCII' || !iconv.encodingExists(candidate.name))
+  // Short samples give the detector little to work with; liblcf concatenates
+  // the sample to itself until it reaches 100 bytes.
+  let sample = stringBytes
+  while (sample.length < 100) {
+    const doubledSample = new Uint8Array(sample.length * 2)
+    doubledSample.set(sample)
+    doubledSample.set(sample, sample.length)
+    sample = doubledSample
+  }
+  for (const candidate of analyse(sample)) {
+    if (IGNORED_DETECTION_VERDICTS.has(candidate.name))
       continue
-    if (isLosslessFor(candidate.name, stringBytes))
-      return candidate.name
+    const encoding = DETECTED_ENCODING_NORMALIZATION[candidate.name] ?? candidate.name
+    if (iconv.encodingExists(encoding) && isLosslessFor(encoding, stringBytes))
+      return encoding
   }
   return undefined
 }

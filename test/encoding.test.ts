@@ -48,22 +48,25 @@ describe('encodingFromIni', () => {
 })
 
 describe('detectEncoding', () => {
-  it('detects shift_jis from japanese string bytes', () => {
+  it('detects japanese string bytes as the Windows Shift_JIS variant', () => {
     const text = '勇者は旅立った。魔王の城は北にある。伝説の剣を探せ。'.repeat(4)
     const bytes = createTranscoder('Shift_JIS').encode(text)
-    expect(detectEncoding(bytes)).toBe('Shift_JIS')
+    expect(detectEncoding(bytes)).toBe('cp932')
   })
 
   it('returns undefined for an empty sample', () => {
     expect(detectEncoding(new Uint8Array())).toBeUndefined()
   })
 
-  it('does not misdetect Western text as Shift_JIS', () => {
+  it('detects Western text as windows-1252, never an ISO variant', () => {
     const text = 'Käse und Brot für die Mönche im Gewölbe. Grüße aus dem Schloß. '.repeat(6)
     const bytes = createTranscoder('windows-1252').encode(text)
-    const detectedEncoding = detectEncoding(bytes)
-    expect(detectedEncoding).toBeDefined()
-    expect(detectedEncoding).not.toBe('Shift_JIS')
+    expect(detectEncoding(bytes)).toBe('windows-1252')
+  })
+
+  it('survives a short sample by tiling it', () => {
+    const bytes = createTranscoder('Shift_JIS').encode('魔王の城')
+    expect(detectEncoding(bytes)).toBe('cp932')
   })
 })
 

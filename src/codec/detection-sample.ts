@@ -1,10 +1,66 @@
 /**
+ * Terms fields liblcf samples for charset detection. The rest of Terms holds
+ * untranslated garbage even in default databases, and asset filenames or
+ * event text would dilute the sample with ASCII.
+ */
+const SAMPLED_TERMS_KEYS = [
+  'menuSave',
+  'menuQuit',
+  'newGame',
+  'loadGame',
+  'exitGame',
+  'status',
+  'row',
+  'order',
+  'waitOn',
+  'waitOff',
+  'level',
+  'healthPoints',
+  'spiritPoints',
+  'normalStatus',
+  'spCost',
+  'attack',
+  'defense',
+  'spirit',
+  'agility',
+  'weapon',
+  'shield',
+  'armor',
+  'helmet',
+  'accessory',
+  'saveGameMessage',
+  'loadGameMessage',
+  'exitGameMessage',
+  'file',
+  'yes',
+  'no',
+] as const
+
+/**
+ * The detection sample liblcf uses for a database: every System string plus
+ * the curated Terms subset.
+ */
+export function collectDatabaseSampleBytes(database: { system: unknown, terms: unknown }): Uint8Array {
+  const stringValues: string[] = []
+  collectStrings(database.system, stringValues)
+  const terms = (database.terms ?? {}) as Record<string, unknown>
+  for (const key of SAMPLED_TERMS_KEYS)
+    collectStrings(terms[key], stringValues)
+  return toSampleBytes(stringValues)
+}
+
+/**
  * Collects the wire bytes of every string in a record decoded with the default
- * transcoder (each code point is the original byte), as a detection sample.
+ * transcoder (each code point is the original byte), as a detection sample for
+ * files without a sibling database.
  */
 export function collectStringBytes(record: unknown): Uint8Array {
   const stringValues: string[] = []
   collectStrings(record, stringValues)
+  return toSampleBytes(stringValues)
+}
+
+function toSampleBytes(stringValues: string[]): Uint8Array {
   const byteLength = stringValues.reduce((total, text) => total + text.length + 1, 0)
   const bytes = new Uint8Array(byteLength)
   let offset = 0
