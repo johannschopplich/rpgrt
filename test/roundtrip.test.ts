@@ -123,8 +123,8 @@ describe('map unit wire bytes', () => {
   })
 
   it('frames a non-default scalar chunk as id, BER length, then payload', () => {
-    // chipsetId is chunk id 0x01 (src/generated/descriptors.ts); 7 fits one BER
-    // byte. Being the lowest id, its chunk leads the body.
+    // chipsetId is chunk id 0x01; 7 fits one BER byte. Being the lowest id,
+    // its chunk leads the body.
     const mapUnit = defaultRecord('MapUnit', '2k') as unknown as MapUnit
     mapUnit.chipsetId = 7
     const bytes = encodeMapUnit(mapUnit, { engine: '2k' })
@@ -132,7 +132,7 @@ describe('map unit wire bytes', () => {
   })
 
   it('encodes a BER integer of 300 with a continuation byte', () => {
-    // height is chunk id 0x03 (src/generated/descriptors.ts). 300 = 2 * 128 + 44,
+    // height is chunk id 0x03. 300 = 2 * 128 + 44,
     // so the BER int is two bytes: 0x82 (high group 2, continuation bit set)
     // then 0x2C (low group 44).
     const mapUnit = defaultRecord('MapUnit', '2k') as unknown as MapUnit

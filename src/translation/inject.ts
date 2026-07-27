@@ -19,11 +19,11 @@ export interface PoResolution {
 }
 
 /**
- * Turns parsed PO catalogs into dump units keyed by game address. Each entry
- * resolves to addresses by its `#:` references, or – for foreign PO without them
- * – by exact `(msgctxt, source)` matching scoped to the catalog filename, fanning
- * the translation out to every matching address. Identical (address, translation)
- * pairs collapse; a conflicting one aborts, guarding the non-idempotent splice.
+ * Each entry resolves to addresses by its `#:` references, or – for foreign PO
+ * without them – by exact `(msgctxt, source)` matching scoped to the catalog
+ * filename, fanning the translation out to every matching address. Identical
+ * (address, translation) pairs collapse; a conflicting one aborts, guarding
+ * the non-idempotent splice.
  */
 export function resolvePoDumps<T extends Pick<CollectedUnit, 'address' | 'source' | 'context' | 'catalog' | 'fileName'>>(catalogs: ParsedCatalog[], collectedUnits: T[], catalogContext: CatalogContext): PoResolution {
   const scopeUnitsByFileName = poCatalogs(collectedUnits, catalogContext)

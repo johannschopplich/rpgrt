@@ -65,7 +65,7 @@ export function defaultRecord(recordName: string, engine: EngineVersion): Record
  * Whether a field value equals its default, and so may be omitted from the
  * stream. Scalar doubles compare with `Object.is` so a stored `-0.0` is not
  * mistaken for the `0.0` default and dropped – `deepEquals` uses `===`, under
- * which `-0 === 0` (decision 7). Scoped to scalar doubles; no other field type
+ * which `-0 === 0`. Scoped to scalar doubles; no other field type
  * carries a `-0.0`/`NaN` distinction on the wire.
  */
 export function isDefaultFieldValue(codec: FieldCodec, value: unknown, defaultValue: unknown): boolean {

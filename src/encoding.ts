@@ -124,12 +124,11 @@ const DETECTED_ENCODING_NORMALIZATION: Record<string, string> = {
 const IGNORED_DETECTION_VERDICTS = new Set(['ASCII', 'UTF-16BE', 'UTF-16LE'])
 
 /**
- * Runs charset detection over string bytes; returns an iconv-lite encoding
- * name or undefined. Candidates are tried in confidence order, and one is
- * accepted only if it reproduces the sample byte for byte. That gate only
- * rejects multi-byte misfires (e.g. Shift_JIS for a Western game) – every
- * single-byte encoding round-trips all 256 bytes by construction, so among
- * those the detector's ranking and the normalization table carry the decision.
+ * Detection candidates are tried in confidence order, and one is accepted
+ * only if it reproduces the sample byte for byte. That gate only rejects
+ * multi-byte misfires (e.g. Shift_JIS for a Western game) – every single-byte
+ * encoding round-trips all 256 bytes by construction, so among those the
+ * detector's ranking and the normalization table carry the decision.
  */
 export function detectEncoding(stringBytes: Uint8Array): string | undefined {
   if (stringBytes.length === 0)

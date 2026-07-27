@@ -286,12 +286,11 @@ function loadEnums(filePaths: string[]): EnumDef[] {
 }
 
 /**
- * liblcf misspells this one reference `SavePartyLoction_PanState` in
- * vendor/liblcf-csv/fields.csv line 841 (liblcf @ 666e6c0); the enum itself is
- * `SavePartyLocation,PanState`. Normalize the typo rather than editing the
- * vendored CSV. `EasyRpgPictureType` is not a typo: liblcf never resolves
- * `Enum<>` references (they compile to `int32_t`), so the CSV name and the
- * enum's own name (`SavePicture,EasyRpgType`) drifted apart.
+ * liblcf misspells this one reference `SavePartyLoction_PanState`; the enum
+ * itself is `SavePartyLocation,PanState`. Normalize the typo rather than
+ * editing the vendored CSV. `EasyRpgPictureType` is not a typo: liblcf never
+ * resolves `Enum<>` references (they compile to `int32_t`), so the CSV name
+ * and the enum's own name (`SavePicture,EasyRpgType`) drifted apart.
  */
 const ENUM_REFERENCE_ALIASES: Record<string, string> = {
   SavePartyLoction_PanState: 'SavePartyLocation_PanState',

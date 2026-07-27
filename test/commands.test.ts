@@ -27,12 +27,8 @@ class ProcessExitError extends Error {
   }
 }
 
-/**
- * Runs the command tree in-process. `runCommand` instead of `runMain` so
- * citty's own catch-all (which would print and exit a second time under the
- * stubbed `process.exit`) stays out of the way – the `withCleanErrors`
- * boundary in cli.ts is the behavior under test.
- */
+// `runCommand` instead of `runMain` – citty's catch-all would print and exit
+// a second time under the stubbed `process.exit`.
 async function runCli(...argv: string[]): Promise<{ exitCode: number, stderr: string }> {
   const stderrLines: string[] = []
   const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation((...parts: unknown[]) => {

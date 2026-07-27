@@ -153,7 +153,7 @@ describe('save wire bytes', () => {
       { ...defaultRecord('SaveActor', '2k'), id: 2 },
       { ...defaultRecord('SaveActor', '2k'), id: 7 },
     ] as unknown as Save['actors']
-    // actors is top-level chunk id 0x6C (src/generated/descriptors.ts).
+    // actors is top-level chunk id 0x6C.
     expect([...topLevelChunk(encodeSave(save, { engine: '2k' }), 0x6C).bytes]).toEqual(expected)
   })
 
@@ -164,7 +164,7 @@ describe('save wire bytes', () => {
     const expectedBaseIds = [0x0B, 0x0C, 0x0D, 0x15, 0x16, 0x21, 0x23, 0x25, 0x29]
     for (const engine of engines) {
       const save = makeSave(engine)
-      // partyLocation is top-level chunk id 0x68 (src/generated/descriptors.ts).
+      // partyLocation is top-level chunk id 0x68.
       const partyChunk = topLevelChunk(encodeSave(save, { engine }), 0x68)
       const ids = [...readChunkStream(new ByteReader(partyChunk.bytes), 'id-zero')].map(chunk => chunk.id)
       expect(ids).toEqual(expectedBaseIds)
