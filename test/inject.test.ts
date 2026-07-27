@@ -18,13 +18,12 @@ function catalog(fileName: string, ...entries: ParsedPoEntry[]): ParsedCatalog {
   return { fileName, entries }
 }
 
-function unit(overrides: Partial<CollectedUnit> & Pick<CollectedUnit, 'address' | 'source'>): CollectedUnit {
+function unit(overrides: Partial<CollectedUnit> & Pick<CollectedUnit, 'address' | 'source'>): Omit<CollectedUnit, 'applyTranslation'> {
   return {
     info: [],
     fileName: 'RPG_RT.ldb',
     catalog: 'terms',
     expectedLineCount: 1,
-    applyTranslation: () => {},
     ...overrides,
   }
 }

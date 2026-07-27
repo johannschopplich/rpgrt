@@ -17,8 +17,8 @@ export interface CatalogContext {
 }
 
 /** PO catalogs follow lcftrans's naming so its tooling and EasyRPG Player match up. */
-export function poCatalogs(units: CollectedUnit[], context: CatalogContext): Map<string, CollectedUnit[]> {
-  const catalogs = new Map<string, CollectedUnit[]>([
+export function poCatalogs<T extends Pick<CollectedUnit, 'catalog' | 'fileName'>>(units: T[], context: CatalogContext): Map<string, T[]> {
+  const catalogs = new Map<string, T[]>([
     [`${context.databaseFileName}.po`, units.filter(unit => unit.catalog === 'terms')],
     [`${context.databaseFileName}.common.po`, units.filter(unit => unit.catalog === 'common')],
     [`${context.databaseFileName}.battle.po`, units.filter(unit => unit.catalog === 'battle')],

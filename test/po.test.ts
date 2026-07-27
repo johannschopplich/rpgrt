@@ -24,13 +24,12 @@ describe('fallbackMatchKey', () => {
   })
 })
 
-function collectedUnit(overrides: Partial<CollectedUnit> & Pick<CollectedUnit, 'catalog' | 'fileName'>): CollectedUnit {
+function collectedUnit(overrides: Partial<CollectedUnit> & Pick<CollectedUnit, 'catalog' | 'fileName'>): Omit<CollectedUnit, 'applyTranslation'> {
   return {
     address: 'ldb/actors/1/name',
     source: 'Alex',
     info: [],
     expectedLineCount: 1,
-    applyTranslation: () => {},
     ...overrides,
   }
 }

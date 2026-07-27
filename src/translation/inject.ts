@@ -25,7 +25,7 @@ export interface PoResolution {
  * the translation out to every matching address. Identical (address, translation)
  * pairs collapse; a conflicting one aborts, guarding the non-idempotent splice.
  */
-export function resolvePoDumps(catalogs: ParsedCatalog[], collectedUnits: CollectedUnit[], catalogContext: CatalogContext): PoResolution {
+export function resolvePoDumps<T extends Pick<CollectedUnit, 'address' | 'source' | 'context' | 'catalog' | 'fileName'>>(catalogs: ParsedCatalog[], collectedUnits: T[], catalogContext: CatalogContext): PoResolution {
   const scopeUnitsByFileName = poCatalogs(collectedUnits, catalogContext)
   const abortReasons: string[] = []
   const emittedByAddress = new Map<string, DumpUnit>()
@@ -33,7 +33,7 @@ export function resolvePoDumps(catalogs: ParsedCatalog[], collectedUnits: Collec
   let untranslatedCount = 0
 
   for (const { fileName, entries } of catalogs) {
-    const scopeUnitsByKey = new Map<string, CollectedUnit[]>()
+    const scopeUnitsByKey = new Map<string, T[]>()
     for (const unit of scopeUnitsByFileName.get(fileName) ?? []) {
       const key = fallbackMatchKey(unit.context, unit.source)
       const bucket = scopeUnitsByKey.get(key)
