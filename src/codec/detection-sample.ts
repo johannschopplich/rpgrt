@@ -50,8 +50,9 @@ export function collectDatabaseSampleBytes(database: { system: unknown, terms: u
 }
 
 /**
- * Strings decoded by the default transcoder carry their original bytes, so
- * the sample works for files without a sibling database.
+ * Collects the wire bytes of every string in a record decoded with the default
+ * transcoder (each code point is the original byte), as a detection sample for
+ * files without a sibling database.
  */
 export function collectStringBytes(record: unknown): Uint8Array {
   const stringValues: string[] = []

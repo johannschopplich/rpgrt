@@ -13,7 +13,7 @@ export interface Fixture {
 function minimalDatabase2k(): Uint8Array {
   const database = defaultRecord('Database', '2k') as unknown as Database
   database.actors = [{ ...defaultRecord('Actor', '2k'), id: 1, name: 'Alex', title: 'Held' } as never]
-  // The party [1] is the field default: the data chunk persists, the 0x15
+  // The `party` value `[1]` is the field default: the data chunk persists, the 0x15
   // size chunk is omitted – as liblcf writes it and TestGame-2000 pins it.
   database.system = { ...database.system, party: [1], titleName: 'Titel' }
   database.terms = { ...database.terms, victory: 'Sieg!', yes: 'Ja', no: 'Nein' }

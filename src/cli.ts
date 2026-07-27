@@ -33,7 +33,7 @@ function assertNoUnknownArgs(argDefs: ArgsDef, args: Record<string, unknown>): v
     throw new LcfError(`Unknown argument(s): ${unknownArguments.join(', ')} – see --help`)
 }
 
-// citty's runMain swallows errors itself (print + exit) with no formatting hook,
+// citty's `runMain` swallows errors itself (print + exit) with no formatting hook,
 // so the clean-message boundary has to wrap each subcommand's run.
 function withCleanErrors<T extends ArgsDef>(command: CommandDef<T>): CommandDef<T> {
   const run = command.run

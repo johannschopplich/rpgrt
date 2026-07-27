@@ -20,7 +20,7 @@ export function parseDefaultCell(
   if (rawDefault === '')
     return undefined
   // Record-typed struct literals and Python range comprehensions have no scalar
-  // representation; every such field is PersistIfDefault=1, so resolveDefault
+  // representation; every such field is `PersistIfDefault=1`, so `resolveDefault`
   // synthesizes the value and byte-identity is unaffected.
   if (isRecordLiteral(rawDefault) || isComprehension(rawDefault))
     return undefined

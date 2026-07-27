@@ -20,7 +20,7 @@ function topLevelChunk(bytes: Uint8Array, id: number): Chunk {
 }
 
 // A trailing ID-0 terminator would break RPG_RT after a top-level Save;
-// readChunkStream's end-of-data mode throws on one, enforcing that invariant.
+// `readChunkStream`'s end-of-data mode throws on one, enforcing that invariant.
 function topLevelChunkIds(bytes: Uint8Array): number[] {
   const reader = new ByteReader(bytes)
   reader.skip(reader.readBerUnsigned())
@@ -132,10 +132,10 @@ describe.each(engines)('save round trip (%s)', (engine) => {
 describe('save wire bytes', () => {
   it('frames a sparse id-indexed actor array as a count then per-entry id and chunk stream', () => {
     // An id-indexed array is a BER element count, then per element a BER id and
-    // the element's chunk stream ending in 0x00. A default SaveActor persists
-    // only its persist-if-default chunks – name and title default to the one-byte
+    // the element's chunk stream ending in 0x00. A default `SaveActor` persists
+    // only its persist-if-default chunks – `name` and `title` default to the one-byte
     // 0x01 sentinel RPG_RT reads as "copy from the database actor", and the
-    // status size chunk 0x51, unlike the skills size 0x33, is not persisted when
+    // `status` size chunk 0x51, unlike the `skills` size 0x33, is not persisted when
     // default.
     const name = [0x01, 0x01, 0x01]
     const title = [0x02, 0x01, 0x01]
@@ -153,18 +153,18 @@ describe('save wire bytes', () => {
       { ...defaultRecord('SaveActor', '2k'), id: 2 },
       { ...defaultRecord('SaveActor', '2k'), id: 7 },
     ] as unknown as Save['actors']
-    // actors is top-level chunk id 0x6C.
+    // `actors` is top-level chunk id 0x6C.
     expect([...topLevelChunk(encodeSave(save, { engine: '2k' }), 0x6C).bytes]).toEqual(expected)
   })
 
   it('merges the SaveMapEventBase chunk ids into the party location, sorted', () => {
-    // SaveMapEventBase is flattened into SavePartyLocation, its chunks merged
+    // `SaveMapEventBase` is flattened into `SavePartyLocation`, its chunks merged
     // ahead of the derived struct's own and sorted by id. A default party
     // location writes exactly the base struct's persist-if-default chunks.
     const expectedBaseIds = [0x0B, 0x0C, 0x0D, 0x15, 0x16, 0x21, 0x23, 0x25, 0x29]
     for (const engine of engines) {
       const save = makeSave(engine)
-      // partyLocation is top-level chunk id 0x68.
+      // `partyLocation` is top-level chunk id 0x68.
       const partyChunk = topLevelChunk(encodeSave(save, { engine }), 0x68)
       const ids = [...readChunkStream(new ByteReader(partyChunk.bytes), 'id-zero')].map(chunk => chunk.id)
       expect(ids).toEqual(expectedBaseIds)
@@ -172,7 +172,7 @@ describe('save wire bytes', () => {
   })
 
   it('writes a double field as eight little-endian IEEE-754 bytes', () => {
-    // flashCurrentLevel is chunk id 0x54, a Double. -2.5 = -(1.25 * 2^1):
+    // `flashCurrentLevel` is chunk id 0x54, a `Double`. -2.5 = -(1.25 * 2^1):
     // sign 1, exponent 0x400, mantissa 0x4000000000000 → 0xC004000000000000,
     // little-endian on the wire.
     for (const engine of engines) {
@@ -189,9 +189,9 @@ describe('save wire bytes', () => {
   })
 
   it('re-emits an unknown chunk at its anchored stream position, not by id order', () => {
-    // SavePartyLocation emits extension chunks 0xC9-0xCC between canonical
+    // `SavePartyLocation` emits extension chunks 0xC9-0xCC between canonical
     // 0x55 and 0x65, so an unknown chunk in that region precedes known chunks
-    // with lower ids – only the beforeId anchor can place it.
+    // with lower ids – only the `beforeId` anchor can place it.
     const save = makeSave('2k3')
     save.partyLocation = { ...save.partyLocation, boarding: true } as unknown as Save['partyLocation']
     const decoded = decodeSave(encodeSave(save, { engine: '2k3' }), { engine: '2k3' })
@@ -211,8 +211,9 @@ describe('save wire bytes', () => {
     save.system = { ...save.system, maniacStrings: ['alpha', '', '', '', 'beta', '', ''] }
     const bytes = encodeSave(save, { engine: '2k3' })
 
-    // The system record is top-level chunk 0x65; maniacStrings is 0x24 inside it. The
-    // three-element gap encodes as BER 0x800000000 - 3 = wire ff ff ff ff 7d.
+    // The `system` record is top-level chunk 0x65; `maniacStrings` is 0x24
+    // inside it. The three-element gap encodes as BER 0x800000000 - 3 = wire
+    // ff ff ff ff 7d.
     const systemChunk = topLevelChunk(bytes, 0x65)
     const stringsChunk = [...readChunkStream(new ByteReader(systemChunk.bytes), 'id-zero')].find(chunk => chunk.id === 0x24)!
     const gapMarker = [0xFF, 0xFF, 0xFF, 0xFF, 0x7D]

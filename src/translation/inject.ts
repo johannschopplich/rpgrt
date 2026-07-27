@@ -19,11 +19,12 @@ export interface PoResolution {
 }
 
 /**
- * Each entry resolves to addresses by its `#:` references, or – for foreign PO
- * without them – by exact `(msgctxt, source)` matching scoped to the catalog
- * filename, fanning the translation out to every matching address. Identical
- * (address, translation) pairs collapse; a conflicting one aborts, guarding
- * the non-idempotent splice.
+ * Turns parsed PO catalogs into dump units keyed by game address. Each entry
+ * resolves to addresses by its `#:` references, or – for foreign PO without
+ * them – by exact `(msgctxt, source)` matching scoped to the catalog filename,
+ * fanning the translation out to every matching address. Identical (address,
+ * translation) pairs collapse; a conflicting one aborts, guarding the
+ * non-idempotent splice.
  */
 export function resolvePoDumps<T extends Pick<CollectedUnit, 'address' | 'source' | 'context' | 'catalog' | 'fileName'>>(catalogs: ParsedCatalog[], collectedUnits: T[], catalogContext: CatalogContext): PoResolution {
   const scopeUnitsByFileName = poCatalogs(collectedUnits, catalogContext)
@@ -135,9 +136,9 @@ interface TranslationValidation {
 }
 
 function validateTranslation(unit: DumpUnit, collected: CollectedUnit, context: InjectionContext): TranslationValidation {
-  // Only entries that would be applied reach here – fuzzy (skipped in inject) and
-  // untranslated (skipped in planInjection) units keep their non-fatal skip, so the
-  // magic-token abort below never fires on them.
+  // Only entries that would be applied reach here – fuzzy (skipped in
+  // `resolvePoDumps`) and untranslated (skipped in `planInjection`) units keep
+  // their non-fatal skip, so the magic-token abort below never fires on them.
   const magicToken = MAGIC_PAGE_TOKENS.find(token => unit.translation.includes(token))
   if (magicToken !== undefined)
     return { abortReason: `${unit.address}: runtime page-manipulation token ${magicToken} is not supported by static injection` }

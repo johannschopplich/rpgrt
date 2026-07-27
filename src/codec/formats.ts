@@ -103,7 +103,7 @@ export function decodeLcfFile<T>(bytes: Uint8Array, format: LcfFormat, options: 
 
 /**
  * The generated record interfaces carry no index signature, so they are not
- * assignable to LcfRecord – this seam takes the one cast for all of them.
+ * assignable to `LcfRecord` – this seam takes the one cast for all of them.
  */
 export function encodeLcfFile(record: object, format: LcfFormat, options: CodecOptions): Uint8Array {
   const lcfRecord = record as LcfRecord

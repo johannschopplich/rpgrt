@@ -239,7 +239,7 @@ function collectCommandUnits(
       const { startIndex, indent, lines } = message
       const lineCount = lines.length
       // Earlier applies can splice this list, so every position is recomputed
-      // from the ShowMessage object at apply time. No apply ever removes it:
+      // from the `ShowMessage` object at apply time. No apply ever removes it:
       // a shrink only splices continuation commands behind the anchor.
       const anchorCommand = commands[startIndex]!
       units.push({

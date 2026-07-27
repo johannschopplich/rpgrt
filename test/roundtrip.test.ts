@@ -87,7 +87,7 @@ describe('database version framing', () => {
 
 describe('2k3-only chunk write-back in a 2k file', () => {
   it('packs a written-back 2k3-only flags chunk with its full bit list', () => {
-    // Terrain.specialFlags holds only 2k3-only bits; a 2k encode would pack an
+    // `Terrain.specialFlags` holds only 2k3-only bits; a 2k encode would pack an
     // empty bit list and lose the chunk's value.
     const database = defaultRecord('Database', '2k') as unknown as Database
     database.terrains = [{
@@ -123,7 +123,7 @@ describe('map unit wire bytes', () => {
   })
 
   it('frames a non-default scalar chunk as id, BER length, then payload', () => {
-    // chipsetId is chunk id 0x01; 7 fits one BER byte. Being the lowest id,
+    // `chipsetId` is chunk id 0x01; 7 fits one BER byte. Being the lowest id,
     // its chunk leads the body.
     const mapUnit = defaultRecord('MapUnit', '2k') as unknown as MapUnit
     mapUnit.chipsetId = 7
@@ -132,7 +132,7 @@ describe('map unit wire bytes', () => {
   })
 
   it('encodes a BER integer of 300 with a continuation byte', () => {
-    // height is chunk id 0x03. 300 = 2 * 128 + 44,
+    // `height` is chunk id 0x03. 300 = 2 * 128 + 44,
     // so the BER int is two bytes: 0x82 (high group 2, continuation bit set)
     // then 0x2C (low group 44).
     const mapUnit = defaultRecord('MapUnit', '2k') as unknown as MapUnit

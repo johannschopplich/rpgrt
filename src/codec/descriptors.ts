@@ -8,7 +8,7 @@ import type { EngineVersion } from '../index.ts'
  *   even though the scalar of the same CSV type is BER.
  * - `dbBitArray` stores one whole byte per boolean, despite the name.
  * - `berIntList` (BER count + BER values) occurs only inside the hand-coded
- *   EventCommand layout.
+ *   `EventCommand` layout.
  * - `rawField` embeds a raw record's bare fields as the chunk payload.
  * - `eventCommands` payloads end with four 0x00 bytes; `moveCommands` are
  *   bounded by the chunk length alone.

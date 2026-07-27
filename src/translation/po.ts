@@ -146,10 +146,11 @@ function extractQuotedSegment(line: string): string {
 }
 
 /**
- * Inverse of `formatPoCatalog`. Concatenates continuation segments verbatim
- * before unescaping, so structural `\n` escapes remain the only source of
- * newlines. The header block and obsolete/previous comment lines are ignored;
- * plural forms and unknown escapes abort with a reason.
+ * Parses a PO catalog into entries – the inverse of `formatPoCatalog`.
+ * Concatenates continuation segments verbatim before unescaping, so structural
+ * `\n` escapes remain the only source of newlines. The header block and
+ * obsolete/previous comment lines are ignored; plural forms and unknown
+ * escapes abort with a reason.
  */
 export function parsePoCatalog(text: string): ParsedPoEntry[] {
   const entries: ParsedPoEntry[] = []
