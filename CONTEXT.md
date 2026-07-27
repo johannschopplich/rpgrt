@@ -111,3 +111,9 @@ An `<easyrpg:new_page>` / `<easyrpg:delete_page>` marker a translator may place 
 **Envelope**:
 The self-describing JSON document `convert` writes: `format`, `engine`, and `encoding` alongside the decoded record in `data`. Converting back to LCF needs no flags because the envelope carries its own context.
 _Avoid_: dump (that's the extract output)
+
+**Gap marker**:
+A wide BER value above 2^32 inside a sparse string vector (Maniac-era `Vector<DBString>`): `0x800000000 − N` stands for `N` consecutive empty strings. The writer compresses every empty run into one marker and drops a trailing run entirely.
+
+**Backup file**:
+The `<file>.rpgrt-bak` sibling every overwriting write creates first (staged via `<file>.rpgrt-tmp`). Inject removes backups after a fully committed batch; convert keeps its one backup deliberately.

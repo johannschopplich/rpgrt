@@ -155,6 +155,10 @@ Structs with flag sets in ldb/lmu: `TroopPageCondition`, `Terrain`, `EventPageCo
 
 Raw codepage bytes, length = the chunk's byte length (or the inline BER length for raw-struct strings). Then `Encode` converts codepage→UTF-8 on read, `Decode` UTF-8→codepage on write (`reader_lcf.cpp:218-228`, `writer_lcf.cpp:119-131`). **No terminator, no escaping.** `String` and `DBString` are wire-identical; `DBString` is just an interned/refcounted in-memory type. Note the length written is the length of the **codepage-encoded** bytes (`Decode(str).size()`), which can differ from the UTF-8 byte length.
 
+### Sparse `Vector<DBString>` (Maniac-era, e.g. SaveSystem `maniac_strings` 0x24)
+
+A sequence of `[BER length][bytes]` strings, except the length is read with a wide (up to 2^35) BER reader: a value above `0xFFFFFFFF` is a **gap marker** – `0x800000000 − value` consecutive empty strings (`dbstring_struct.cpp:84-113`). The writer compresses every empty run into one marker and stops after the last non-empty element, so a **trailing empty run is dropped** on write (`:115-140`) – it never round-trips as values. rpgrt reads and writes the same form.
+
 ---
 
 ## 7. Boolean on the wire
@@ -236,4 +240,4 @@ A file rejected by one of these throws is corrupt by liblcf's own definition; rp
 | Header magic with the right length but non-canonical content | warns, writes the canonical magic back (`ldb_reader.cpp:68-79`) | warns via `onWarning`, preserves the text in `_header`, writes it back – except `.lsd`, whose header both write canonically |
 | `is2k3=1` chunk in a 2k file (e.g. `save_count_2k3e` 0x5A in TestGame-2000 maps) | reads it, drops it on write (`reader_struct_impl.h:148-150`) | writes it back whenever it holds a non-default value |
 | Explicit one-byte `0` payload in the Database `version` chunk of a 2k file (RPG_RT 2000 v1.61+) | reads version 0, omits the chunk on write | preserves the chunk bytes verbatim via `_unknown` |
-| Chunk IDs absent from the field tables | dropped | preserved verbatim via `_unknown`, re-emitted in ID position |
+| Chunk IDs absent from the field tables | dropped | preserved verbatim via `_unknown`, re-emitted just before the known chunk that followed it (`beforeId`) – field IDs are not globally ascending (§8), so the numeric ID alone cannot place a chunk |
