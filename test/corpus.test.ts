@@ -3,23 +3,12 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { decodeDatabase, decodeMapUnit, decodeSave, decodeTreeMap, encodeDatabase, encodeMapUnit, encodeSave, encodeTreeMap } from '../src/index.ts'
+import { reencode } from './helpers.ts'
 
 const corpusDirectory = fileURLToPath(new URL('corpus', import.meta.url))
 const gameNames = existsSync(corpusDirectory)
   ? readdirSync(corpusDirectory, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name)
   : []
-
-function reencode(bytes: Uint8Array, fileName: string, engine: EngineVersion): Uint8Array {
-  const options = { engine }
-  if (fileName.toLowerCase().endsWith('.lmu'))
-    return encodeMapUnit(decodeMapUnit(bytes, options), options)
-  if (fileName.toLowerCase().endsWith('.ldb'))
-    return encodeDatabase(decodeDatabase(bytes, options), options)
-  if (fileName.toLowerCase().endsWith('.lsd'))
-    return encodeSave(decodeSave(bytes, options), options)
-  return encodeTreeMap(decodeTreeMap(bytes, options), options)
-}
 
 function firstDifference(expected: Uint8Array, actual: Uint8Array): number {
   const shorter = Math.min(expected.length, actual.length)

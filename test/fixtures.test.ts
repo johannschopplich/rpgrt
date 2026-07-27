@@ -1,4 +1,4 @@
-import type { Database, EngineVersion } from '../src/index.ts'
+import type { Database } from '../src/index.ts'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -6,24 +6,14 @@ import { fileURLToPath } from 'node:url'
 import { uint8ArrayToHex } from 'uint8array-extras'
 import { describe, expect, it } from 'vitest'
 import { convertFile } from '../src/commands/convert.ts'
-import { decodeDatabase, decodeMapUnit, decodeSave, decodeTreeMap, encodeDatabase, encodeMapUnit, encodeSave, encodeTreeMap } from '../src/index.ts'
+import { decodeDatabase, decodeMapUnit, decodeSave, decodeTreeMap, encodeDatabase } from '../src/index.ts'
 import { buildFixtures } from './fixtures/build.ts'
+import { reencode } from './helpers.ts'
 
 const fixturesDirectory = fileURLToPath(new URL('fixtures', import.meta.url))
 
 function committedBytes(fileName: string): Uint8Array {
   return new Uint8Array(readFileSync(join(fixturesDirectory, fileName)))
-}
-
-function reencode(bytes: Uint8Array, fileName: string, engine: EngineVersion): Uint8Array {
-  const options = { engine }
-  if (fileName.endsWith('.lmu'))
-    return encodeMapUnit(decodeMapUnit(bytes, options), options)
-  if (fileName.endsWith('.ldb'))
-    return encodeDatabase(decodeDatabase(bytes, options), options)
-  if (fileName.endsWith('.lsd'))
-    return encodeSave(decodeSave(bytes, options), options)
-  return encodeTreeMap(decodeTreeMap(bytes, options), options)
 }
 
 describe('fixture integrity', () => {
