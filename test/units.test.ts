@@ -1,10 +1,9 @@
 import type { Database, EventCommand, TreeMap } from '../src/index.ts'
 import type { CollectedUnit } from '../src/translation/units.ts'
 import { describe, expect, it } from 'vitest'
-import { defaultRecord } from '../src/codec/defaults.ts'
 import { createTranscoder } from '../src/encoding.ts'
+import { defaultRecord } from '../src/index.ts'
 import { planInjection } from '../src/translation/inject.ts'
-import { formatPoCatalog } from '../src/translation/po.ts'
 import { collectDatabaseUnits, collectMapUnits, collectTreeMapUnits } from '../src/translation/units.ts'
 
 function command(code: number, string = '', indent = 0, parameters: number[] = []): EventCommand {
@@ -211,25 +210,5 @@ describe('injection planning', () => {
     ], context)
     expect(plan.abortReasons).toEqual([])
     expect(plan.applications).toHaveLength(1)
-  })
-})
-
-describe('po catalog', () => {
-  it('writes a header with the game title and utf-8 charset', () => {
-    const catalog = formatPoCatalog([{ address: 'a', source: 'Alex', info: [] }], 'TestGame')
-    expect(catalog).toContain('"Project-Id-Version: TestGame 1.0\\n"')
-    expect(catalog).toContain('"Content-Type: text/plain; charset=UTF-8\\n"')
-  })
-
-  it('formats multiline entries and merges duplicates', () => {
-    const units = [
-      { address: 'a', source: 'Say "hi"\\c[3]\nLine two', info: ['ID 1, Line 1'] },
-      { address: 'b', source: 'Say "hi"\\c[3]\nLine two', info: ['ID 2, Line 5'] },
-      { address: 'c', source: 'Alex', context: 'actors.name', info: ['ID 1'] },
-    ]
-    const catalog = formatPoCatalog(units, 'TestGame')
-    expect(catalog).toContain('#. ID 1, Line 1\n#: a\n#. ID 2, Line 5\n#: b\nmsgid ""\n"Say \\"hi\\"\\\\c[3]\\n"\n"Line two"\nmsgstr ""\n')
-    expect(catalog).toContain('#: c\nmsgctxt "actors.name"\nmsgid "Alex"\nmsgstr ""\n')
-    expect(catalog.match(/msgid ""\n"Say/g)).toHaveLength(1)
   })
 })

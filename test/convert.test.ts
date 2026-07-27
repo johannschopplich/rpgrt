@@ -3,12 +3,10 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { defaultRecord } from '../src/codec/defaults.ts'
-import { LcfError } from '../src/codec/errors.ts'
 import { convertFile } from '../src/commands/convert.ts'
 import { scanDatabaseEngine } from '../src/commands/resolve.ts'
 import { createTranscoder } from '../src/encoding.ts'
-import { encodeDatabase, encodeMapUnit, encodeSave } from '../src/index.ts'
+import { defaultRecord, encodeDatabase, encodeMapUnit, encodeSave, LcfError } from '../src/index.ts'
 
 const temporaryDirectories: string[] = []
 

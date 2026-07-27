@@ -1,6 +1,6 @@
 import type { CollectedUnit } from '../src/translation/units.ts'
 import { describe, expect, it } from 'vitest'
-import { fallbackMatchKey, parsePoCatalog, poCatalogs, unescapePoText } from '../src/translation/po.ts'
+import { fallbackMatchKey, formatPoCatalog, parsePoCatalog, poCatalogs, unescapePoText } from '../src/translation/po.ts'
 
 function poText(...lines: string[]): string {
   return `${lines.join('\n')}\n`
@@ -16,7 +16,7 @@ const header = poText(
 
 describe('fallbackMatchKey', () => {
   it('folds an undefined context into an empty context segment', () => {
-    expect(fallbackMatchKey(undefined, 'src')).toBe('\x01src')
+    expect(fallbackMatchKey(undefined, 'src')).toBe(fallbackMatchKey('', 'src'))
   })
 
   it('separates context from source so (ctx, "") and ("", ctx) never collide', () => {
@@ -57,6 +57,26 @@ describe('poCatalogs', () => {
     expect(emptyCatalogs.has('Map0001.po')).toBe(false)
     const catalogs = poCatalogs([collectedUnit({ catalog: 'map', fileName: 'Map0001.lmu' })], context)
     expect(catalogs.get('Map0001.po')).toHaveLength(1)
+  })
+})
+
+describe('formatPoCatalog', () => {
+  it('writes a header with the game title and utf-8 charset', () => {
+    const catalog = formatPoCatalog([{ address: 'a', source: 'Alex', info: [] }], 'TestGame')
+    expect(catalog).toContain('"Project-Id-Version: TestGame 1.0\\n"')
+    expect(catalog).toContain('"Content-Type: text/plain; charset=UTF-8\\n"')
+  })
+
+  it('formats multiline entries and merges duplicates', () => {
+    const units = [
+      { address: 'a', source: 'Say "hi"\\c[3]\nLine two', info: ['ID 1, Line 1'] },
+      { address: 'b', source: 'Say "hi"\\c[3]\nLine two', info: ['ID 2, Line 5'] },
+      { address: 'c', source: 'Alex', context: 'actors.name', info: ['ID 1'] },
+    ]
+    const catalog = formatPoCatalog(units, 'TestGame')
+    expect(catalog).toContain('#. ID 1, Line 1\n#: a\n#. ID 2, Line 5\n#: b\nmsgid ""\n"Say \\"hi\\"\\\\c[3]\\n"\n"Line two"\nmsgstr ""\n')
+    expect(catalog).toContain('#: c\nmsgctxt "actors.name"\nmsgid "Alex"\nmsgstr ""\n')
+    expect(catalog.match(/msgid ""\n"Say/g)).toHaveLength(1)
   })
 })
 

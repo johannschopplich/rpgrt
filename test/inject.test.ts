@@ -101,23 +101,25 @@ describe('resolvePoDumps', () => {
     expect(resolution.untranslatedCount).toBe(2)
   })
 
-  it('defers a magic-token translation to planInjection, but skips a fuzzy one', () => {
-    const applied = resolvePoDumps(
+  it('defers a magic-token translation to planInjection', () => {
+    const resolution = resolvePoDumps(
       [catalog('RPG_RT.ldb.po', entry({ source: 'Alex', translation: 'Kate<easyrpg:new_page>', addresses: ['ldb/actors/1/name'] }))],
       [],
       catalogContext,
     )
-    expect(applied.units).toHaveLength(1)
-    expect(applied.units[0]!.translation).toBe('Kate<easyrpg:new_page>')
-    expect(applied.abortReasons).toEqual([])
+    expect(resolution.units).toHaveLength(1)
+    expect(resolution.units[0]!.translation).toBe('Kate<easyrpg:new_page>')
+    expect(resolution.abortReasons).toEqual([])
+  })
 
-    const fuzzy = resolvePoDumps(
+  it('skips a fuzzy magic-token translation like any other fuzzy entry', () => {
+    const resolution = resolvePoDumps(
       [catalog('RPG_RT.ldb.po', entry({ source: 'Alex', translation: 'Kate<easyrpg:new_page>', addresses: ['ldb/actors/1/name'], isFuzzy: true }))],
       [],
       catalogContext,
     )
-    expect(fuzzy.units).toEqual([])
-    expect(fuzzy.fuzzySkippedCount).toBe(1)
+    expect(resolution.units).toEqual([])
+    expect(resolution.fuzzySkippedCount).toBe(1)
   })
 
   it('matches a foreign entry with no #: by (msgctxt, source) scoped to the filename', () => {

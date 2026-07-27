@@ -1,25 +1,13 @@
 import type { Database, MapUnit, Save } from '../src/index.ts'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
-import { defaultRecord } from '../src/codec/defaults.ts'
+import { describe, expect, it } from 'vitest'
 import { flagHints, resolveFileContext } from '../src/commands/resolve.ts'
 import { createTranscoder } from '../src/encoding.ts'
-import { encodeDatabase, encodeMapUnit, encodeSave } from '../src/index.ts'
+import { defaultRecord, encodeDatabase, encodeMapUnit, encodeSave } from '../src/index.ts'
+import { useTemporaryDirectories } from './helpers.ts'
 
-const temporaryDirectories: string[] = []
-
-function createDirectory(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'rpgrt-resolve-'))
-  temporaryDirectories.push(directory)
-  return directory
-}
-
-afterEach(() => {
-  while (temporaryDirectories.length > 0)
-    rmSync(temporaryDirectories.pop()!, { recursive: true, force: true })
-})
+const createDirectory = useTemporaryDirectories()
 
 function database2k3Bytes(): Uint8Array {
   return encodeDatabase(defaultRecord('Database', '2k3') as unknown as Database, { engine: '2k3' })

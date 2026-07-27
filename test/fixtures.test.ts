@@ -1,16 +1,16 @@
 import type { Database } from '../src/index.ts'
-import { readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { uint8ArrayToHex } from 'uint8array-extras'
 import { describe, expect, it } from 'vitest'
 import { convertFile } from '../src/commands/convert.ts'
 import { decodeDatabase, decodeMapUnit, decodeSave, decodeTreeMap, encodeDatabase } from '../src/index.ts'
 import { buildFixtures } from './fixtures/build.ts'
-import { reencode } from './helpers.ts'
+import { reencode, useTemporaryDirectories } from './helpers.ts'
 
-const fixturesDirectory = fileURLToPath(new URL('fixtures', import.meta.url))
+const createDirectory = useTemporaryDirectories()
+
+const fixturesDirectory = join(import.meta.dirname, 'fixtures')
 
 function committedBytes(fileName: string): Uint8Array {
   return new Uint8Array(readFileSync(join(fixturesDirectory, fileName)))
@@ -36,17 +36,16 @@ describe('fixture behavior', () => {
     expect(hex).toContain('16020100')
   })
 
-  it('preserves a NaN bit pattern in the binary round trip but loses NaN through JSON', () => {
-    const bytes = committedBytes('nan.lsd')
-    const save = decodeSave(bytes, { engine: '2k3' })
+  it('preserves a NaN bit pattern in the binary round trip', () => {
+    const save = decodeSave(committedBytes('nan.lsd'), { engine: '2k3' })
     expect(save.pictures[0]!.currentX).toBeNaN()
-    const inputPath = join(tmpdir(), `rpgrt-nan-${process.pid}.lsd`)
-    const outputPath = `${inputPath}.json`
-    writeFileSync(inputPath, bytes)
-    const result = convertFile(inputPath, { output: outputPath, engine: '2k3', isForce: true })
+  })
+
+  it('reports the JSON conversion of a NaN save as not byte-identical', () => {
+    const inputPath = join(createDirectory(), 'nan.lsd')
+    writeFileSync(inputPath, committedBytes('nan.lsd'))
+    const result = convertFile(inputPath, { output: `${inputPath}.json`, engine: '2k3', isForce: true })
     expect(result.isByteIdentical).toBe(false)
-    rmSync(inputPath, { force: true })
-    rmSync(outputPath, { force: true })
   })
 
   it('preserves a non-canonical header through decode, warning, and re-encode', () => {

@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { collectStringBytes } from '../src/codec/detection-sample.ts'
-import { LcfError } from '../src/codec/errors.ts'
-import { latin1Transcoder } from '../src/codec/transcoder.ts'
 import { createTranscoder, detectEncoding, encodingFromIni } from '../src/encoding.ts'
+import { latin1Transcoder, LcfError } from '../src/index.ts'
 
 describe('createTranscoder', () => {
   it('round-trips windows-1252 text', () => {

@@ -1,8 +1,7 @@
 import type { Actor, Database, EngineVersion, EventPage, MapInfo, MapUnit, TreeMap } from '../src/index.ts'
 import { describe, expect, it } from 'vitest'
-import { defaultRecord } from '../src/codec/defaults.ts'
 import { ByteReader, readChunkStream } from '../src/codec/reader.ts'
-import { decodeDatabase, decodeMapUnit, decodeTreeMap, encodeDatabase, encodeMapUnit, encodeTreeMap } from '../src/index.ts'
+import { decodeDatabase, decodeMapUnit, decodeTreeMap, defaultRecord, encodeDatabase, encodeMapUnit, encodeTreeMap } from '../src/index.ts'
 
 const engines: EngineVersion[] = ['2k', '2k3']
 

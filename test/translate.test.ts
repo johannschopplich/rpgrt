@@ -4,11 +4,10 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { defaultRecord } from '../src/codec/defaults.ts'
 import { extractGame } from '../src/commands/extract.ts'
 import { injectDump } from '../src/commands/inject.ts'
 import { createTranscoder } from '../src/encoding.ts'
-import { decodeMapUnit, encodeDatabase, encodeMapUnit, encodeTreeMap } from '../src/index.ts'
+import { decodeMapUnit, defaultRecord, encodeDatabase, encodeMapUnit, encodeTreeMap } from '../src/index.ts'
 
 const temporaryDirectories: string[] = []
 

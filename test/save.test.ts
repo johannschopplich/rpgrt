@@ -1,10 +1,8 @@
 import type { Chunk } from '../src/codec/reader.ts'
 import type { EngineVersion, Save } from '../src/index.ts'
 import { describe, expect, it } from 'vitest'
-import { defaultRecord } from '../src/codec/defaults.ts'
 import { ByteReader, readChunkStream } from '../src/codec/reader.ts'
-import { RECORD_DESCRIPTORS } from '../src/generated/descriptors.ts'
-import { decodeSave, encodeSave } from '../src/index.ts'
+import { decodeSave, defaultRecord, encodeSave } from '../src/index.ts'
 
 const engines: EngineVersion[] = ['2k', '2k3']
 
@@ -164,12 +162,6 @@ describe('save wire bytes', () => {
     // ahead of the derived struct's own and sorted by id. A default party
     // location writes exactly the base struct's persist-if-default chunks.
     const expectedBaseIds = [0x0B, 0x0C, 0x0D, 0x15, 0x16, 0x21, 0x23, 0x25, 0x29]
-    const descriptorBaseIds = RECORD_DESCRIPTORS.SaveMapEventBase!.fields
-      .filter(field => field.isPersistedIfDefault === true)
-      .map(field => field.id!)
-      .sort((left, right) => left - right)
-    expect(descriptorBaseIds).toEqual(expectedBaseIds)
-
     for (const engine of engines) {
       const save = makeSave(engine)
       // partyLocation is top-level chunk id 0x68 (src/generated/descriptors.ts).

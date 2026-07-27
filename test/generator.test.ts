@@ -1,12 +1,13 @@
 import type { GeneratedModel } from '../scripts/lib/emit.ts'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { buildModel, HEADER_PRESERVING_RECORDS } from '../scripts/lib/emit.ts'
 import { toCamelCase } from '../scripts/lib/names.ts'
 import { loadTables, resolveEnum, selectStructs } from '../scripts/lib/tables.ts'
 import { LCF_FORMATS } from '../src/codec/formats.ts'
+import { RECORD_DESCRIPTORS } from '../src/generated/descriptors.ts'
 
-const csvDirectory = fileURLToPath(new URL('../vendor/liblcf-csv', import.meta.url))
+const csvDirectory = join(import.meta.dirname, '../vendor/liblcf-csv')
 
 function fieldOf(model: GeneratedModel, structName: string, key: string) {
   const struct = model.structs.find(candidate => candidate.name === structName)
@@ -27,9 +28,11 @@ describe('lsd generator seams', () => {
   })
 
   it('carries every liblcf field name so the key round-trips back to it', () => {
-    for (const struct of model.structs) {
-      for (const field of struct.fields)
-        expect(toCamelCase(field.liblcfName), `${struct.name}.${field.key}`).toBe(field.key)
+    // The committed descriptors are the independent side – checking them
+    // instead of the freshly built model catches hand edits and emit drift.
+    for (const [recordName, descriptor] of Object.entries(RECORD_DESCRIPTORS)) {
+      for (const field of descriptor.fields)
+        expect(toCamelCase(field.liblcfName), `${recordName}.${field.key}`).toBe(field.key)
     }
     expect(fieldOf(model, 'Terms', 'innAGreeting1').liblcfName).toBe('inn_a_greeting_1')
   })

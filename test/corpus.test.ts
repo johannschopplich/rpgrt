@@ -1,11 +1,10 @@
 import type { EngineVersion } from '../src/index.ts'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { reencode } from './helpers.ts'
 
-const corpusDirectory = fileURLToPath(new URL('corpus', import.meta.url))
+const corpusDirectory = join(import.meta.dirname, 'corpus')
 const gameNames = existsSync(corpusDirectory)
   ? readdirSync(corpusDirectory, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name)
   : []
