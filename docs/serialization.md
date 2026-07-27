@@ -61,7 +61,7 @@ See §2 (Array framing) and §3 (raw command vectors).
 ### `Count<Vector<T>>` and size rows (`Size Field? = t`) → see §4.
 
 ### `DatabaseVersion` (0x1A) and `EmptyBlock` (0x1B/0x1C/0x1F)
-`DatabaseVersionField` (`reader_struct.h:435-455`): value is a BER int32. LcfSize returns 0 when version==0 (chunk omitted). In a 2k3 DB it is always written; in 2k only if ≠ 0. `EmptyField` (`reader_struct.h:461-480`, Category::Void): read = no-op, write = `[id][0x00]` (zero-length chunk) – only when `present_if_default=1` (all EmptyBlocks) and, being `is2k3=1`, only in 2k3 files.
+`DatabaseVersionField` (`reader_struct.h:435-455`): value is a BER int32. LcfSize returns 0 when version==0 (chunk omitted). In a 2k3 DB it is always written; in 2k only if ≠ 0. In the wild, RPG_RT 2000 v1.61+ writes the chunk with an explicit one-byte BER `0` payload; liblcf reads that as version 0 and then omits the chunk on rewrite – rpgrt preserves the bytes instead (§11). `EmptyField` (`reader_struct.h:461-480`, Category::Void): read = no-op, write = `[id][0x00]` (zero-length chunk) – only when `present_if_default=1` (all EmptyBlocks) and, being `is2k3=1`, only in 2k3 files.
 
 ### `DBArray<Int32>`
 Only appears as `EventCommand.parameters` (fields.csv:1025) – never a standalone chunk field. Handled inside the EventCommand raw struct (§3). No `TypeCategory` for it.
@@ -165,10 +165,10 @@ Read: `ReadInt() > 0` – a BER int, true iff value > 0 (`reader_lcf.cpp:59-62`)
 
 ## 8. Write-side canonicalization
 
-- **Field emission order = table order = ascending chunk ID.** The `fields[]` array is generated in CSV row order. The writer's out-of-order warning (`reader_struct_impl.h:122-126`) is dead code – `last` starts at -1 and is never reassigned, so the condition can never fire – meaning nothing enforces the order at runtime; the ascending-ID wire order rests solely on the CSVs being authored in ascending-ID order. Size chunks (lower ID) precede their data chunks automatically.
+- **Field emission order = table order**, which is ascending chunk ID only within each CSV: `*_easyrpg.csv` extension rows append after a struct's canonical rows, and a base struct's fields precede the derived struct's own – so the wire order is canonical-then-extension, base-then-own, **not** globally ascending (e.g. `SaveSystem` emits the base's `maniac_*` 0xC9+ chunks before its own 0x65+). The writer's out-of-order warning (`reader_struct_impl.h:122-126`) is dead code – `last` starts at -1 and is never reassigned, so the condition can never fire – meaning nothing enforces ascending order at runtime. Size chunks (lower ID) precede their data chunks automatically. rpgrt emits in the same table order.
 - **PersistIfDefault (`presentifdefault`)**: `0` = omit the chunk when the value equals the struct's default; `1` = always write it (`reader_struct_impl.h:127`, `Field::isPresentIfDefault` `reader_struct.h:383-390`). Default comparison uses a freshly default-constructed struct (`StructDefault<S>::make`, `reader_struct_impl.h:43-57`; Actor is special-cased to run `Setup`).
 - **`2k|2k3` split defaults** (e.g. Actor `final_level` = `50|99`, `exp_base` = `30|300`): parsed in `pod_default` (generate.py:107-138) – when `|` is present the C++ default member is set to `-1`, and the real per-engine default is applied by the struct's `Setup(is2k3)` method at load time. For the wire this matters only for the default-omission check.
-- **Is2k3 fields when writing a 2k file**: fields with `is2k3=1` are **skipped entirely** (not written) when `!db_is2k3` (`reader_struct_impl.h:119-121`, `:148-150`). On read they're simply absent. Engine version is derived from the DB (`GetEngineVersion`) – for LMU/LMT it's passed in.
+- **Is2k3 fields when writing a 2k file**: fields with `is2k3=1` are **skipped entirely** (not written) when `!db_is2k3` (`reader_struct_impl.h:119-121`, `:148-150`) – but the reader ingests them regardless of engine, so a 2k file that carries one (they exist: TestGame-2000 maps hold the Steam-era `save_count_2k3e` 0x5A) is silently rewritten without it (rpgrt diverges – §11). Engine version is derived from the DB (`GetEngineVersion`) – for LMU/LMT it's passed in.
 - **Terms special case** (`reader_struct.h:383-390`): for `rpg::Terms`, chunk IDs `0x01` (`encounter`) and `0x03` (`escape_success`) are force-omitted-when-default in a 2k3 DB even though their `presentifdefault=1`. This is the only field-level hardcode in the generic machinery.
 
 ---
@@ -184,7 +184,7 @@ Each file starts with a **BER length-prefixed magic string** (codepage-encoded, 
 | LMT | `LcfMapTree` (10) | `RawStruct<TreeMap>` | ends with `Start` struct's `0x00` – `lmt_reader.cpp:64-76` |
 | LSD | `LcfSaveData` (11) | `Struct<Save>` chunk stream | **NO 0x00 terminator** (same `conditional_zero_writer` carve-out as Database) – header check `lsd_reader.cpp:89-94` |
 
-Header write: `WriteInt(header.size()); Write(header)` (`ldb_reader.cpp:104-105`, `lmu_reader.cpp:98-99`, `lmt_reader.cpp:91-92`). Header length is validated by exact char count; content mismatch only warns (rpgrt diverges – §11).
+Header write: `WriteInt(header.size()); Write(header)` (`ldb_reader.cpp:104-105`, `lmu_reader.cpp:98-99`, `lmt_reader.cpp:91-92`). Header length is validated by exact char count; content mismatch only warns. rpgrt does the same and additionally preserves the non-canonical text (`_header`) for byte-identical write-back – except for saves, whose header liblcf hardcodes on write and rpgrt writes canonically too (§11).
 
 **Version/empty oddities (LDB Database, in ascending-ID order):**
 - `version` = `DatabaseVersion` @ 0x1A (§1). Present in 2k3 always; in 2k only if ≠0.
@@ -211,15 +211,29 @@ Grep of `reader_struct*.{h,cpp}`, `generate.py`, and the hand-written `*.cpp`:
 
 ---
 
-## 11. Deliberate rpgrt divergences from liblcf's lenient recovery
+## 11. Deliberate rpgrt divergences from liblcf
 
-liblcf recovers from four kinds of malformed input. Every one of those recoveries is lossy – the recovered data cannot round-trip byte-identically – and well-formed RPG_RT files never trigger them. rpgrt's contract is byte fidelity, so it throws an `LcfError` where liblcf silently repairs:
+rpgrt's contract is byte fidelity. That produces two kinds of divergence: liblcf recovers *leniently* from malformed input (every such recovery is lossy – the result cannot round-trip byte-identically), and liblcf *itself* is lossy for a few wire forms that occur in real files. rpgrt throws where liblcf silently repairs, and preserves where liblcf silently drops.
+
+**Strict where liblcf repairs** – rpgrt throws an `LcfError`:
 
 | Malformed input | liblcf | rpgrt |
 |---|---|---|
 | `Vector<Int16>` chunk with an odd byte length | skips the byte, appends a synthesized `0` element (`reader_lcf.cpp:161-175`) | throws |
 | `Equipment` chunk with length ≠ 10 | warns, skips the chunk, keeps defaults (`ldb_equipment.cpp:31-44`) | throws |
-| Header magic with the right length but wrong content | warns and continues (`ldb_reader.cpp:68-79`) | throws |
 | Chunk field consuming fewer bytes than the declared length | re-seeks to `offset + length`, dropping the surplus bytes (`reader_struct_impl.h:82-89`) | throws |
+| Truncated file (chunk or payload runs past EOF) | partial reads / zero-filled values | throws |
+| `Parameters` payload not a multiple of 12 (6 series × int16) | integer division silently drops the remainder (`ldb_parameters.cpp:28-49`) | throws |
+| Trailing bytes after the top-level record's end | ignored | throws |
+| BER integer beyond 5 groups / 32 bits | aborts after 6 loops, returns 0 (`reader_lcf.cpp:86-105`) | throws (a separate wide reader covers the 2^35 string-vector gap markers) |
 
 A file rejected by one of these throws is corrupt by liblcf's own definition; rpgrt refuses to guess because any guess would be unverifiable against the original bytes.
+
+**Faithful where liblcf is lossy** – real files carry these, and liblcf rewrites them differently than it read them:
+
+| Wire form | liblcf | rpgrt |
+|---|---|---|
+| Header magic with the right length but non-canonical content | warns, writes the canonical magic back (`ldb_reader.cpp:68-79`) | warns via `onWarning`, preserves the text in `_header`, writes it back – except `.lsd`, whose header both write canonically |
+| `is2k3=1` chunk in a 2k file (e.g. `save_count_2k3e` 0x5A in TestGame-2000 maps) | reads it, drops it on write (`reader_struct_impl.h:148-150`) | writes it back whenever it holds a non-default value |
+| Explicit one-byte `0` payload in the Database `version` chunk of a 2k file (RPG_RT 2000 v1.61+) | reads version 0, omits the chunk on write | preserves the chunk bytes verbatim via `_unknown` |
+| Chunk IDs absent from the field tables | dropped | preserved verbatim via `_unknown`, re-emitted in ID position |

@@ -39,7 +39,7 @@ npm install rpgrt
 npx rpgrt convert Map0001.lmu
 ```
 
-Requires Node 22+ for the CLI; the codec itself runs anywhere `Uint8Array` does, browsers included.
+Requires Node 24+ for the CLI; the codec itself runs anywhere `Uint8Array` does, browsers included.
 
 ## CLI
 
@@ -57,9 +57,10 @@ rpgrt extract <game> [options]         # game directory → translatable text du
 rpgrt inject  <game> <dump> [options]  # JSON or PO dump → game files, all-or-nothing
 
 Options:
-  -o, --output <path>    Output path (default: next to the input; strings.json for extract)
+  -o, --output <path>    convert/extract: output path (default: next to the input; strings.json for extract)
       --split            extract only: one JSON dump per game file
       --po               extract only: lcftrans-compatible PO catalogs
+      --force            convert/extract: overwrite existing output files
       --engine <2k|2k3>  Override engine detection
       --encoding <name>  Override encoding detection (e.g. Shift_JIS or 932)
 ```
@@ -82,11 +83,12 @@ Engine and encoding are detected per game – from `RPG_RT.ldb`, the `Encoding` 
     "events": [
       { "id": 1, "name": "guard", "x": 3, "y": 4, "pages": [/* … */] }
     ]
+    // …
   }
 }
 ```
 
-Edit anything – event commands, terrain, database records – and convert back. Chunks rpgrt doesn't know (editor extensions, corrupt leftovers) are carried through as base64 under `_unknown` and written back verbatim. If a file wouldn't survive the round trip byte for byte, `convert` says so up front instead of letting you find out after editing.
+Edit anything – event commands, terrain, database records – and convert back. EasyRPG Player / ManiacPatch extension chunks are typed fields like everything else; chunks rpgrt genuinely doesn't know (corrupt leftovers, exotic patches) are carried through as base64 under `_unknown` and written back verbatim. If a file wouldn't survive the round trip byte for byte, `convert` says so up front instead of letting you find out after editing. Converting JSON back over an existing game file moves the previous bytes to `<file>.rpgrt-bak` first; overwriting an existing JSON output needs `--force`.
 
 ### Extract → translate → inject
 
@@ -150,9 +152,9 @@ LCF predates Unicode – text is stored in a legacy codepage with no marker in t
 
 ## Safety & limits
 
-**Round trips are byte-identical.** Decoding and re-encoding an untouched file reproduces it byte for byte – defaults, chunk order, size chunks, engine quirks, and unknown chunks included. This is verified against a corpus of real 2k/2k3 games and is the foundation everything else stands on: a diff between source and converted game shows *your* edits, nothing else. The one documented exception is a save-file double holding a non-canonical NaN bit pattern: re-encoding normalizes it to a canonical NaN, because `DataView` canonicalizes NaN payloads – real save data never stores such a value.
+**Round trips are byte-identical.** Decoding and re-encoding an untouched file reproduces it byte for byte – defaults, chunk order, size chunks, engine quirks, and unknown chunks included. This is verified against a corpus of real 2k/2k3 games and is the foundation everything else stands on: a diff between source and converted game shows *your* edits, nothing else. The wire-format details and the few deliberate divergences from liblcf live in [docs/serialization.md](./docs/serialization.md). The one exception is JSON's number model: a save-file double holding a NaN bit pattern survives the binary round trip, but JSON has no NaN – converting such a save to JSON drops the value, and `convert` reports the file as not byte-identical up front.
 
-**`inject` is all-or-nothing.** Every translation is validated in memory first – unknown addresses, source text that drifted since extraction (stale dump), wrong choice line counts, characters the game's codepage can't represent. One failure means nothing is written, with every reason listed. The writes themselves are staged and atomically renamed, so even a crash mid-inject never leaves a truncated game file.
+**`inject` is all-or-nothing.** Every translation is validated in memory first – unknown addresses, source text that drifted since extraction (stale dump), wrong choice line counts, characters the game's codepage can't represent. One failure means nothing is written, with every reason listed. The writes themselves are staged beside their targets and renamed into place, so no game file is ever half-written; a crash between renames can still leave a mix of updated and original files, with each original preserved as `<file>.rpgrt-bak`.
 
 Limits, so you don't discover them the hard way: rpgrt reads and writes maps, database, map tree, and save files (`.lsd`) – not `RPG_RT.exe`. `convert` handles save files, but `extract`/`inject` do not: saves are player state, not authored text. Maps without the canonical `MapNNNN` filename are skipped during extract (their units would have no stable address; `extract` reports each skip).
 
