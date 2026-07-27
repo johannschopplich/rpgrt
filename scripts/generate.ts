@@ -1,10 +1,9 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { buildModel, emitDescriptors, emitEnums, emitStructs } from './lib/emit.ts'
 import { loadTables, selectStructs } from './lib/tables.ts'
 
-const rootDirectory = fileURLToPath(new URL('..', import.meta.url))
+const rootDirectory = join(import.meta.dirname, '..')
 const tables = loadTables(join(rootDirectory, 'vendor/liblcf-csv'))
 const selected = selectStructs(tables, ['ldb', 'lmt', 'lmu', 'lsd'])
 const model = buildModel(tables, selected)
