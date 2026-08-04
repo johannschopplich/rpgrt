@@ -10,6 +10,7 @@ import { bytesEqual } from '../codec/bytes.ts'
 import { LcfError } from '../codec/errors.ts'
 import { decodeLcfFile, encodeLcfFile, LCF_FORMATS, lcfFormatFor } from '../codec/formats.ts'
 import { createTranscoder } from '../encoding.ts'
+import { commonArgs } from '../errors.ts'
 import { writeFilesAtomically } from './atomic-write.ts'
 import { describeFileContext, flagHints, parseEngineFlag, resolveFileContext } from './resolve.ts'
 
@@ -162,6 +163,7 @@ export interface ConvertArgs extends ArgsDef {
 }
 
 const convertArgs: ConvertArgs = {
+  ...commonArgs,
   input: { type: 'positional', description: 'Path to a .lmu/.ldb/.lmt/.lsd or .json file', required: true },
   output: { type: 'string', alias: 'o', description: 'Output path (defaults next to the input)' },
   engine: { type: 'string', description: 'Engine version: 2k or 2k3 (overrides detection)' },

@@ -9,6 +9,7 @@ import { basename, join } from 'node:path'
 import { defineCommand } from 'citty'
 import { LcfError } from '../codec/errors.ts'
 import { encodeLcfFile, lcfFormatFor } from '../codec/formats.ts'
+import { commonArgs } from '../errors.ts'
 import { planInjection, resolvePoDumps } from '../translation/inject.ts'
 import { parsePoCatalog } from '../translation/po.ts'
 import { writeFilesAtomically } from './atomic-write.ts'
@@ -202,6 +203,7 @@ export interface InjectArgs extends ArgsDef {
 }
 
 const injectArgs: InjectArgs = {
+  ...commonArgs,
   game: { type: 'positional', description: 'Path to the game directory (contains RPG_RT.ldb)', required: true },
   dump: { type: 'positional', description: 'strings.json, a .po catalog, or a directory of split dumps', required: true },
   engine: { type: 'string', description: 'Engine version: 2k or 2k3 (overrides the dump metadata)' },

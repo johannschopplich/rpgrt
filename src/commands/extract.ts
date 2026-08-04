@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { defineCommand } from 'citty'
 import { LcfError } from '../codec/errors.ts'
+import { commonArgs } from '../errors.ts'
 import { formatPoCatalog, poCatalogs } from '../translation/po.ts'
 import { collectGameUnits, loadGame, toCatalogContext } from './game.ts'
 import { describeFileContext, flagHints } from './resolve.ts'
@@ -117,6 +118,7 @@ export interface ExtractArgs extends ArgsDef {
 }
 
 const extractArgs: ExtractArgs = {
+  ...commonArgs,
   game: { type: 'positional', description: 'Path to the game directory (contains RPG_RT.ldb)', required: true },
   output: { type: 'string', alias: 'o', description: 'Output path (strings.json, or a directory for --split/--po)' },
   split: { type: 'boolean', description: 'Write one JSON file per game file instead of a single strings.json' },
