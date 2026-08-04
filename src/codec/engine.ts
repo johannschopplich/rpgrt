@@ -127,7 +127,7 @@ function chunkEmissionRanks(recordName: string): Map<number, number> {
   return ranks
 }
 
-// --- Decoding ---------------------------------------------------------------
+// #region Decoding
 
 export function decodeChunkStream(recordName: string, reader: ByteReader, context: CodecContext, path: string, isEndOfDataTerminated = false): LcfRecord {
   const descriptor = RECORD_DESCRIPTORS[recordName]!
@@ -363,7 +363,9 @@ export function decodeTreeMap(reader: ByteReader, context: CodecContext, path: s
   return { maps, treeOrder, activeNode, start }
 }
 
-// --- Encoding ---------------------------------------------------------------
+// #endregion
+
+// #region Encoding
 
 export function encodeChunkStream(recordName: string, record: LcfRecord, writer: ByteWriter, context: CodecContext, path: string, hasTerminator: boolean): void {
   const descriptor = RECORD_DESCRIPTORS[recordName]!
@@ -636,3 +638,5 @@ export function encodeTreeMap(record: LcfRecord, writer: ByteWriter, context: Co
   writer.writeBer(record.activeNode as number)
   encodeChunkStream('Start', record.start as LcfRecord, writer, context, `${path}.start`, true)
 }
+
+// #endregion
