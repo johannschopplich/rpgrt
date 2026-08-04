@@ -48,7 +48,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "node src/bin.ts",
+    "dev": "node src/entry.ts",
     "build": "tsdown",
     "generate": "node scripts/generate.ts",
     "make-fixtures": "node scripts/make-fixtures.ts",
@@ -59,6 +59,7 @@
     "release": "bumpp"
   },
   "dependencies": {
+    "ansis": "^4.3.1",
     "chardet": "^2.2.0",
     "citty": "^0.2.2",
     "iconv-lite": "^0.7.3",

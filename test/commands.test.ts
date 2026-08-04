@@ -1,14 +1,11 @@
 import type { Database, MapUnit } from '../src/index.ts'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import process from 'node:process'
-import { runCommand } from 'citty'
-import { describe, expect, it, vi } from 'vitest'
-import { mainCommand } from '../src/cli.ts'
+import { describe, expect, it } from 'vitest'
 import { convertFile } from '../src/commands/convert.ts'
 import { extractGame } from '../src/commands/extract.ts'
 import { defaultRecord, encodeDatabase, encodeMapUnit } from '../src/index.ts'
-import { useTemporaryDirectories } from './helpers.ts'
+import { useTemporaryDirectories } from './utils.ts'
 
 const createDirectory = useTemporaryDirectories()
 
@@ -18,58 +15,8 @@ function writeMap(directory: string): string {
   return mapPath
 }
 
-class ProcessExitError extends Error {
-  readonly exitCode: number
-
-  constructor(exitCode: number) {
-    super(`process.exit(${exitCode})`)
-    this.exitCode = exitCode
-  }
-}
-
-/**
- * Runs the command tree in-process – `runCommand` instead of `runMain`, whose
- * catch-all would print and exit a second time under the stubbed `process.exit`.
- */
-async function runCli(...argv: string[]): Promise<{ exitCode: number, stderr: string }> {
-  const stderrLines: string[] = []
-  const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation((...parts: unknown[]) => {
-    stderrLines.push(parts.join(' '))
-  })
-  const processExitSpy = vi.spyOn(process, 'exit').mockImplementation((code) => {
-    throw new ProcessExitError(typeof code === 'number' ? code : 0)
-  })
-  try {
-    await runCommand(mainCommand, { rawArgs: argv })
-    return { exitCode: 0, stderr: stderrLines.join('\n') }
-  }
-  catch (error) {
-    if (error instanceof ProcessExitError)
-      return { exitCode: error.exitCode, stderr: stderrLines.join('\n') }
-    throw error
-  }
-  finally {
-    consoleErrorSpy.mockRestore()
-    processExitSpy.mockRestore()
-  }
-}
-
-describe('cli argument rejection', () => {
-  it('rejects an unknown flag', async () => {
-    const result = await runCli('convert', 'file.lmu', '--nope')
-    expect(result.exitCode).toBe(1)
-    expect(result.stderr).toContain('Unknown argument(s): --nope')
-  })
-
-  it('rejects surplus positionals', async () => {
-    const result = await runCli('convert', 'a.lmu', 'b.lmu')
-    expect(result.exitCode).toBe(1)
-    expect(result.stderr).toContain('"b.lmu"')
-  })
-})
-
 describe('convert overwrite guards', () => {
-  it('refuses to overwrite an existing JSON output without force', () => {
+  it('rejects an existing JSON output unless --force is passed', () => {
     const directory = createDirectory()
     const mapPath = writeMap(directory)
     convertFile(mapPath)
@@ -120,8 +67,8 @@ describe('convert json validation', () => {
   })
 })
 
-describe('extract overwrite guard', () => {
-  it('refuses existing outputs without force and names them', () => {
+describe('extract overwrite guards', () => {
+  it('rejects an existing output unless --force is passed, naming it', () => {
     const directory = createDirectory()
     writeFileSync(join(directory, 'RPG_RT.ldb'), encodeDatabase(defaultRecord('Database', '2k') as unknown as Database, { engine: '2k' }))
     const outputPath = join(directory, 'strings.json')

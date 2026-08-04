@@ -2,7 +2,7 @@ import type { EngineVersion } from '../src/index.ts'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { reencode } from './helpers.ts'
+import { reencode } from './reencode.ts'
 
 const corpusDirectory = join(import.meta.dirname, 'corpus')
 const gameNames = existsSync(corpusDirectory)

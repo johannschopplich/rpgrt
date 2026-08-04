@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest'
 import { convertFile } from '../src/commands/convert.ts'
 import { decodeDatabase, decodeMapUnit, decodeSave, decodeTreeMap, encodeDatabase } from '../src/index.ts'
 import { buildFixtures } from './fixtures/build.ts'
-import { reencode, useTemporaryDirectories } from './helpers.ts'
+import { reencode } from './reencode.ts'
+import { useTemporaryDirectories } from './utils.ts'
 
 const createDirectory = useTemporaryDirectories()
 

@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      ansis:
+        specifier: ^4.3.1
+        version: 4.3.1
       chardet:
         specifier: ^2.2.0
         version: 2.2.0

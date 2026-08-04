@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { flagHints, resolveFileContext } from '../src/commands/resolve.ts'
 import { createTranscoder } from '../src/encoding.ts'
 import { defaultRecord, encodeDatabase, encodeMapUnit, encodeSave } from '../src/index.ts'
-import { useTemporaryDirectories } from './helpers.ts'
+import { useTemporaryDirectories } from './utils.ts'
 
 const createDirectory = useTemporaryDirectories()
 

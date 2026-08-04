@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { writeFilesAtomically } from '../src/commands/atomic-write.ts'
-import { useTemporaryDirectories } from './helpers.ts'
+import { useTemporaryDirectories } from './utils.ts'
 
 const createDirectory = useTemporaryDirectories()
 

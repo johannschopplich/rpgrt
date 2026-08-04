@@ -6,6 +6,7 @@ import { LcfError } from './codec/errors.ts'
 import { convertCommand } from './commands/convert.ts'
 import { extractCommand } from './commands/extract.ts'
 import { injectCommand } from './commands/inject.ts'
+import * as log from './log.ts'
 
 /**
  * citty parses with `strict: false` and has no unknown-flag rejection, so a
@@ -48,8 +49,9 @@ function withCleanErrors<T extends ArgsDef>(command: CommandDef<T>): CommandDef<
       }
       catch (error) {
         if (error instanceof LcfError) {
-          console.error(error.message)
-          process.exit(1)
+          log.error(error.message)
+          process.exitCode = 1
+          return
         }
         throw error
       }
