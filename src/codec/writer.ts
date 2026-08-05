@@ -32,7 +32,7 @@ export class ByteWriter {
     this.buffer[this.byteLength++] = (value >> 8) & 0xFF
   }
 
-  /** 4-byte little-endian word; two's complement covers Int32 and UInt32 alike. */
+  /** Writes a 4-byte little-endian word; two's complement covers Int32 and UInt32 alike. */
   writeUint32(value: number): void {
     this.reserve(4)
     this.buffer[this.byteLength++] = value & 0xFF
@@ -48,12 +48,12 @@ export class ByteWriter {
       this.buffer[this.byteLength++] = this.scratchView.getUint8(index)
   }
 
-  /** BER integer; negative values are written as their unsigned 32-bit form. */
+  /** Writes a BER integer; negative values take their unsigned 32-bit form. */
   writeBer(value: number): void {
     this.writeBerUnsigned64(value >>> 0)
   }
 
-  /** Wide BER integer (string-vector gap markers reach 2^35). */
+  /** Writes a BER integer of any width; only string-vector gap markers exceed 32 bits. */
   writeBerUnsigned64(value: number): void {
     if (value < 0x80) {
       this.writeByte(value)
