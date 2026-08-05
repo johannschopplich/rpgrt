@@ -228,7 +228,7 @@ function saveCodepage(bytes: Uint8Array, engine: EngineVersion): number | undefi
   }
 }
 
-/** The database holds most of a game's text, so prefer it as the detection sample. */
+/** Prefers the database as the detection sample – it holds most of a game's text. */
 function collectDetectionSample(bytes: Uint8Array, kind: LcfFileKind, engine: EngineVersion, databaseBytes?: Uint8Array): Uint8Array | undefined {
   try {
     if (kind === 'ldb')

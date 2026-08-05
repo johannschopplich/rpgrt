@@ -24,7 +24,7 @@ export interface ExtractOptions {
   onWarning?: WarningSink
 }
 
-/** All-or-nothing: refuse before the first byte is written, naming every conflict. */
+/** All-or-nothing: refuses before the first byte is written, naming every conflict. */
 function assertOutputsWritable(outputPaths: string[], isForce: boolean | undefined): void {
   if (isForce === true)
     return

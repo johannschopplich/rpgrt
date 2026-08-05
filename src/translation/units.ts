@@ -314,7 +314,7 @@ function collectCommandUnits(
             catalog,
             expectedLineCount: options.length,
             // Other applies can shift command indices, so the choice position
-            // and its option positions are re-scannedCommand when applying.
+            // and its option positions are re-scanned when applying.
             applyTranslation: (lines) => {
               const currentIndices = scanChoiceOptionIndices(commands, commands.indexOf(command))
               currentIndices.forEach((optionIndex, optionOffset) => (commands[optionIndex]!.string = lines[optionOffset]!))

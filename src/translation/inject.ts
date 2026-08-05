@@ -85,7 +85,7 @@ export function resolvePoDumps<T extends Pick<CollectedUnit, 'address' | 'source
 
 export interface InjectionContext {
   transcoder: Transcoder
-  /** Only labels the not-representable abort reason. */
+  /** Only a label for the not-representable abort reason. */
   encoding: string
 }
 

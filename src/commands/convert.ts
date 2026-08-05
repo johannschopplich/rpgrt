@@ -81,7 +81,7 @@ function parseEnvelope(jsonText: string, filePath: string): JsonEnvelope {
   return envelope as JsonEnvelope
 }
 
-/** JSON carries `_unknown` chunk bytes as base64 strings; restore them to Uint8Array. */
+/** Restores the `_unknown` chunk bytes JSON carries as base64 strings to `Uint8Array`. */
 function reviveUnknownChunks(value: unknown): void {
   if (Array.isArray(value)) {
     for (const element of value)
