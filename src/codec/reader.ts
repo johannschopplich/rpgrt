@@ -96,18 +96,20 @@ export class ByteReader {
   }
 
   /**
-   * Wide BER integer (string-vector gap markers reach 2^35). Eight groups stay
-   * within the 2^53 float-exact range.
+   * Reads the wide BER integer fronting every string-vector entry: either a byte
+   * length or a gap marker counting down from 2^35. Five groups cover both, and
+   * 35 bits stay float-exact; liblcf's `ReadUInt64` accepts ten groups and
+   * yields 0 past that rather than failing.
    */
   readBerUnsigned64(): number {
     let value = 0
-    for (let index = 0; index < 8; index++) {
+    for (let index = 0; index < 5; index++) {
       const byte = this.readByte()
       value = value * 0x80 + (byte & 0x7F)
       if ((byte & 0x80) === 0)
         return value
     }
-    throw new LcfError('BER integer exceeds 56 bits', { offset: this.offset })
+    throw new LcfError('BER integer exceeds 35 bits', { offset: this.offset })
   }
 }
 

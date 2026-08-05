@@ -24,6 +24,12 @@ describe('ber integer', () => {
     expect(reader.readBer()).toBe(value)
     expect(reader.isAtEnd).toBe(true)
   })
+
+  it('readBerUnsigned64 throws on a sixth group', () => {
+    // 2^35, the smallest value needing a sixth group.
+    const reader = new ByteReader(new Uint8Array([0x81, 0x80, 0x80, 0x80, 0x80, 0x00]))
+    expect(() => reader.readBerUnsigned64()).toThrow('BER integer exceeds 35 bits')
+  })
 })
 
 describe('read chunk stream', () => {
