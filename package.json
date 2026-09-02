@@ -61,8 +61,7 @@
   "dependencies": {
     "chardet": "^2.2.0",
     "iconv-lite": "^0.7.3",
-    "uint8array-extras": "^1.5.0",
-    "utilful": "link:../utils"
+    "uint8array-extras": "^1.5.0"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^9.2.0",
@@ -73,6 +72,7 @@
     "fast-check": "^4.9.0",
     "tsdown": "^0.22.14",
     "typescript": "^6.0.3",
+    "utilful": "link:../utils",
     "vitest": "^4.1.10"
   }
 }
