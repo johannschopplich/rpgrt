@@ -1,5 +1,4 @@
-import process from 'node:process'
-import { mainCommand } from './cli.ts'
-import { runMain } from './errors.ts'
+import { runMain } from 'utilful/cli'
+import { cliOptions, mainCommand } from './cli.ts'
 
-void runMain(mainCommand, process.argv.slice(2))
+void runMain(mainCommand, cliOptions)

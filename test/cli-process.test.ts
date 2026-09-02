@@ -7,8 +7,6 @@ import { runCliProcess, useTemporaryDirectories } from './utils.ts'
 
 const createDirectory = useTemporaryDirectories()
 
-// In-process runs observe neither citty's builtin flags, which `runMain` owns,
-// nor the exit code the shell sees.
 describe('rpgrt CLI as a child process', () => {
   it('prints its version', async () => {
     const { stdout, exitCode } = await runCliProcess(['--version'])

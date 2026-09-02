@@ -14,15 +14,15 @@ importers:
       chardet:
         specifier: ^2.2.0
         version: 2.2.0
-      citty:
-        specifier: ^0.2.2
-        version: 0.2.2
       iconv-lite:
         specifier: ^0.7.3
         version: 0.7.3
       uint8array-extras:
         specifier: ^1.5.0
         version: 1.5.0
+      utilful:
+        specifier: link:../utils
+        version: link:../utils
     devDependencies:
       '@antfu/eslint-config':
         specifier: ^9.2.0
@@ -740,9 +740,6 @@ packages:
   ci-info@4.4.0:
     resolution: {integrity: sha512-77PSwercCZU2Fc4sX94eF8k8Pxte6JAwL4/ICZLFjJLqegs7kCuAsqqj/70NQF6TvDpgFjkubQB2FW2ZZddvQg==}
     engines: {node: '>=8'}
-
-  citty@0.2.2:
-    resolution: {integrity: sha512-+6vJA3L98yv+IdfKGZHBNiGW5KHn22e/JwID0Strsz8h4S/csAu/OuICwxrg44k5MRiZHWIo8XXuJgQTriRP4w==}
 
   commander@8.3.0:
     resolution: {integrity: sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww==}
@@ -2606,8 +2603,6 @@ snapshots:
   chardet@2.2.0: {}
 
   ci-info@4.4.0: {}
-
-  citty@0.2.2: {}
 
   commander@8.3.0: {}
 

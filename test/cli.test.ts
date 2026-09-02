@@ -6,7 +6,7 @@ describe('rpgrt CLI', () => {
     it('rejects an unknown flag', async () => {
       const { stderr, exitCode } = await runCli(['convert', 'file.lmu', '--nope'])
       expect(exitCode).toBe(1)
-      expect(stderr).toContain('Unknown argument(s): --nope')
+      expect(stderr).toContain('Unknown option \'--nope\'')
     })
 
     it('rejects surplus positionals', async () => {
