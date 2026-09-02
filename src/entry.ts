@@ -1,4 +1,5 @@
-import { runMain } from 'citty'
+import process from 'node:process'
 import { mainCommand } from './cli.ts'
+import { runMain } from './errors.ts'
 
-runMain(mainCommand)
+void runMain(mainCommand, process.argv.slice(2))
