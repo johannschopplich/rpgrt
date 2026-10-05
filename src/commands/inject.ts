@@ -6,7 +6,7 @@ import type { LoadedGame } from './game.ts'
 import type { EncodingSource, EngineSource } from './resolve.ts'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { defineCommand } from 'utilful/cli'
+import { defineCommand, log } from 'utilful/cli'
 import { LcfError } from '../codec/errors.ts'
 import { encodeLcfFile, lcfFormatFor } from '../codec/formats.ts'
 import { planInjection, resolvePoDumps } from '../translation/inject.ts'
@@ -211,10 +211,10 @@ export const injectCommand: CommandDef<typeof injectArgs> = defineCommand({
     const result = injectDump(args.game, args.dump, {
       engine: args.engine,
       encoding: args.encoding,
-      onWarning: message => console.error(`Warning: ${message}`),
+      onWarning: message => log.warn(message),
     })
     for (const warning of result.warnings)
-      console.error(`Warning: ${warning}`)
+      log.warn(warning)
     const fuzzyNote = result.fuzzySkippedCount > 0 ? `, ${result.fuzzySkippedCount} fuzzy entr${result.fuzzySkippedCount === 1 ? 'y' : 'ies'} skipped` : ''
     console.error(`${result.appliedCount} translation(s) applied, ${result.untranslatedCount} unit(s) still untranslated${fuzzyNote}`)
     console.error(`  ${describeFileContext(result)}`)

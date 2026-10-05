@@ -5,7 +5,7 @@ import type { EngineVersion, WarningSink } from '../index.ts'
 import type { EncodingSource, EngineSource } from './resolve.ts'
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { base64ToUint8Array, uint8ArrayToBase64 } from 'uint8array-extras'
-import { defineCommand } from 'utilful/cli'
+import { defineCommand, log } from 'utilful/cli'
 import { bytesEqual } from '../codec/bytes.ts'
 import { LcfError } from '../codec/errors.ts'
 import { decodeLcfFile, encodeLcfFile, LCF_FORMATS, lcfFormatFor } from '../codec/formats.ts'
@@ -173,7 +173,7 @@ export const convertCommand: CommandDef<typeof convertArgs> = defineCommand({
       engine: args.engine,
       encoding: args.encoding,
       isForce: args.force,
-      onWarning: message => console.error(`Warning: ${args.input}: ${message}`),
+      onWarning: message => log.warn(`${args.input}: ${message}`),
     })
     console.error(`${args.input} → ${result.outputPath}`)
     console.error(`  ${describeFileContext(result)}`)

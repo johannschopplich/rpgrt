@@ -4,7 +4,7 @@ import type { CollectedUnit, Dump, DumpUnit } from '../translation/units.ts'
 import type { LoadedGame } from './game.ts'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { defineCommand } from 'utilful/cli'
+import { defineCommand, log } from 'utilful/cli'
 import { LcfError } from '../codec/errors.ts'
 import { formatPoCatalog, poCatalogs } from '../translation/po.ts'
 import { collectGameUnits, loadGame, toCatalogContext } from './game.ts'
@@ -130,7 +130,7 @@ export const extractCommand: CommandDef<typeof extractArgs> = defineCommand({
       engine: args.engine,
       encoding: args.encoding,
       isForce: args.force,
-      onWarning: message => console.error(`Warning: ${message}`),
+      onWarning: message => log.warn(message),
     })
     console.error(`${result.unitCount} text units → ${result.outputPaths.length === 1 ? result.outputPaths[0] : `${result.outputPaths.length} files`}`)
     console.error(`  ${describeFileContext(result)}`)
