@@ -1,11 +1,11 @@
-import type { ArgsDef, CommandDef } from 'utilful/cli'
+import type { CommandDef } from 'utilful/cli'
 import type { LcfRecord } from '../codec/engine.ts'
 import type { LcfFileKind } from '../codec/formats.ts'
 import type { EngineVersion, WarningSink } from '../index.ts'
 import type { EncodingSource, EngineSource } from './resolve.ts'
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { base64ToUint8Array, uint8ArrayToBase64 } from 'uint8array-extras'
-import { commonArgs, defineCommand } from 'utilful/cli'
+import { defineCommand } from 'utilful/cli'
 import { bytesEqual } from '../codec/bytes.ts'
 import { LcfError } from '../codec/errors.ts'
 import { decodeLcfFile, encodeLcfFile, LCF_FORMATS, lcfFormatFor } from '../codec/formats.ts'
@@ -153,24 +153,15 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
   return { outputPath, format: kind, engine, engineSource, encoding, encodingSource, isByteIdentical }
 }
 
-export interface ConvertArgs extends ArgsDef {
-  input: { type: 'positional', description: string, required: true }
-  output: { type: 'string', alias: string, description: string }
-  engine: { type: 'string', description: string }
-  encoding: { type: 'string', description: string }
-  force: { type: 'boolean', description: string }
-}
-
-const convertArgs: ConvertArgs = {
-  ...commonArgs,
+const convertArgs = {
   input: { type: 'positional', description: 'Path to a .lmu/.ldb/.lmt/.lsd or .json file', required: true },
   output: { type: 'string', alias: 'o', description: 'Output path (defaults next to the input)' },
   engine: { type: 'string', description: 'Engine version: 2k or 2k3 (overrides detection)' },
   encoding: { type: 'string', description: 'Text encoding, e.g. Shift_JIS or 1252 (overrides detection)' },
   force: { type: 'boolean', description: 'Overwrite an existing JSON output (LCF targets are backed up instead)' },
-}
+} as const
 
-export const convertCommand: CommandDef<ConvertArgs> = defineCommand({
+export const convertCommand: CommandDef<typeof convertArgs> = defineCommand({
   meta: {
     name: 'convert',
     description: 'Convert an LCF file (.lmu/.ldb/.lmt/.lsd) to JSON, or a JSON document back to LCF',

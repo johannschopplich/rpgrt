@@ -1,10 +1,10 @@
-import type { ArgsDef, CommandDef } from 'utilful/cli'
+import type { CommandDef } from 'utilful/cli'
 import type { EngineVersion, WarningSink } from '../index.ts'
 import type { CollectedUnit, Dump, DumpUnit } from '../translation/units.ts'
 import type { LoadedGame } from './game.ts'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { commonArgs, defineCommand } from 'utilful/cli'
+import { defineCommand } from 'utilful/cli'
 import { LcfError } from '../codec/errors.ts'
 import { formatPoCatalog, poCatalogs } from '../translation/po.ts'
 import { collectGameUnits, loadGame, toCatalogContext } from './game.ts'
@@ -106,18 +106,7 @@ export function extractGame(directory: string, options: ExtractOptions = {}): Ex
   }
 }
 
-export interface ExtractArgs extends ArgsDef {
-  game: { type: 'positional', description: string, required: true }
-  output: { type: 'string', alias: string, description: string }
-  split: { type: 'boolean', description: string }
-  po: { type: 'boolean', description: string }
-  engine: { type: 'string', description: string }
-  encoding: { type: 'string', description: string }
-  force: { type: 'boolean', description: string }
-}
-
-const extractArgs: ExtractArgs = {
-  ...commonArgs,
+const extractArgs = {
   game: { type: 'positional', description: 'Path to the game directory (contains RPG_RT.ldb)', required: true },
   output: { type: 'string', alias: 'o', description: 'Output path (strings.json, or a directory for --split/--po)' },
   split: { type: 'boolean', description: 'Write one JSON file per game file instead of a single strings.json' },
@@ -125,9 +114,9 @@ const extractArgs: ExtractArgs = {
   engine: { type: 'string', description: 'Engine version: 2k or 2k3 (overrides detection)' },
   encoding: { type: 'string', description: 'Text encoding, e.g. Shift_JIS or 1252 (overrides detection)' },
   force: { type: 'boolean', description: 'Overwrite existing output files' },
-}
+} as const
 
-export const extractCommand: CommandDef<ExtractArgs> = defineCommand({
+export const extractCommand: CommandDef<typeof extractArgs> = defineCommand({
   meta: {
     name: 'extract',
     description: 'Extract all translatable text of a game into a dump (JSON, or PO via --po)',

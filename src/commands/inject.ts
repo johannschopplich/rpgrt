@@ -1,4 +1,4 @@
-import type { ArgsDef, CommandDef } from 'utilful/cli'
+import type { CommandDef } from 'utilful/cli'
 import type { WarningSink } from '../index.ts'
 import type { ParsedCatalog } from '../translation/inject.ts'
 import type { CollectedUnit, Dump, DumpUnit } from '../translation/units.ts'
@@ -6,7 +6,7 @@ import type { LoadedGame } from './game.ts'
 import type { EncodingSource, EngineSource } from './resolve.ts'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { commonArgs, defineCommand } from 'utilful/cli'
+import { defineCommand } from 'utilful/cli'
 import { LcfError } from '../codec/errors.ts'
 import { encodeLcfFile, lcfFormatFor } from '../codec/formats.ts'
 import { planInjection, resolvePoDumps } from '../translation/inject.ts'
@@ -194,22 +194,14 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
   }
 }
 
-export interface InjectArgs extends ArgsDef {
-  game: { type: 'positional', description: string, required: true }
-  dump: { type: 'positional', description: string, required: true }
-  engine: { type: 'string', description: string }
-  encoding: { type: 'string', description: string }
-}
-
-const injectArgs: InjectArgs = {
-  ...commonArgs,
+const injectArgs = {
   game: { type: 'positional', description: 'Path to the game directory (contains RPG_RT.ldb)', required: true },
   dump: { type: 'positional', description: 'strings.json, a .po catalog, or a directory of split dumps', required: true },
   engine: { type: 'string', description: 'Engine version: 2k or 2k3 (overrides the dump metadata)' },
   encoding: { type: 'string', description: 'Text encoding (overrides the dump metadata)' },
-}
+} as const
 
-export const injectCommand: CommandDef<InjectArgs> = defineCommand({
+export const injectCommand: CommandDef<typeof injectArgs> = defineCommand({
   meta: {
     name: 'inject',
     description: 'Write translated text units from a dump back into the game files',
