@@ -11,7 +11,7 @@ import { LcfError } from '../codec/errors.ts'
 import { decodeLcfFile, encodeLcfFile, LCF_FORMATS, lcfFormatFor } from '../codec/formats.ts'
 import { createTranscoder } from '../encoding.ts'
 import { writeFilesAtomically } from './atomic-write.ts'
-import { describeFileContext, flagHints, parseEngineFlag, resolveFileContext } from './resolve.ts'
+import { describeFileContext, flagHints, resolveFileContext } from './resolve.ts'
 
 /** The self-describing JSON document `convert` writes; converting back needs no flags. */
 interface JsonEnvelope {
@@ -36,7 +36,7 @@ export interface ConvertResult {
 
 export interface ConvertOptions {
   output?: string
-  engine?: string
+  engine?: EngineVersion
   encoding?: string
   /** Overwrite an existing JSON output (LCF targets are backed up instead). */
   isForce?: boolean
@@ -117,7 +117,7 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
 
   if (/\.json$/i.test(inputPath)) {
     const envelope = parseEnvelope(readFileSync(inputPath, 'utf8'), inputPath)
-    const engine = options.engine === undefined ? envelope.engine : parseEngineFlag(options.engine)
+    const engine = options.engine ?? envelope.engine
     const encoding = options.encoding ?? envelope.encoding
     const outputPath = options.output ?? lcfOutputPath(inputPath, envelope.format)
     const bytes = encodeLcf(envelope.data, envelope.format, engine, encoding)
@@ -156,7 +156,7 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
 const convertArgs = {
   input: { type: 'positional', description: 'Path to a .lmu/.ldb/.lmt/.lsd or .json file', required: true },
   output: { type: 'string', alias: 'o', description: 'Output path (defaults next to the input)' },
-  engine: { type: 'string', description: 'Engine version: 2k or 2k3 (overrides detection)' },
+  engine: { type: 'enum', options: ['2k', '2k3'], description: 'Engine version (overrides detection)' },
   encoding: { type: 'string', description: 'Text encoding, e.g. Shift_JIS or 1252 (overrides detection)' },
   force: { type: 'boolean', description: 'Overwrite an existing JSON output (LCF targets are backed up instead)' },
 } as const

@@ -5,7 +5,6 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { bytesEqual } from '../codec/bytes.ts'
 import { collectDatabaseSampleBytes, collectStringBytes } from '../codec/detection-sample.ts'
-import { LcfError } from '../codec/errors.ts'
 import { decodeLcfFile, encodeLcfFile, LCF_FORMATS } from '../codec/formats.ts'
 import { ByteReader, readChunkStream } from '../codec/reader.ts'
 import { createTranscoder, detectEncoding, encodingFromIni, isKnownEncoding } from '../encoding.ts'
@@ -94,17 +93,11 @@ function reencodesIdentically(bytes: Uint8Array, kind: LcfFileKind, engine: Engi
   }
 }
 
-export function parseEngineFlag(engineFlag: string): EngineVersion {
-  if (engineFlag !== '2k' && engineFlag !== '2k3')
-    throw new LcfError(`Unknown engine ${JSON.stringify(engineFlag)} – expected 2k or 2k3`)
-  return engineFlag
-}
-
 export type HintSource = 'flag' | 'dump'
 
 /** An engine or encoding the caller already knows, with its provenance for reporting. */
 export interface EngineHint {
-  engine: string
+  engine: EngineVersion
   source: HintSource
 }
 
@@ -121,7 +114,7 @@ export interface ResolveInputs {
 }
 
 /** The common case: hints from optional --engine/--encoding flag values. */
-export function flagHints(engineFlag?: string, encodingFlag?: string): Pick<ResolveInputs, 'engineHint' | 'encodingHint'> {
+export function flagHints(engineFlag?: EngineVersion, encodingFlag?: string): Pick<ResolveInputs, 'engineHint' | 'encodingHint'> {
   return {
     engineHint: engineFlag === undefined ? undefined : { engine: engineFlag, source: 'flag' },
     encodingHint: encodingFlag === undefined ? undefined : { encoding: encodingFlag, source: 'flag' },
@@ -138,7 +131,7 @@ export function flagHints(engineFlag?: string, encodingFlag?: string): Pick<Reso
 function decideEngine(inputs: { engineHint?: EngineHint, kind: LcfFileKind, bytes: Uint8Array, databaseBytes?: Uint8Array, onWarning?: WarningSink }): ResolvedEngine {
   const { engineHint, kind, bytes, databaseBytes, onWarning } = inputs
   if (engineHint !== undefined)
-    return { engine: parseEngineFlag(engineHint.engine), engineSource: engineHint.source }
+    return { engine: engineHint.engine, engineSource: engineHint.source }
   if (databaseBytes !== undefined) {
     // A corrupt sibling database must not take down the file it sits next to.
     try {

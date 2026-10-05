@@ -16,7 +16,7 @@ export interface ExtractOptions {
   output?: string
   isSplit?: boolean
   isPo?: boolean
-  engine?: string
+  engine?: EngineVersion
   encoding?: string
   /** Overwrite existing output files. */
   isForce?: boolean
@@ -111,7 +111,7 @@ const extractArgs = {
   output: { type: 'string', alias: 'o', description: 'Output path (strings.json, or a directory for --split/--po)' },
   split: { type: 'boolean', description: 'Write one JSON file per game file instead of a single strings.json' },
   po: { type: 'boolean', description: 'Write lcftrans-compatible PO catalogs instead of JSON' },
-  engine: { type: 'string', description: 'Engine version: 2k or 2k3 (overrides detection)' },
+  engine: { type: 'enum', options: ['2k', '2k3'], description: 'Engine version (overrides detection)' },
   encoding: { type: 'string', description: 'Text encoding, e.g. Shift_JIS or 1252 (overrides detection)' },
   force: { type: 'boolean', description: 'Overwrite existing output files' },
 } as const

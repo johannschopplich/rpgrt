@@ -1,5 +1,5 @@
 import type { CommandDef } from 'utilful/cli'
-import type { WarningSink } from '../index.ts'
+import type { EngineVersion, WarningSink } from '../index.ts'
 import type { ParsedCatalog } from '../translation/inject.ts'
 import type { CollectedUnit, Dump, DumpUnit } from '../translation/units.ts'
 import type { LoadedGame } from './game.ts'
@@ -16,7 +16,7 @@ import { collectGameUnits, loadGame, toCatalogContext, withFileContext } from '.
 import { describeFileContext, flagHints } from './resolve.ts'
 
 export interface InjectOptions {
-  engine?: string
+  engine?: EngineVersion
   encoding?: string
   onWarning?: WarningSink
 }
@@ -197,7 +197,7 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
 const injectArgs = {
   game: { type: 'positional', description: 'Path to the game directory (contains RPG_RT.ldb)', required: true },
   dump: { type: 'positional', description: 'strings.json, a .po catalog, or a directory of split dumps', required: true },
-  engine: { type: 'string', description: 'Engine version: 2k or 2k3 (overrides the dump metadata)' },
+  engine: { type: 'enum', options: ['2k', '2k3'], description: 'Engine version (overrides the dump metadata)' },
   encoding: { type: 'string', description: 'Text encoding (overrides the dump metadata)' },
 } as const
 

@@ -57,11 +57,6 @@ describe('engine resolution', () => {
     const context = resolveFileContext(join(directory, 'Map0001.lmu'), new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF]), 'lmu')
     expect(context).toMatchObject({ engine: '2k3', engineSource: 'fallback' })
   })
-
-  it('rejects an unknown engine hint', () => {
-    const directory = createDirectory()
-    expect(() => resolveFileContext(join(directory, 'Map0001.lmu'), map2kBytes(), 'lmu', flagHints('sega'))).toThrow('Unknown engine')
-  })
 })
 
 describe('encoding resolution', () => {

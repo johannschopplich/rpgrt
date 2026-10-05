@@ -14,5 +14,15 @@ describe('rpgrt CLI', () => {
       expect(exitCode).toBe(1)
       expect(stderr).toContain('"b.lmu"')
     })
+
+    it.each([
+      ['convert', 'file.lmu'],
+      ['extract', 'game'],
+      ['inject', 'game', 'strings.json'],
+    ])('%s rejects an unknown --engine, listing 2k and 2k3', async (...argv) => {
+      const { stderr, exitCode } = await runCli([...argv, '--engine', 'sega'])
+      expect(exitCode).toBe(1)
+      expect(stderr).toContain('Invalid value for --engine: "sega". Expected one of: 2k, 2k3')
+    })
   })
 })
