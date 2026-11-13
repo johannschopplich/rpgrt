@@ -70,8 +70,7 @@ function createContext(options: CodecOptions): CodecContext {
 
 /**
  * Only the header length is load-bearing; edited-header games circulate, so a
- * same-length mismatch warns and is preserved for write-back instead of
- * failing – mirroring liblcf's warn-and-preserve behavior.
+ * same-length mismatch warns instead of failing, like liblcf.
  */
 function readHeader(reader: ByteReader, magic: string, options: CodecOptions): string | undefined {
   const length = reader.readBerUnsigned()
