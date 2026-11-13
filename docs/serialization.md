@@ -136,7 +136,7 @@ A size row shares the **field name** with its data row but has a **different (sm
 - **SizeField** (`reader_struct.h:487-518`): the size chunk payload = **byte size of the paired data field's payload** (BER int of `TypeReader<T>::LcfSize`). Used for `Vector<UInt8>`, `Vector<EventCommand>`, `DBBitArray`, `Vector<MoveCommand>` size rows.
 - **CountField** (`reader_struct.h:524-537`): payload = **element count** (`.size()`) as BER int. Used for `Count<Vector<Int16>>` etc. (System party/menu_commands).
 - **Reader ignores the value**: `SizeField::ReadLcf` reads a dummy int32 and discards it (`reader_struct.h:491-494`); the actual element count is always recovered from the DATA chunk's own length. Size/count chunks exist purely for RPG_RT write-compatibility.
-- Emission: because the size ID < data ID, ascending-ID write order (§8) naturally puts the size chunk immediately before its data chunk.
+- Emission: a size row and its data row sit in the same CSV, where table order (§8) is ascending chunk ID, so the size chunk lands immediately before its data chunk.
 
 ---
 
