@@ -149,7 +149,15 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
   // Probe through the serialized text, not the in-memory record – JSON has no
   // NaN, so only re-parsing sees what a reader of the document will get.
   const reparsedEnvelope = parseEnvelope(jsonText, outputPath)
-  const isByteIdentical = bytesEqual(encodeLcf(reparsedEnvelope.data, kind, engine, encoding), bytes)
+  // Text the encoding cannot carry back (e.g. a U+FFFD from an invalid
+  // byte sequence) makes the probe's encode throw – not byte-identical either.
+  let isByteIdentical: boolean
+  try {
+    isByteIdentical = bytesEqual(encodeLcf(reparsedEnvelope.data, kind, engine, encoding), bytes)
+  }
+  catch {
+    isByteIdentical = false
+  }
   return { outputPath, format: kind, engine, engineSource, encoding, encodingSource, isByteIdentical }
 }
 

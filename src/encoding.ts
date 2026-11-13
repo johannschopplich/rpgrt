@@ -61,22 +61,44 @@ export function createTranscoder(encoding: string): Transcoder {
       },
       encode(text) {
         const bytes = new Uint8Array(text.length)
-        for (let index = 0; index < text.length; index++)
-          bytes[index] = table.byteForChar.get(text[index]!) ?? 0x3F
+        for (let index = 0; index < text.length; index++) {
+          const byte = table.byteForChar.get(text[index]!)
+          if (byte === undefined)
+            throw unrepresentableError(text[index]!, encoding)
+          bytes[index] = byte
+        }
         return bytes
       },
     }
   }
   const knownEncoding = encoding as Parameters<typeof iconv.decode>[1]
+  const roundTrips = (text: string): boolean => iconv.decode(iconv.encode(text, knownEncoding), knownEncoding) === text
   return {
     decode: bytes => iconv.decode(bytes, knownEncoding),
-    encode: text => iconv.encode(text, knownEncoding),
+    // iconv-lite substitutes `?` for an unmappable character; the read-back
+    // check turns that into an error instead of silent data loss.
+    encode(text) {
+      const bytes = iconv.encode(text, knownEncoding)
+      if (iconv.decode(bytes, knownEncoding) !== text)
+        throw unrepresentableError([...text].find(char => !roundTrips(char)), encoding)
+      return bytes
+    },
   }
+}
+
+function unrepresentableError(char: string | undefined, encoding: string): LcfError {
+  const subject = char === undefined ? 'Text' : `Character ${JSON.stringify(char)}`
+  return new LcfError(`${subject} is not representable in ${encoding}`)
 }
 
 function isLosslessFor(encoding: string, bytes: Uint8Array): boolean {
   const transcoder = createTranscoder(encoding)
-  return bytesEqual(transcoder.encode(transcoder.decode(bytes)), bytes)
+  try {
+    return bytesEqual(transcoder.encode(transcoder.decode(bytes)), bytes)
+  }
+  catch {
+    return false
+  }
 }
 
 /** EasyRPG writes either an encoding name or a Windows code page number. */

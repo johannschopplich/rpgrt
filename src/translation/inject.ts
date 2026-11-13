@@ -152,10 +152,16 @@ function validateTranslation(unit: DumpUnit, collectedUnit: CollectedUnit, conte
   const codeDifference = controlCodeDifference(collectedUnit.source, unit.translation)
   if (codeDifference !== undefined)
     return { abortReason: `${unit.address}: translation changes control codes (${codeDifference}) – mark the entry fuzzy to skip it` }
-  for (const line of lines) {
-    if (context.transcoder.decode(context.transcoder.encode(line)) !== line)
-      return { abortReason: `${unit.address}: translation is not representable in ${context.encoding}` }
+  const isRepresentable = (line: string): boolean => {
+    try {
+      return context.transcoder.decode(context.transcoder.encode(line)) === line
+    }
+    catch {
+      return false
+    }
   }
+  if (!lines.every(isRepresentable))
+    return { abortReason: `${unit.address}: translation is not representable in ${context.encoding}` }
   // The reference address is the primary key, so an edited msgid or a drifted
   // game must not abort – but silent divergence would hide a stale dump.
   if (unit.source !== collectedUnit.source)

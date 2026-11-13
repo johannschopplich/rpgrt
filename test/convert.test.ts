@@ -1,5 +1,5 @@
 import type { Database, MapUnit, Save } from '../src/index.ts'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -96,6 +96,27 @@ describe('convert lcf → json → lcf', () => {
     expect(readFileSync(toJson.outputPath, 'utf8')).toContain('"AQID"')
     const toLcf = convertFile(toJson.outputPath, { output: join(directory, 'rebuilt.lmu') })
     expect(new Uint8Array(readFileSync(toLcf.outputPath))).toEqual(sourceBytes)
+  })
+
+  it('refuses to write a json document whose text the encoding cannot represent', () => {
+    const directory = createGameDirectory()
+    const mapPath = join(directory, 'Map0001.lmu')
+    writeFileSync(mapPath, encodeMapUnit(mapUnitWithEventName('cafe'), { engine: '2k3' }))
+    const toJson = convertFile(mapPath, { engine: '2k3', encoding: 'cp1252' })
+    const envelope = JSON.parse(readFileSync(toJson.outputPath, 'utf8'))
+    envelope.data.events[0].name = 'cafあ'
+    writeFileSync(toJson.outputPath, JSON.stringify(envelope))
+    const outputPath = join(directory, 'rebuilt.lmu')
+    expect(() => convertFile(toJson.outputPath, { output: outputPath })).toThrow(LcfError)
+    expect(existsSync(outputPath)).toBe(false)
+  })
+
+  it('reports text the encoding cannot carry back as not byte-identical', () => {
+    const directory = createGameDirectory()
+    const mapPath = join(directory, 'Map0001.lmu')
+    // 0x81 0x20 is no valid Shift_JIS sequence, so it decodes to U+FFFD.
+    writeFileSync(mapPath, encodeMapUnit(mapUnitWithEventName('\x81\x20'), { engine: '2k3' }))
+    expect(convertFile(mapPath, { engine: '2k3', encoding: 'cp932' })).toMatchObject({ isByteIdentical: false })
   })
 
   it('honors --engine and --encoding overrides over the envelope', () => {

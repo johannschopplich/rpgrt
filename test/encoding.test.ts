@@ -21,6 +21,11 @@ describe('createTranscoder', () => {
     expect(() => createTranscoder('klingon-8')).toThrow(LcfError)
   })
 
+  it('throws on a character the encoding cannot represent instead of writing ?', () => {
+    expect(() => createTranscoder('windows-1252').encode('cafあ')).toThrow(LcfError)
+    expect(() => createTranscoder('Shift_JIS').encode('é')).toThrow(LcfError)
+  })
+
   it('round-trips every byte value through a single-byte encoding', () => {
     const allBytes = Uint8Array.from({ length: 256 }, (_, index) => index)
     for (const encoding of ['windows-1252', 'ISO-8859-2', 'cp1250']) {
@@ -61,6 +66,13 @@ describe('detectEncoding', () => {
     const text = 'Käse und Brot für die Mönche im Gewölbe. Grüße aus dem Schloß. '.repeat(6)
     const bytes = createTranscoder('windows-1252').encode(text)
     expect(detectEncoding(bytes)).toBe('windows-1252')
+  })
+
+  it('passes over a multi-byte verdict the sample does not round-trip through', () => {
+    const japaneseBytes = createTranscoder('Shift_JIS').encode('勇者は旅立った。魔王の城は北にある。伝説の剣を探せ。'.repeat(4))
+    // 0x81 0x20 is no valid Shift_JIS sequence.
+    const bytes = Uint8Array.of(...japaneseBytes, 0x81, 0x20)
+    expect(detectEncoding(bytes)).not.toBe('cp932')
   })
 
   it('survives a short sample by tiling it', () => {
