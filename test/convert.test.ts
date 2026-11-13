@@ -125,7 +125,7 @@ describe('convert lcf → json → lcf', () => {
     writeFileSync(mapPath, encodeMapUnit(defaultRecord('MapUnit', '2k') as unknown as MapUnit, { engine: '2k' }))
     const toJson = convertFile(mapPath, { engine: '2k', encoding: 'cp932' })
     expect(toJson).toMatchObject({ engineSource: 'flag', encoding: 'cp932', encodingSource: 'flag' })
-    const toLcf = convertFile(toJson.outputPath, { engine: '2k', encoding: 'cp1252', output: join(directory, 'rebuilt.lmu') })
+    const toLcf = convertFile(toJson.outputPath, { engine: '2k', encoding: 'windows-1252', output: join(directory, 'rebuilt.lmu') })
     expect(toLcf).toMatchObject({ engineSource: 'flag', encoding: 'cp1252', encodingSource: 'flag' })
   })
 })

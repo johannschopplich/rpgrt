@@ -198,6 +198,19 @@ describe('inject', () => {
     expect(afterDump.units.find(unit => unit.address === 'ldb/actors/1/name')?.source).toBe('Kate')
   })
 
+  it('accepts split dumps that spell one codepage two ways', () => {
+    const gameDirectory = createGameDirectory()
+    const splitDirectory = join(createDirectory(), 'strings')
+    extractGame(gameDirectory, { output: splitDirectory, isSplit: true })
+    const dumpPath = join(splitDirectory, 'RPG_RT.ldb.json')
+    const dump = readDump(dumpPath)
+    dump.encoding = 'windows-1252'
+    setTranslation(dump, 'ldb/actors/1/name', 'Kate')
+    writeFileSync(dumpPath, JSON.stringify(dump))
+
+    expect(injectDump(gameDirectory, splitDirectory).writtenFileNames).toEqual(['RPG_RT.ldb'])
+  })
+
   it.each([
     ['unknown address', 'ldb/actors/99/name', 'Ghost', 'no such unit'],
     ['unencodable text', 'ldb/actors/1/name', 'こんにちは', 'not representable'],

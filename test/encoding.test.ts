@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { collectStringBytes } from '../src/codec/detection-sample.ts'
-import { createTranscoder, detectEncoding, encodingFromIni } from '../src/encoding.ts'
+import { canonicalEncodingName, createTranscoder, detectEncoding, encodingFromIni } from '../src/encoding.ts'
 import { latin1Transcoder, LcfError } from '../src/index.ts'
 
 describe('createTranscoder', () => {
@@ -35,6 +35,18 @@ describe('createTranscoder', () => {
   })
 })
 
+describe('canonicalEncodingName', () => {
+  it.each([
+    ['1252', 'cp1252'],
+    ['windows-1252', 'cp1252'],
+    ['Shift_JIS', 'cp932'],
+    ['ISO-8859-2', 'ISO-8859-2'],
+    ['klingon-8', 'klingon-8'],
+  ])('converts %s to %s', (encoding, expectedName) => {
+    expect(canonicalEncodingName(encoding)).toBe(expectedName)
+  })
+})
+
 describe('encodingFromIni', () => {
   it('reads the EasyRPG section and normalizes code page numbers', () => {
     const iniText = '[RPG_RT]\nGameTitle=Test\n\n[EasyRPG]\nEncoding=932\n'
@@ -62,10 +74,10 @@ describe('detectEncoding', () => {
     expect(detectEncoding(new Uint8Array())).toBeUndefined()
   })
 
-  it('detects Western text as windows-1252, never an ISO variant', () => {
+  it('detects Western text as cp1252, never an ISO variant', () => {
     const text = 'Käse und Brot für die Mönche im Gewölbe. Grüße aus dem Schloß. '.repeat(6)
     const bytes = createTranscoder('windows-1252').encode(text)
-    expect(detectEncoding(bytes)).toBe('windows-1252')
+    expect(detectEncoding(bytes)).toBe('cp1252')
   })
 
   it('passes over a multi-byte verdict the sample does not round-trip through', () => {

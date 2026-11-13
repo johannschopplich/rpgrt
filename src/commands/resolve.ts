@@ -7,7 +7,7 @@ import { bytesEqual } from '../codec/bytes.ts'
 import { collectDatabaseSampleBytes, collectStringBytes } from '../codec/detection-sample.ts'
 import { decodeLcfFile, encodeLcfFile, LCF_FORMATS } from '../codec/formats.ts'
 import { ByteReader, readChunkStream } from '../codec/reader.ts'
-import { createTranscoder, detectEncoding, encodingFromIni, isKnownEncoding } from '../encoding.ts'
+import { canonicalEncodingName, createTranscoder, detectEncoding, encodingFromIni, isKnownEncoding } from '../encoding.ts'
 import { RECORD_DESCRIPTORS } from '../generated/descriptors.ts'
 import { decodeDatabase, decodeSave } from '../index.ts'
 
@@ -48,7 +48,7 @@ export function describeFileContext(context: { engine: EngineVersion, engineSour
   return `engine ${context.engine} (${ENGINE_SOURCE_LABELS[context.engineSource]}), encoding ${context.encoding} (${ENCODING_SOURCE_LABELS[context.encodingSource]})`
 }
 
-export const FALLBACK_ENCODING = 'windows-1252'
+export const FALLBACK_ENCODING = 'cp1252'
 
 /** Case-insensitive sibling lookup – game folders mix RPG_RT.ldb and rpg_rt.ldb in the wild. */
 function findSibling(filePath: string, siblingName: string): string | undefined {
@@ -153,7 +153,7 @@ function decideEngine(inputs: { engineHint?: EngineHint, kind: LcfFileKind, byte
  * Precedence ladder for the encoding: an explicit (validated) hint, then the
  * codepage an EasyRPG save carries for its own text, then the `Encoding` hint
  * in RPG_RT.ini, then charset detection over a string sample, then
- * windows-1252. An unusable save or ini hint warns and falls through instead
+ * Windows-1252. An unusable save or ini hint warns and falls through instead
  * of failing – detection is still available.
  */
 function decideEncoding(inputs: { encodingHint?: EncodingHint, getSaveCodepage?: () => number | undefined, iniText?: string, getSampleBytes?: () => Uint8Array | undefined, onWarning?: WarningSink }): ResolvedEncoding {
@@ -207,7 +207,7 @@ export function resolveFileContext(filePath: string, bytes: Uint8Array, kind: Lc
     getSampleBytes: () => collectDetectionSample(bytes, kind, resolvedEngine.engine, databaseBytes),
     onWarning: inputs.onWarning,
   })
-  return { ...resolvedEngine, ...resolvedEncoding }
+  return { ...resolvedEngine, encoding: canonicalEncodingName(resolvedEncoding.encoding), encodingSource: resolvedEncoding.encodingSource }
 }
 
 /** EasyRPG Player records the codepage its save text was written with. */

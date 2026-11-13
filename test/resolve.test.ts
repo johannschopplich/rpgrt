@@ -63,7 +63,7 @@ describe('encoding resolution', () => {
   it('lets the flag hint win over an ini hint and validates it', () => {
     const directory = createDirectory()
     writeFileSync(join(directory, 'RPG_RT.ini'), '[EasyRPG]\nEncoding=932\n')
-    const context = resolveFileContext(join(directory, 'RPG_RT.ldb'), database2k3Bytes(), 'ldb', flagHints(undefined, 'cp1252'))
+    const context = resolveFileContext(join(directory, 'RPG_RT.ldb'), database2k3Bytes(), 'ldb', flagHints(undefined, 'windows-1252'))
     expect(context).toMatchObject({ encoding: 'cp1252', encodingSource: 'flag' })
   })
 
@@ -85,13 +85,13 @@ describe('encoding resolution', () => {
     expect(context).toMatchObject({ encoding: 'cp932', encodingSource: 'detected' })
   })
 
-  it('falls back to windows-1252 with a warning when nothing decides', () => {
+  it('falls back to cp1252 with a warning when nothing decides', () => {
     // A default map carries no strings at all, so the detection sample is empty.
     const directory = createDirectory()
     const warnings: string[] = []
     const context = resolveFileContext(join(directory, 'Map0001.lmu'), map2kBytes(), 'lmu', { onWarning: message => warnings.push(message) })
-    expect(context).toMatchObject({ encoding: 'windows-1252', encodingSource: 'fallback' })
-    expect(warnings).toContainEqual(expect.stringContaining('windows-1252'))
+    expect(context).toMatchObject({ encoding: 'cp1252', encodingSource: 'fallback' })
+    expect(warnings).toContainEqual(expect.stringContaining('cp1252'))
   })
 
   it('prefers the codepage an EasyRPG save carries over every non-flag rung', () => {

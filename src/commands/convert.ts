@@ -9,7 +9,7 @@ import { defineCommand, log } from 'utilful/cli'
 import { bytesEqual } from '../codec/bytes.ts'
 import { LcfError } from '../codec/errors.ts'
 import { decodeLcfFile, encodeLcfFile, LCF_FORMATS, lcfFormatFor } from '../codec/formats.ts'
-import { createTranscoder } from '../encoding.ts'
+import { canonicalEncodingName, createTranscoder } from '../encoding.ts'
 import { writeFilesAtomically } from './atomic-write.ts'
 import { describeFileContext, flagHints, resolveFileContext } from './resolve.ts'
 
@@ -130,7 +130,7 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
       format: envelope.format,
       engine,
       engineSource: options.engine === undefined ? 'envelope' : 'flag',
-      encoding,
+      encoding: canonicalEncodingName(encoding),
       encodingSource: options.encoding === undefined ? 'envelope' : 'flag',
     }
   }

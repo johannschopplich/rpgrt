@@ -9,6 +9,7 @@ import { basename, join } from 'node:path'
 import { defineCommand, log } from 'utilful/cli'
 import { LcfError } from '../codec/errors.ts'
 import { encodeLcfFile, lcfFormatFor } from '../codec/formats.ts'
+import { canonicalEncodingName } from '../encoding.ts'
 import { planInjection, resolvePoDumps } from '../translation/inject.ts'
 import { parsePoCatalog } from '../translation/po.ts'
 import { writeFilesAtomically } from './atomic-write.ts'
@@ -82,7 +83,7 @@ function readJsonDumps(filePaths: string[], dumpPath: string): Dump[] {
     return dump as Dump
   })
   for (const dump of dumps) {
-    if (dump.engine !== dumps[0]!.engine || dump.encoding !== dumps[0]!.encoding)
+    if (dump.engine !== dumps[0]!.engine || canonicalEncodingName(dump.encoding) !== canonicalEncodingName(dumps[0]!.encoding))
       throw new LcfError(`Dumps in ${dumpPath} disagree on engine or encoding (${dumps[0]!.engine}/${dumps[0]!.encoding} vs ${dump.engine}/${dump.encoding}) – re-extract them together`)
   }
   return dumps

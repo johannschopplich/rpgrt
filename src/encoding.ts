@@ -46,6 +46,16 @@ export function isKnownEncoding(encoding: string): boolean {
   return iconv.encodingExists(encoding)
 }
 
+const WINDOWS_CODE_PAGE_NAMES = ['cp874', 'cp932', 'cp936', 'cp949', 'cp950', 'cp1250', 'cp1251', 'cp1252', 'cp1253', 'cp1254', 'cp1255', 'cp1256', 'cp1257', 'cp1258']
+
+/** Maps a Windows code page to its `cp<N>` name, so `1252`, `windows-1252`, and `cp1252` record alike. */
+export function canonicalEncodingName(encoding: string): string {
+  if (!iconv.encodingExists(encoding))
+    return encoding
+  const codec = iconv.getCodec(encoding)
+  return WINDOWS_CODE_PAGE_NAMES.find(name => iconv.getCodec(name) === codec) ?? encoding
+}
+
 /** The encoding name follows iconv-lite naming. */
 export function createTranscoder(encoding: string): Transcoder {
   if (!iconv.encodingExists(encoding))
@@ -134,12 +144,12 @@ const DETECTED_ENCODING_NORMALIZATION: Record<string, string> = {
   'Shift_JIS': 'cp932',
   'EUC-KR': 'cp949',
   'GB18030': 'cp936',
-  'ISO-8859-1': 'windows-1252',
-  'ISO-8859-2': 'windows-1250',
-  'ISO-8859-5': 'windows-1251',
-  'ISO-8859-6': 'windows-1256',
-  'ISO-8859-7': 'windows-1253',
-  'ISO-8859-8': 'windows-1255',
+  'ISO-8859-1': 'cp1252',
+  'ISO-8859-2': 'cp1250',
+  'ISO-8859-5': 'cp1251',
+  'ISO-8859-6': 'cp1256',
+  'ISO-8859-7': 'cp1253',
+  'ISO-8859-8': 'cp1255',
 }
 
 /** Verdicts that are never right for a legacy game file. */
