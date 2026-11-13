@@ -98,7 +98,7 @@ describe('convert lcf → json → lcf', () => {
     expect(new Uint8Array(readFileSync(toLcf.outputPath))).toEqual(sourceBytes)
   })
 
-  it('refuses to write a json document whose text the encoding cannot represent', () => {
+  it('throws without writing the lmu for json text cp1252 cannot represent', () => {
     const directory = createGameDirectory()
     const mapPath = join(directory, 'Map0001.lmu')
     writeFileSync(mapPath, encodeMapUnit(mapUnitWithEventName('cafe'), { engine: '2k3' }))

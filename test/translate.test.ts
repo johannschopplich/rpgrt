@@ -213,7 +213,7 @@ describe('inject', () => {
 
   it.each([
     ['unknown address', 'ldb/actors/99/name', 'Ghost', 'no such unit'],
-    ['unencodable text', 'ldb/actors/1/name', 'こんにちは', 'not representable'],
+    ['unencodable text', 'ldb/actors/1/name', 'こんにちは', 'ldb/actors/1/name: translation is not representable'],
     ['wrong choice line count', 'lmu/1/events/1/pages/1/commands/2', 'OnlyOne', 'exactly 2 required'],
   ])('aborts without writing on %s', (_label, address, translation, expectedMessage) => {
     const gameDirectory = createGameDirectory()

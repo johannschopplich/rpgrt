@@ -84,7 +84,7 @@ describe('detectEncoding', () => {
     expect(detectEncoding(bytes)).toBe('cp1252')
   })
 
-  it('passes over a multi-byte verdict the sample does not round-trip through', () => {
+  it('rejects cp932 for a Shift_JIS sample with an invalid trailing sequence', () => {
     const japaneseBytes = createTranscoder('Shift_JIS').encode('勇者は旅立った。魔王の城は北にある。伝説の剣を探せ。'.repeat(4))
     // 0x81 0x20 is no valid Shift_JIS sequence.
     const bytes = Uint8Array.of(...japaneseBytes, 0x81, 0x20)
