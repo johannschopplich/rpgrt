@@ -135,6 +135,11 @@ describe('engine detection from the database', () => {
     const bytes = encodeDatabase(defaultRecord('Database', engine) as unknown as Database, { engine })
     expect(scanDatabaseEngine(bytes)).toBe(engine)
   })
+
+  it('scans a 2k database carrying the version chunk as 2k', () => {
+    const database = { ...defaultRecord('Database', '2k'), version: 1 } as unknown as Database
+    expect(scanDatabaseEngine(encodeDatabase(database, { engine: '2k' }))).toBe('2k')
+  })
 })
 
 describe('convert errors', () => {
