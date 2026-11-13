@@ -15,7 +15,7 @@ Turn RPG Maker 2000/2003 games into diffable JSON and back – byte for byte, in
 
 RPG Maker 2000/2003 games – *Yume Nikki*, *OFF*, *Ib*, and thousands of freeware classics – store everything in the binary LCF format: maps (`Map0001.lmu`), the database (`RPG_RT.ldb`), the map tree (`RPG_RT.lmt`), and save files (`Save01.lsd`). The only production-grade implementation has been [EasyRPG's liblcf](https://github.com/EasyRPG/liblcf) – C++, a native build toolchain between you and the data, and XML as the only text output. rpgrt reimplements the format in isomorphic TypeScript (`Uint8Array` core, browser-safe, no native builds): LCF in, typed records or diffable JSON out, and the *same bytes* back.
 
-It's built for translation work – including the step no open tool covers: writing translations back. [lcftrans](https://easyrpg.org/player/guide/game_translation/) extracts to PO, but those catalogs are only loaded at runtime by EasyRPG Player – the game files themselves stay untranslated. rpgrt closes the loop: `extract` pulls every message, choice, hero name, and database string into one dump with stable addresses, and `inject` validates the translated dump in memory – line counts, control codes, encodability – and writes it into the actual `.lmu`/`.ldb`/`.lmt` files, all-or-nothing. PO export follows lcftrans catalog naming, so gettext editors and EasyRPG Player's translation workflow line up.
+It is built for translation work – including the step no open tool covers: writing translations back. [lcftrans](https://easyrpg.org/player/guide/game_translation/) extracts to PO, but those catalogs are only loaded at runtime by EasyRPG Player – the game files themselves stay untranslated. rpgrt closes the loop: `extract` pulls messages, choices, hero names, and database strings into one dump with stable addresses, and `inject` validates the translated dump in memory – line counts, control codes, encodability – and writes it into the actual `.lmu`/`.ldb`/`.lmt` files, all-or-nothing. PO export follows lcftrans catalog naming, so gettext editors and EasyRPG Player's translation workflow line up.
 
 ## When to Use
 
@@ -24,11 +24,11 @@ It's built for translation work – including the step no open tool covers: writ
 | Turn an LCF file into readable, diffable JSON | `convert Map0001.lmu` |
 | Turn edited JSON back into a game file | `convert Map0001.lmu.json` |
 | Inspect or edit a save file | `convert Save01.lsd` |
-| Dump every translatable string of a game | `extract ./game` |
+| Dump the translatable text of a game | `extract ./game` |
 | Get one dump per game file instead of one big one | `extract --split` |
 | Translate with Poedit/Weblate or lcftrans tooling | `extract --po` |
 | Write my translated dump back into the game | `inject ./game strings.json` (JSON or PO) |
-| Fix a wrong engine or codepage guess | `--engine 2k3`, `--encoding 932` |
+| Fix a wrong engine or encoding guess | `--engine 2k3`, `--encoding 932` |
 
 ## Installation
 
@@ -63,13 +63,14 @@ Options:
       --force            convert/extract: overwrite existing output files
       --engine <2k|2k3>  Override engine detection
       --encoding <name>  Override encoding detection (e.g. Shift_JIS or 932)
+      --verbose          Print the stack trace on failure
 ```
 
 Engine and encoding are detected per game – from `RPG_RT.ldb`, the `Encoding` key in `RPG_RT.ini`, or charset detection over the game's text – and every command reports what it picked and why. The flags override detection when it guesses wrong.
 
 ## Usage
 
-### LCF ⇄ JSON
+### Convert LCF to JSON and Back
 
 `convert` writes a self-describing envelope – format, engine, and encoding travel with the data, so converting back needs no flags:
 
@@ -78,7 +79,7 @@ Engine and encoding are detected per game – from `RPG_RT.ldb`, the `Encoding` 
 {
   "format": "lmu",
   "engine": "2k",
-  "encoding": "Shift_JIS",
+  "encoding": "cp932",
   "data": {
     "events": [
       { "id": 1, "name": "guard", "x": 3, "y": 4, "pages": [/* … */] }
@@ -88,9 +89,9 @@ Engine and encoding are detected per game – from `RPG_RT.ldb`, the `Encoding` 
 }
 ```
 
-Edit anything – event commands, terrain, database records – and convert back. EasyRPG Player / ManiacPatch extension chunks are typed fields like everything else; chunks rpgrt genuinely doesn't know (corrupt leftovers, exotic patches) are carried through as base64 under `_unknown` and written back verbatim. If a file wouldn't survive the round trip byte for byte, `convert` says so up front instead of letting you find out after editing. Converting JSON back over an existing game file moves the previous bytes to `<file>.rpgrt-bak` first; overwriting an existing JSON output needs `--force`.
+Edit anything – event commands, terrain, database records – and convert back. EasyRPG Player / ManiacPatch extension chunks are typed fields like everything else; chunks rpgrt does not know (corrupt leftovers, exotic patches) are carried through as base64 under `_unknown` and written back verbatim. If a file would not survive the round trip byte for byte, `convert` says so up front instead of letting you find out after editing. Converting JSON back over an existing game file moves the previous bytes to `<file>.rpgrt-bak` first. The backup holds only the bytes of the last overwrite, so copy the original elsewhere before you convert back twice. Overwriting an existing JSON output needs `--force`.
 
-### Extract → translate → inject
+### Extract, Translate, and Inject
 
 `extract` walks the whole game directory and pulls every text unit into one dump. Multi-line messages are one unit, choices keep their option lines together, and control codes like `\c[3]` stay verbatim:
 
@@ -98,7 +99,7 @@ Edit anything – event commands, terrain, database records – and convert back
 // strings.json
 {
   "engine": "2k",
-  "encoding": "Shift_JIS",
+  "encoding": "cp932",
   "units": [
     {
       "address": "lmu/1/events/1/pages/1/commands/0",
@@ -127,16 +128,15 @@ npx rpgrt inject ./game strings.json
 
 Messages may grow or shrink lines freely; a choice must keep exactly its option count, and `inject` tells you which unit breaks the rule.
 
-> [!TIP]
-> For large games, `extract --split` writes one dump per game file (`strings/Map0001.lmu.json`, …) so translators can work in parallel. `inject` accepts the directory just the same.
+For a large game, `extract --split` writes one dump per game file (`strings/Map0001.lmu.json`, …) so translators can work in parallel. `inject` accepts the directory just the same.
 
-### PO catalogs for gettext tools
+### Translate With PO Catalogs
 
 ```bash
 npx rpgrt extract ./game --po -o po
 ```
 
-This writes the same catalogs lcftrans produces – `RPG_RT.ldb.po` (database terms), `RPG_RT.ldb.common.po` (common events), `RPG_RT.ldb.battle.po` (battle events), `RPG_RT.lmt.po` (map names), and one `Map####.po` per map – with lcftrans-style `msgctxt`, `#.` location comments, and a `#: <address>` reference per occurrence, ready for Poedit, Weblate, or [EasyRPG Player's `Language/` folder workflow](https://easyrpg.org/player/guide/game_translation/).
+`--po` writes the same catalogs lcftrans produces – `RPG_RT.ldb.po` (database strings), `RPG_RT.ldb.common.po` (common events), `RPG_RT.ldb.battle.po` (battle events), `RPG_RT.lmt.po` (map names), and one `Map####.po` per map that holds text – with lcftrans-style `msgctxt`, `#.` location comments, and a `#: <address>` reference per occurrence, ready for Poedit, Weblate, or [EasyRPG Player's `Language/` folder workflow](https://easyrpg.org/player/guide/game_translation/).
 
 `inject` accepts PO too – point it at a single `.po` file or a directory of them (the format is auto-detected by extension; a directory may not mix `.po` and `.json`):
 
@@ -144,19 +144,19 @@ This writes the same catalogs lcftrans produces – `RPG_RT.ldb.po` (database te
 npx rpgrt inject ./game po
 ```
 
-Each entry is matched back to its game location by the `#:` reference rpgrt wrote; catalogs without one (from lcftrans or hand-authored) fall back to exact `(msgctxt, msgid)` matching scoped to the filename. `#, fuzzy` entries are skipped as untranslated and reported. JSON dumps remain the more direct format – one unit per game address with engine and encoding recorded, no entry merging – so reach for PO when your pipeline lives in gettext tools, and for JSON when you script against the dump.
+Each entry is matched back to its game location by the `#:` reference rpgrt wrote; catalogs without one (from lcftrans or hand-authored) fall back to exact `(msgctxt, msgid)` matching scoped to the filename. `#, fuzzy` entries are skipped as untranslated and reported. A PO catalog records neither engine nor encoding, so repeat any `--engine` or `--encoding` you passed to `extract`. JSON dumps remain the more direct format – one unit per game address with engine and encoding recorded, no entry merging – so reach for PO when your pipeline lives in gettext tools, and for JSON when you script against the dump.
 
-### Encodings, or: avoiding mojibake
+### Avoid Mojibake With the Right Encoding
 
-LCF predates Unicode – text is stored in a legacy codepage with no marker in the file. Japanese games are Shift_JIS (cp932), Western ones usually Windows-1252, and reading with the wrong one turns every string into mojibake. rpgrt makes the codepage explicit: detection records it in the envelope or dump, `inject` re-encodes with the same codepage, and any translated character that doesn't exist in it (e.g. `é` in a Shift_JIS game) aborts the injection with the exact unit named – it never silently writes `?`. The `--encoding` flag accepts both iconv names (`Shift_JIS`, `cp1252`) and bare Windows codepage numbers (`932`, `1252`) – the numeric form EasyRPG's `RPG_RT.ini` uses.
+LCF predates Unicode – text is stored in a legacy codepage with no marker in the file. Japanese games are Shift_JIS (cp932), Western ones usually Windows-1252, and reading with the wrong one turns every string into mojibake. rpgrt makes the encoding explicit: detection records it in the envelope or dump, `inject` re-encodes with the same one, and any translated character that does not exist in it (e.g. `é` in a Shift_JIS game) aborts the injection with the exact unit named – it never silently writes `?`. The `--encoding` flag accepts both iconv names (`Shift_JIS`, `cp1252`) and bare Windows codepage numbers (`932`, `1252`) – the numeric form EasyRPG's `RPG_RT.ini` uses.
 
-## Safety & limits
+## Safety & Limits
 
-**Round trips are byte-identical.** Decoding and re-encoding an untouched file reproduces it byte for byte – defaults, chunk order, size chunks, engine quirks, and unknown chunks included. This is verified against a corpus of real 2k/2k3 games and is the foundation everything else stands on: a diff between source and converted game shows *your* edits, nothing else. The wire-format details and the few deliberate divergences from liblcf live in [docs/serialization.md](./docs/serialization.md). The one exception is JSON's number model: a save-file double holding a NaN bit pattern survives the binary round trip, but JSON has no NaN – converting such a save to JSON drops the value, and `convert` reports the file as not byte-identical up front.
+**Round trips are byte-identical.** Decoding and re-encoding an untouched file reproduces it byte for byte – defaults, chunk order, size chunks, engine quirks, and unknown chunks included. This is verified against a corpus of real 2k/2k3 games and is the foundation everything else stands on: a diff between source and converted game shows *your* edits, nothing else. The wire-format details and the few deliberate divergences from liblcf live in [docs/serialization.md](./docs/serialization.md). The one exception is JSON's number model: a save-file double holding NaN, ±Infinity, or −0.0 survives the binary round trip, but JSON cannot carry it – converting such a save to JSON loses the value, and `convert` reports the file as not byte-identical up front.
 
-**`inject` is all-or-nothing.** Every translation is validated in memory first – unknown addresses, wrong choice line counts, changed control codes, characters the game's codepage can't represent. One failure means nothing is written, with every reason listed. The one soft case is source text that drifted since extraction (stale dump): `inject` warns and applies the translation anyway – re-extract and merge if that's unexpected. The writes themselves are staged beside their targets and renamed into place, so no game file is ever half-written; a crash between renames can still leave a mix of updated and original files, with each original preserved as `<file>.rpgrt-bak`.
+**`inject` is all-or-nothing.** Every translation is validated in memory first – unknown addresses, wrong line counts, changed control codes, characters the game's encoding cannot represent. One failure means nothing is written, with the reasons listed. The one soft case is source text that drifted since extraction (stale dump): `inject` warns and applies the translation anyway – re-extract and merge if that is unexpected. The writes themselves are staged beside their targets and renamed into place, so no game file is ever half-written; a crash between renames can still leave a mix of updated and original files, with each original preserved as `<file>.rpgrt-bak`.
 
-Limits, so you don't discover them the hard way: rpgrt reads and writes maps, database, map tree, and save files (`.lsd`) – not `RPG_RT.exe`. `convert` handles save files, but `extract`/`inject` do not: saves are player state, not authored text. Maps without the canonical `MapNNNN` filename are skipped during extract (their units would have no stable address; `extract` reports each skip).
+Limits, so you do not discover them the hard way: rpgrt reads and writes maps, database, map tree, and save files (`.lsd`) – not `RPG_RT.exe`. `convert` handles save files, but `extract`/`inject` do not: saves are player state, not authored text. Maps without the canonical `MapNNNN` filename are skipped during extract (their units would have no stable address; `extract` reports each skip). A game made with RPG Maker 2000 v1.61 or later is detected as `2k3`, so `inject` and a convert-back add 2k3-only chunks to its database – pass `--engine 2k` to every command for such a game.
 
 ## Programmatic API
 
@@ -199,10 +199,10 @@ interface CodecOptions {
 
 Every record – `MapUnit`, `Database`, `Actor`, `EventCommand`, and the rest – is a generated TypeScript interface derived from liblcf's format tables, with enums to match. Decode errors throw `LcfError` with the record path and byte offset.
 
-### Encoding helpers (`rpgrt/encoding`)
+### Encoding Helpers (`rpgrt/encoding`)
 
 ```ts
-/** iconv-lite-backed transcoder for a named codepage, e.g. 'Shift_JIS' or 'cp1252' */
+/** iconv-lite-backed transcoder for a named encoding, e.g. 'Shift_JIS' or 'cp1252' */
 function createTranscoder(encoding: string): Transcoder
 
 /** Charset detection over string bytes – never returns an encoding that would corrupt the sample */
@@ -211,6 +211,8 @@ function detectEncoding(bytes: Uint8Array): string | undefined
 /** Reads the EasyRPG `Encoding` key from RPG_RT.ini text */
 function encodingFromIni(iniText: string): string | undefined
 ```
+
+Unlike the codec, these helpers need Node's `Buffer` – in a browser, polyfill it or pass your own `Transcoder`.
 
 ## Credits
 

@@ -4,7 +4,7 @@ Source: EasyRPG/liblcf @ [666e6c0](https://github.com/EasyRPG/liblcf/tree/666e6c
 
 ---
 
-## 0. Primitive encodings (the alphabet)
+## 0. Primitive Encodings (the Alphabet)
 
 From `src/reader_lcf.cpp` / `src/writer_lcf.cpp`:
 
@@ -26,11 +26,11 @@ There is **no `uint16_t` TypeCategory** and no BER for `uint32`/`int16`/`double`
 
 ---
 
-## 1. Type-string categories (fields.csv `Type` column)
+## 1. Type-String Categories (fields.csv `Type` Column)
 
 `generator/generate.py` `cpp_type()` (line 54) maps the CSV type string to a C++ type; `src/reader_struct.h` `TypeCategory<>` (lines 55-81) then routes it to one of 5 categories: `Primitive, Struct, Flags, RawStruct, Void`. `lcf_type()` (generate.py:42) additionally tags size/count/version/empty fields.
 
-### Primitive scalars
+### Primitive Scalars
 - `Int32`, `Enum<X>` (=int32), `Ref<X>` (=int32) → **BER varint**.
 - `UInt32` → 4-byte LE raw.
 - `Int8`, `UInt8` → 1 byte. `Boolean` → BER read / 1-byte write. `Double` → 8-byte LE.
@@ -39,26 +39,26 @@ There is **no `uint16_t` TypeCategory** and no BER for `uint32`/`int16`/`double`
 - Read: `Primitive<T>::ReadLcf` (`reader_struct.h:166-213`, int32 specialization :248-279, string :284-304). Element count / byte count comes from the **chunk length** for strings; scalars read one value and warn if length ≠ expected size (`reader_struct.h:171`).
 - Write: emitted as `[BER id][BER byte-length][payload]`. `LcfSize` gives the byte length (`IntSize(v)` for BER int32, `sizeof` for fixed, `Decode(str).size()` for strings).
 
-### Primitive vectors – count derived from CHUNK LENGTH, elements FIXED-WIDTH
+### Primitive Vectors – Count Derived From Chunk Length, Elements Fixed-Width
 `Primitive<std::vector<T>>` (`reader_struct.h:218-243`) calls `stream.Read(vec, length)`:
 - `Vector<UInt8>` / `Vector<Boolean>`: 1 byte each, count = length (`reader_lcf.cpp:140-159`). Bool: `val > 0`.
 - `Vector<Int16>`: 2-byte LE each, count = length/2 (`reader_lcf.cpp:161-175`). Trailing odd byte → skip + push 0 (rpgrt diverges – §11).
 - `Vector<Int32>` / `Vector<UInt32>` / `Vector<Ref<...:Int32>>` / `Vector<Ref<Map>>`: **4-byte LE raw each**, count = length/4 (`reader_lcf.cpp:177-207`). **NOT BER** – this is the #1 gotcha: scalar Int32 is BER but Vector<Int32> elements are fixed 4-byte LE.
 - Write: `LcfWriter::Write(vector)` writes elements back-to-back (`writer_lcf.cpp:80-117`); chunk byte-length = `sizeof(elem)*count`.
 
-### `DBBitArray` (bit array, but 1 byte/bit)
+### `DBBitArray` (Bit Array, but 1 Byte per Bit)
 Read `length` bytes → `length` bools (`reader_struct.h:310`, `reader_lcf.cpp:209`). Byte-length = `.size()`.
 
-### Struct fields (Category::Struct) – nested chunk stream
-Any bare struct name (`Sound`, `Music`, `System`, `Terms`, `BattleCommands`, `MoveRoute`, `EventPageCondition`, `Start`, `TroopPageCondition`, ...) → `Struct<T>::ReadLcf` (`reader_struct_impl.h:61-95`). **The outer chunk's declared length is ignored**; the reader consumes nested `[id][len][payload]...` chunks until it hits an ID byte `0x00` (or EOF). Write: `Struct<T>::WriteLcf` emits fields then a terminating `0x00` (`reader_struct_impl.h:111-139`).
+### Struct Fields (Category::Struct) – Nested Chunk Stream
+Any bare struct name (`Sound`, `Music`, `System`, `Terms`, `BattleCommands`, `MoveRoute`, `EventPageCondition`, `Start`, `TroopPageCondition`, ...) → `Struct<T>::ReadLcf` (`reader_struct_impl.h:61-95`). **The outer chunk's declared length is ignored**; the reader consumes nested `[id][len][payload]...` chunks until it hits an ID byte `0x00` (or EOF; rpgrt diverges – §11). Write: `Struct<T>::WriteLcf` emits fields then a terminating `0x00` (`reader_struct_impl.h:111-139`).
 
-### `Array<Struct>` / `Vector<EventCommand|MoveCommand>` / ID-indexed arrays
+### `Array<Struct>` / `Vector<EventCommand|MoveCommand>` / ID-Indexed Arrays
 See §2 (Array framing) and §3 (raw command vectors).
 
 ### `Array<Struct:Ref<X>>` (e.g. `Array<BattlerAnimationItemSkill:Ref<Actor>>`)
 `cpp_type` = `std::vector<BattlerAnimationItemSkill>` (generate.py:68). Wire layout is **identical to `Array<Struct>`** – the `:Ref<Actor>` only annotates that the element's ID field semantically references an Actor. No wire difference.
 
-### `Count<Vector<T>>` and size rows (`Size Field? = t`) → see §4.
+### `Count<Vector<T>>` and Size Rows (`Size Field? = t`) → See §4
 
 ### `DatabaseVersion` (0x1A) and `EmptyBlock` (0x1B/0x1C/0x1F)
 `DatabaseVersionField` (`reader_struct.h:435-455`): value is a BER int32. LcfSize returns 0 when version==0 (chunk omitted). In a 2k3 DB it is always written; in 2k only if ≠ 0. In the wild, RPG_RT 2000 v1.61+ writes the chunk with an explicit one-byte BER `0` payload; liblcf reads that as version 0 and then omits the chunk on rewrite – rpgrt preserves the bytes instead (§11). `EmptyField` (`reader_struct.h:461-480`, Category::Void): read = no-op, write = `[id][0x00]` (zero-length chunk) – only when `present_if_default=1` (all EmptyBlocks) and, being `is2k3=1`, only in 2k3 files.
@@ -66,23 +66,23 @@ See §2 (Array framing) and §3 (raw command vectors).
 ### `DBArray<Int32>`
 Only appears as `EventCommand.parameters` (fields.csv:1025) – never a standalone chunk field. Handled inside the EventCommand raw struct (§3). No `TypeCategory` for it.
 
-### `*_Flags` (Category::Flags) → see §5.
+### `*_Flags` (Category::Flags) → See §5
 
 ---
 
-## 2. Chunk framing
+## 2. Chunk Framing
 
 **A chunk** = `[BER ID][BER length][length bytes of payload]` (`reader_struct_impl.h:67-72`).
 
 **Struct chunk stream** (chunked structs: Actor element bodies, System, Terms, Map, etc.): read chunks in a loop; **ID `0x00` terminates** (`reader_struct_impl.h:69`). The terminator is a single `0x00` byte – the ID only; there is NO length byte after it. Unknown IDs are skipped by `length` bytes (`reader_struct_impl.h:92`). If a field reads the wrong number of bytes, reader re-seeks to `off+length` (`reader_struct_impl.h:82-89`; rpgrt diverges – §11).
 
-**Write side** (`reader_struct_impl.h:111-139`): iterate `fields[]` in table order, emit each present field as `[id][len][payload]` (payload written only if len>0), then `conditional_zero_writer` writes the terminating `WriteInt(0)` – **except for `rpg::Database` and `rpg::Save`**, which write NO trailing 0x00 (`reader_struct_impl.h:97-109, 137-138`). So an LDB file ends at EOF with no terminator; an LMU (Map) ends with `0x00`.
+**Write side** (`reader_struct_impl.h:111-139`): iterate `fields[]` in table order, emit each present field as `[id][len][payload]` (payload written only if len>0), then `conditional_zero_writer` writes the terminating `WriteInt(0)` – **except for `rpg::Database` and `rpg::Save`**, which write NO trailing 0x00 (`reader_struct_impl.h:97-109, 137-138`). So an LDB file ends at EOF with no terminator (a `0x00` ID in that stream: rpgrt diverges – §11); an LMU (Map) ends with `0x00`.
 
 **`Array<Struct>` framing** (`reader_struct_impl.h:221-251`): `[BER element-count]` then per element: `[BER ID]` (only if the struct has an `ID` member – all `Array<>` element types do) followed by the element's **full struct chunk stream ending in `0x00`**. So each element = `[BER id][chunk...][0x00]`. The ID is the element's stored ID value (for Database arrays these happen to be 1-based indices, but that is data, not framing). There is no per-array length prefix in bytes – only the element count.
 
 ---
 
-## 3. Raw (non-chunked) structs – bare sequential fields, no chunk IDs
+## 3. Raw (Non-Chunked) Structs – Bare Sequential Fields, No Chunk IDs
 
 `RawStruct<T>` types (`reader_struct.h:60-66`): `Equipment, EventCommand, MoveCommand, Parameters, TreeMap, Rect` (+`DBString` which is treated as Primitive in practice). These have **empty Index columns** in structs/fields.csv and serialize as bare fields.
 
@@ -95,7 +95,7 @@ Wire layout of ONE command:
 - string: BER length prefix + raw codepage bytes (encoded length).
 - parameters: BER count, then each param as BER int32 (stored into `DBArray<int32>`).
 
-**`Vector<EventCommand>`** (`ldb_eventcommand.cpp:146-206`): NO count/size in the vector itself; commands are read until `Peek()==0`, then **4 bytes `0x00` are skipped** as the terminator. Write: all commands, then `4 × WriteInt(0)` (4 zero bytes) (`:191-197`). Note the wrapping chunk (e.g. EventPage 0x34) still has a normal BER length, AND there is a separate size chunk before it (§4). The 4-zero terminator is inside the payload.
+**`Vector<EventCommand>`** (`ldb_eventcommand.cpp:146-206`): NO count/size in the vector itself; commands are read until `Peek()==0`, then **4 bytes `0x00` are skipped** as the terminator (rpgrt diverges – §11). Write: all commands, then `4 × WriteInt(0)` (4 zero bytes) (`:191-197`). Note the wrapping chunk (e.g. EventPage 0x34) still has a normal BER length, AND there is a separate size chunk before it (§4). The 4-zero terminator is inside the payload.
 
 ### MoveCommand (`src/lmu_movecommand.cpp:37-59`)
 Wire layout of ONE command (variable by command_id):
@@ -115,9 +115,9 @@ Wire layout of ONE command (variable by command_id):
 Exactly 10 bytes: 5 × int16 LE = `weapon_id, shield_id, armor_id, helmet_id, accessory_id`. If length ≠ 10, the whole chunk is skipped (rpgrt diverges – §11).
 
 ### Rect (`src/lmt_rect.cpp:28-46`)
-Exactly 16 bytes: 4 × **uint32 LE** = `l, t, r, b` (asserts length==16).
+Exactly 16 bytes: 4 × **uint32 LE** = `l, t, r, b` (asserts length==16; rpgrt diverges – §11).
 
-### TreeMap / LMT top level (`src/lmt_treemap.cpp:29-45`)
+### TreeMap / LMT Top Level (`src/lmt_treemap.cpp:29-45`)
 `TreeMap` is a RawStruct read directly after the LMT header:
 ```
 Struct<MapInfo>::ReadLcf(maps)      // Array framing: [BER count]{[BER id][chunks][0x00]}*
@@ -129,7 +129,7 @@ No outer terminator beyond Start's own `0x00`. `MapInfo` elements carry a BER ID
 
 ---
 
-## 4. Size / Count fields (`Size Field? = t`)
+## 4. Size / Count Fields (`Size Field? = t`)
 
 A size row shares the **field name** with its data row but has a **different (smaller) chunk ID** and `size=t` (e.g. Actor `state_ranks` size=0x47, data=0x48; System `party` count=0x15, data=0x16). `lcf_type` (generate.py:42-47): if the CSV type is `Count<...>` → **CountField**, else → **SizeField**.
 
@@ -142,7 +142,7 @@ A size row shares the **field name** with its data row but has a **different (sm
 
 ## 5. Flags (`flags.csv`, Category::Flags)
 
-Structs with flag sets in ldb/lmu: `TroopPageCondition`, `Terrain`, `EventPageCondition` (+ `SavePicture` in lsd). Read/write in `src/reader_flags.cpp`.
+Structs with flag sets in ldb/lmu: `TroopPageCondition`, `Terrain`, `EventPageCondition` (+ `SavePicture` and the six EasyRPG/Maniac extension sets of `flags_easyrpg.csv` in lsd). Read/write in `src/reader_flags.cpp`.
 
 - **Bit order: LSB-first within each byte.** flag[i] = `(byte >> bitidx) & 1`, bitidx 0..7, then advance to next byte (`reader_flags.cpp:16-32`).
 - **Byte count is governed by the chunk length on read** (`reader_flags.cpp:24`): once 8 bits are consumed, the reader only advances to the next byte if `byteidx < length`; otherwise it stops and **all remaining flags keep their defaults (false)**. This is exactly how a 2k file can carry fewer flag bytes than the full 2k3 flag set.
@@ -155,21 +155,21 @@ Structs with flag sets in ldb/lmu: `TroopPageCondition`, `Terrain`, `EventPageCo
 
 Raw codepage bytes, length = the chunk's byte length (or the inline BER length for raw-struct strings). Then `Encode` converts codepage→UTF-8 on read, `Decode` UTF-8→codepage on write (`reader_lcf.cpp:218-228`, `writer_lcf.cpp:119-131`). **No terminator, no escaping.** `String` and `DBString` are wire-identical; `DBString` is just an interned/refcounted in-memory type. Note the length written is the length of the **codepage-encoded** bytes (`Decode(str).size()`), which can differ from the UTF-8 byte length.
 
-### Sparse `Vector<DBString>` (Maniac-era, e.g. SaveSystem `maniac_strings` 0x24)
+### Sparse `Vector<DBString>` (Maniac-Era, e.g. SaveSystem `maniac_strings` 0x24)
 
-A sequence of `[BER length][bytes]` strings, except the length is read with a wide (up to 2^35) BER reader: a value above `0xFFFFFFFF` is a **gap marker** – `0x800000000 − value` consecutive empty strings (`dbstring_struct.cpp:84-113`). The writer compresses every empty run into one marker and stops after the last non-empty element, so a **trailing empty run is dropped** on write (`:115-140`) – it never round-trips as values. rpgrt reads and writes the same form.
+A sequence of `[BER length][bytes]` strings, except the length is read with a 64-bit BER reader (`ReadUInt64`, up to ten groups): a value above `0xFFFFFFFF` is a **gap marker** – `0x800000000 − value` consecutive empty strings (`dbstring_struct.cpp:84-113`). The writer compresses every empty run into one marker and stops after the last non-empty element, so a **trailing empty run is dropped** on write (`:115-140`) – it never round-trips as values. rpgrt reads and writes the same form, but accepts at most five groups (35 bits) and throws beyond.
 
 ---
 
-## 7. Boolean on the wire
+## 7. Boolean on the Wire
 
 Read: `ReadInt() > 0` – a BER int, true iff value > 0 (`reader_lcf.cpp:59-62`). Write: a single raw byte `0x00`/`0x01` (`writer_lcf.cpp:69-72`); chunk length = 1 (`LcfSizeT<bool> = 1`, `reader_struct.h:158-161`). A reader should treat any nonzero as true.
 
 ---
 
-## 8. Write-side canonicalization
+## 8. Write-Side Canonicalization
 
-- **Field emission order = table order**, which is ascending chunk ID only within each CSV: `*_easyrpg.csv` extension rows append after a struct's canonical rows, and a base struct's fields precede the derived struct's own – so the wire order is canonical-then-extension, base-then-own, **not** globally ascending (e.g. `SaveSystem` emits the base's `maniac_*` 0xC9+ chunks before its own 0x65+). The writer's out-of-order warning (`reader_struct_impl.h:122-126`) is dead code – `last` starts at -1 and is never reassigned, so the condition can never fire – meaning nothing enforces ascending order at runtime. Size chunks (lower ID) precede their data chunks automatically. rpgrt emits in the same table order.
+- **Field emission order = table order**, which is ascending chunk ID only within each CSV: `*_easyrpg.csv` extension rows append after a struct's canonical rows, and a base struct's fields precede the derived struct's own – so the wire order is canonical-then-extension, base-then-own, **not** globally ascending (e.g. `SavePartyLocation` emits the base's `easyrpg_*` 0xC9+ chunks before its own 0x65+, and `SaveSystem` emits its extension `maniac_strings` 0x24 after its own 0x8C). The writer's out-of-order warning (`reader_struct_impl.h:122-126`) is dead code – `last` starts at -1 and is never reassigned, so the condition can never fire – meaning nothing enforces ascending order at runtime. Size chunks (lower ID) precede their data chunks automatically. rpgrt emits in the same table order.
 - **PersistIfDefault (`presentifdefault`)**: `0` = omit the chunk when the value equals the struct's default; `1` = always write it (`reader_struct_impl.h:127`, `Field::isPresentIfDefault` `reader_struct.h:383-390`). Default comparison uses a freshly default-constructed struct (`StructDefault<S>::make`, `reader_struct_impl.h:43-57`; Actor is special-cased to run `Setup`).
 - **`2k|2k3` split defaults** (e.g. Actor `final_level` = `50|99`, `exp_base` = `30|300`): parsed in `pod_default` (generate.py:107-138) – when `|` is present the C++ default member is set to `-1`, and the real per-engine default is applied by the struct's `Setup(is2k3)` method at load time. For the wire this matters only for the default-omission check.
 - **Is2k3 fields when writing a 2k file**: fields with `is2k3=1` are **skipped entirely** (not written) when `!db_is2k3` (`reader_struct_impl.h:119-121`, `:148-150`) – but the reader ingests them regardless of engine, so a 2k file that carries one (they exist: TestGame-2000 maps hold the Steam-era `save_count_2k3e` 0x5A) is silently rewritten without it (rpgrt diverges – §11). Engine version is derived from the DB (`GetEngineVersion`) – for LMU/LMT it's passed in.
@@ -177,7 +177,7 @@ Read: `ReadInt() > 0` – a BER int, true iff value > 0 (`reader_lcf.cpp:59-62`)
 
 ---
 
-## 9. File-level headers
+## 9. File-Level Headers
 
 Each file starts with a **BER length-prefixed magic string** (codepage-encoded, no terminator):
 
@@ -188,16 +188,16 @@ Each file starts with a **BER length-prefixed magic string** (codepage-encoded, 
 | LMT | `LcfMapTree` (10) | `RawStruct<TreeMap>` | ends with `Start` struct's `0x00` – `lmt_reader.cpp:64-76` |
 | LSD | `LcfSaveData` (11) | `Struct<Save>` chunk stream | **NO 0x00 terminator** (same `conditional_zero_writer` carve-out as Database) – header check `lsd_reader.cpp:89-94` |
 
-Header write: `WriteInt(header.size()); Write(header)` (`ldb_reader.cpp:104-105`, `lmu_reader.cpp:98-99`, `lmt_reader.cpp:91-92`). Header length is validated by exact char count; content mismatch only warns. rpgrt does the same and additionally preserves the non-canonical text (`_header`) for byte-identical write-back – except for saves, whose header liblcf hardcodes on write and rpgrt writes canonically too (§11).
+Header write: `WriteInt(header.size()); Write(header)` (`ldb_reader.cpp:104-105`, `lmu_reader.cpp:98-99`, `lmt_reader.cpp:91-92`). Header length is validated by exact char count; content mismatch only warns. On write, liblcf restores the canonical magic unless `SaveOpt::ePreserveHeader` is set (`ldb_reader.cpp:98-103`, `lmu_reader.cpp:92-97`, `lmt_reader.cpp:85-90`). rpgrt validates the same way and preserves the non-canonical text (`_header`) for byte-identical write-back – except for saves, whose header liblcf hardcodes on write and rpgrt writes canonically too (§11).
 
 **Version/empty oddities (LDB Database, in ascending-ID order):**
 - `version` = `DatabaseVersion` @ 0x1A (§1). Present in 2k3 always; in 2k only if ≠0.
 - `commoneventD2/D3` = `EmptyBlock` @ 0x1B/0x1C, `classD1` @ 0x1F – 2k3-only zero-length chunks.
-- `battlecommands` @ 0x1D (`BattleCommands` struct), `classes` @ 0x1E, and everything ≥0x1E are `is2k3=1` (2k3-only).
+- `battlecommands` @ 0x1D (`BattleCommands` struct), `classes` @ 0x1E, and `battleranimations` @ 0x20 are `is2k3=1` (2k3-only); the extension chunk `maniac_string_variables` @ 0x21 is not.
 
 ---
 
-## 10. Things not captured by the CSVs (hardcodes in C++ / generate.py)
+## 10. Things Not Captured by the CSVs (Hardcodes in C++ / generate.py)
 
 Grep of `reader_struct*.{h,cpp}`, `generate.py`, and the hand-written `*.cpp`:
 
@@ -215,7 +215,7 @@ Grep of `reader_struct*.{h,cpp}`, `generate.py`, and the hand-written `*.cpp`:
 
 ---
 
-## 11. Deliberate rpgrt divergences from liblcf
+## 11. Deliberate rpgrt Divergences From liblcf
 
 rpgrt's contract is byte fidelity. That produces two kinds of divergence: liblcf recovers *leniently* from malformed input (every such recovery is lossy – the result cannot round-trip byte-identically), and liblcf *itself* is lossy for a few wire forms that occur in real files. rpgrt throws where liblcf silently repairs, and preserves where liblcf silently drops.
 
@@ -230,14 +230,20 @@ rpgrt's contract is byte fidelity. That produces two kinds of divergence: liblcf
 | `Parameters` payload not a multiple of 12 (6 series × int16) | integer division silently drops the remainder (`ldb_parameters.cpp:28-49`) | throws |
 | Trailing bytes after the top-level record's end | ignored | throws |
 | BER integer beyond 5 groups / 32 bits | aborts after 6 loops, returns 0 (`reader_lcf.cpp:86-105`) | throws (a separate wide reader covers the 2^35 string-vector gap markers) |
+| Event-command list not ending in four zero bytes | seeks four bytes past the first `0x00` unchecked (`ldb_eventcommand.cpp:157-160`) | throws |
+| Nested chunk stream whose payload ends without the `0x00` terminator | ignores the declared length and reads on until a `0x00` ID or EOF (`reader_struct_impl.h:67-70`) | throws |
+| ID `0x00` in the top-level chunk stream of a database or save | stops reading there (`reader_struct_impl.h:69-70`) | throws |
+| `Rect` chunk with length ≠ 16 | asserts; a release build reads 16 bytes regardless (`lmt_rect.cpp:29-34`) | throws |
 
 A file rejected by one of these throws is corrupt by liblcf's own definition; rpgrt refuses to guess because any guess would be unverifiable against the original bytes.
+
+The write side is strict too: rpgrt throws for an event command with code 0 (the list terminator), an array element without a numeric `id`, and `Parameters` series of unequal length.
 
 **Faithful where liblcf is lossy** – real files carry these, and liblcf rewrites them differently than it read them:
 
 | Wire form | liblcf | rpgrt |
 |---|---|---|
-| Header magic with the right length but non-canonical content | warns, writes the canonical magic back (`ldb_reader.cpp:68-79`) | warns via `onWarning`, preserves the text in `_header`, writes it back – except `.lsd`, whose header both write canonically |
+| Header magic with the right length but non-canonical content | warns; writes the canonical magic back unless `SaveOpt::ePreserveHeader` is set (`ldb_reader.cpp:98-103`) | warns via `onWarning`, preserves the text in `_header`, writes it back – except `.lsd`, whose header both write canonically |
 | `is2k3=1` chunk in a 2k file (e.g. `save_count_2k3e` 0x5A in TestGame-2000 maps) | reads it, drops it on write (`reader_struct_impl.h:119-121`) | writes it back whenever it holds a non-default value |
 | Explicit one-byte `0` payload in the Database `version` chunk of a 2k file (RPG_RT 2000 v1.61+) | reads version 0, omits the chunk on write | preserves the chunk bytes verbatim via `_unknown` |
 | Chunk IDs absent from the field tables | dropped | preserved verbatim via `_unknown`, re-emitted just before the known chunk that followed it (`beforeId`) – field IDs are not globally ascending (§8), so the numeric ID alone cannot place a chunk |
