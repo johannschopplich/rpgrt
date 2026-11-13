@@ -1,8 +1,14 @@
+import type { Dump } from '../src/commands/extract.ts'
 import type { EngineVersion } from '../src/index.ts'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { copyFileSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { extractGame } from '../src/commands/extract.ts'
+import { injectDump } from '../src/commands/inject.ts'
 import { reencode } from './reencode.ts'
+import { useTemporaryDirectories } from './utils.ts'
+
+const createDirectory = useTemporaryDirectories()
 
 const corpusDirectory = join(import.meta.dirname, 'corpus')
 const gameNames = existsSync(corpusDirectory)
@@ -57,4 +63,28 @@ describe.skipIf(gameNames.length === 0)('corpus byte identity', () => {
       })
     })
   }
+})
+
+const testGame2000Directory = join(corpusDirectory, 'TestGame-2000')
+
+// RPG_RT 2000 v1.61+ writes the database version chunk, which must not read as 2k3.
+describe.skipIf(!existsSync(testGame2000Directory))('corpus engine detection', () => {
+  it('detects an RPG Maker 2000 v1.61+ game as 2k and injects without growing its database', () => {
+    const gameDirectory = createDirectory()
+    for (const fileName of readdirSync(testGame2000Directory).filter(name => /\.(?:lmu|ldb|lmt|ini)$/i.test(name)))
+      copyFileSync(join(testGame2000Directory, fileName), join(gameDirectory, fileName))
+    const databasePath = join(gameDirectory, 'RPG_RT.ldb')
+    const databaseSize = statSync(databasePath).size
+
+    const dumpPath = join(createDirectory(), 'strings.json')
+    expect(extractGame(gameDirectory, { output: dumpPath })).toMatchObject({ engine: '2k', engineSource: 'database' })
+
+    const dump = JSON.parse(readFileSync(dumpPath, 'utf8')) as Dump
+    const unit = dump.units.find(entry => entry.address === 'ldb/actors/1/name')!
+    unit.translation = [...unit.source].reverse().join('')
+    writeFileSync(dumpPath, JSON.stringify(dump))
+
+    expect(injectDump(gameDirectory, dumpPath).writtenFileNames).toEqual(['RPG_RT.ldb'])
+    expect(statSync(databasePath).size).toBe(databaseSize)
+  })
 })

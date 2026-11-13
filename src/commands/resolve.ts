@@ -64,13 +64,14 @@ function findSibling(filePath: string, siblingName: string): string | undefined 
 
 const DATABASE_2K3_CHUNK_IDS = new Set(
   RECORD_DESCRIPTORS.Database!.fields
-    .filter(field => field.is2k3Only === true || field.codec.kind === 'databaseVersion')
+    .filter(field => field.is2k3Only === true)
     .map(field => field.id!),
 )
 
 /**
- * RPG Maker 2000 never writes the version chunk or any of the 2k3-only
- * database chunks, so their presence in the top-level stream is decisive.
+ * RPG Maker 2000 never writes any of the 2k3-only database chunks, so their
+ * presence in the top-level stream is decisive. The version chunk is not –
+ * RPG_RT 2000 v1.61+ writes it too.
  */
 export function scanDatabaseEngine(databaseBytes: Uint8Array): EngineVersion {
   const reader = new ByteReader(databaseBytes)

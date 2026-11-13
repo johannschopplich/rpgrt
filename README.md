@@ -156,7 +156,7 @@ LCF stores text in a legacy codepage with no marker in the file: Japanese games 
 
 **`inject` is all-or-nothing.** Every translation is validated in memory first – unknown addresses, wrong line counts, changed control codes, characters the game's encoding cannot represent. One failure means nothing is written, with the reasons listed. The one soft case is source text that drifted since extraction (stale dump): `inject` warns and applies the translation anyway – re-extract and merge if that is unexpected. The writes themselves are staged beside their targets and renamed into place, so no game file is ever half-written; a crash between renames can still leave a mix of updated and original files, with each original preserved as `<file>.rpgrt-bak`.
 
-Limits, so you do not discover them the hard way: rpgrt reads and writes maps, database, map tree, and save files (`.lsd`) – not `RPG_RT.exe`. `convert` handles save files, but `extract`/`inject` do not: saves are player state, not authored text. Maps without the canonical `MapNNNN` filename are skipped during extract (their units would have no stable address; `extract` reports each skip). A game made with RPG Maker 2000 v1.61 or later is detected as `2k3`, so `inject` and a convert-back add 2k3-only chunks to its database – pass `--engine 2k` to every command for such a game.
+Limits, so you do not discover them the hard way: rpgrt reads and writes maps, database, map tree, and save files (`.lsd`) – not `RPG_RT.exe`. `convert` handles save files, but `extract`/`inject` do not: saves are player state, not authored text. Maps without the canonical `MapNNNN` filename are skipped during extract (their units would have no stable address; `extract` reports each skip).
 
 ## Programmatic API
 
