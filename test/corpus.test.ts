@@ -67,7 +67,6 @@ describe.skipIf(gameNames.length === 0)('corpus byte identity', () => {
 
 const testGame2000Directory = join(corpusDirectory, 'TestGame-2000')
 
-// RPG_RT 2000 v1.61+ writes the database version chunk, which must not read as 2k3.
 describe.skipIf(!existsSync(testGame2000Directory))('corpus engine detection', () => {
   it('detects an RPG Maker 2000 v1.61+ game as 2k and injects without growing its database', () => {
     const gameDirectory = createDirectory()

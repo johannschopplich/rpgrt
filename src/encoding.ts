@@ -85,8 +85,7 @@ export function createTranscoder(encoding: string): Transcoder {
   const roundTrips = (text: string): boolean => iconv.decode(iconv.encode(text, knownEncoding), knownEncoding) === text
   return {
     decode: bytes => iconv.decode(bytes, knownEncoding),
-    // iconv-lite substitutes `?` for an unmappable character; the read-back
-    // check turns that into an error instead of silent data loss.
+    // iconv-lite substitutes `?` for an unmappable character.
     encode(text) {
       const bytes = iconv.encode(text, knownEncoding)
       if (iconv.decode(bytes, knownEncoding) !== text)

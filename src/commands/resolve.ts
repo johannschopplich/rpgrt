@@ -68,11 +68,6 @@ const DATABASE_2K3_CHUNK_IDS = new Set(
     .map(field => field.id!),
 )
 
-/**
- * RPG Maker 2000 never writes any of the 2k3-only database chunks, so their
- * presence in the top-level stream is decisive. The version chunk is not –
- * RPG_RT 2000 v1.61+ writes it too.
- */
 export function scanDatabaseEngine(databaseBytes: Uint8Array): EngineVersion {
   const reader = new ByteReader(databaseBytes)
   reader.skip(reader.readBerUnsigned())

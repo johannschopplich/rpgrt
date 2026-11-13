@@ -114,7 +114,7 @@ describe('convert lcf → json → lcf', () => {
   it('reports text the encoding cannot carry back as not byte-identical', () => {
     const directory = createGameDirectory()
     const mapPath = join(directory, 'Map0001.lmu')
-    // 0x81 0x20 is no valid Shift_JIS sequence, so it decodes to U+FFFD.
+    // 0x81 0x20 is invalid Shift_JIS, so it decodes to U+FFFD.
     writeFileSync(mapPath, encodeMapUnit(mapUnitWithEventName('\x81\x20'), { engine: '2k3' }))
     expect(convertFile(mapPath, { engine: '2k3', encoding: 'cp932' })).toMatchObject({ isByteIdentical: false })
   })
