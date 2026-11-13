@@ -155,7 +155,9 @@ export function convertFile(inputPath: string, options: ConvertOptions = {}): Co
   try {
     isByteIdentical = bytesEqual(encodeLcf(reparsedEnvelope.data, kind, engine, encoding), bytes)
   }
-  catch {
+  catch (error) {
+    if (!(error instanceof LcfError))
+      throw error
     isByteIdentical = false
   }
   return { outputPath, format: kind, engine, engineSource, encoding, encodingSource, isByteIdentical }

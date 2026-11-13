@@ -74,7 +74,7 @@ export function createTranscoder(encoding: string): Transcoder {
         for (let index = 0; index < text.length; index++) {
           const byte = table.byteForChar.get(text[index]!)
           if (byte === undefined)
-            throw unrepresentableError(text[index]!, encoding)
+            throw unrepresentableError(String.fromCodePoint(text.codePointAt(index)!), encoding)
           bytes[index] = byte
         }
         return bytes
