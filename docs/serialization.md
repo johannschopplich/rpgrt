@@ -217,7 +217,7 @@ Grep of `reader_struct*.{h,cpp}`, `generate.py`, and the hand-written `*.cpp`:
 
 ## 11. Deliberate rpgrt Divergences From liblcf
 
-rpgrt's contract is byte fidelity. That produces two kinds of divergence: liblcf recovers *leniently* from malformed input (every such recovery is lossy – the result cannot round-trip byte-identically), and liblcf *itself* is lossy for a few wire forms that occur in real files. rpgrt throws where liblcf silently repairs, and preserves where liblcf silently drops.
+rpgrt's contract is byte fidelity for files as RPG_RT or EasyRPG wrote them. That produces two kinds of divergence: liblcf recovers *leniently* from malformed input (every such recovery is lossy – the result cannot round-trip byte-identically), and liblcf *itself* is lossy for a few wire forms that occur in real files. rpgrt throws where liblcf silently repairs, and preserves where liblcf silently drops.
 
 **Strict where liblcf repairs** – rpgrt throws an `LcfError`:
 
