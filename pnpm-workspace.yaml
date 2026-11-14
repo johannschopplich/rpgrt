@@ -1,5 +1,6 @@
+minimumReleaseAgeExcludePrune: true
 minimumReleaseAgeExclude:
   - utilful@3.5.1
 
-shellEmulator: true
 trustPolicy: no-downgrade
+shellEmulator: true

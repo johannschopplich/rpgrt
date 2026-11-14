@@ -2,7 +2,7 @@
   "name": "rpgrt",
   "type": "module",
   "version": "0.2.0",
-  "packageManager": "pnpm@12.16.1",
+  "packageManager": "pnpm@12.18.0",
   "description": "Turn RPG Maker 2000/2003 games into diffable JSON and back – byte for byte, in pure TypeScript",
   "author": "Johann Schopplich <hello@johannschopplich.com>",
   "license": "MIT",
@@ -61,18 +61,18 @@
   "dependencies": {
     "chardet": "^2.2.0",
     "iconv-lite": "^0.7.3",
-    "uint8array-extras": "^1.5.0"
+    "uint8array-extras": "^1.6.0"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^9.2.0",
-    "@types/node": "^26.1.2",
-    "bumpp": "^12.1.1",
-    "eslint": "^10.8.0",
+    "@antfu/eslint-config": "^10.0.0",
+    "@types/node": "^26.6.6",
+    "bumpp": "^12.3.0",
+    "eslint": "^10.14.0",
     "eslint-flat-config-utils": "^3.2.0",
-    "fast-check": "^4.9.0",
-    "tsdown": "^0.22.14",
+    "fast-check": "^4.10.2",
+    "tsdown": "^0.23.7",
     "typescript": "^6.0.3",
     "utilful": "^3.5.1",
-    "vitest": "^4.1.10"
+    "vitest": "^5.1.0"
   }
 }
