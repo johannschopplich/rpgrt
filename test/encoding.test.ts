@@ -34,7 +34,9 @@ describe('createTranscoder', () => {
     const allBytes = Uint8Array.from({ length: 256 }, (_, index) => index)
     for (const encoding of ['windows-1252', 'ISO-8859-2', 'cp1250']) {
       const transcoder = createTranscoder(encoding)
-      expect([...transcoder.encode(transcoder.decode(allBytes))], encoding).toEqual([...allBytes])
+      expect([
+        ...transcoder.encode(transcoder.decode(allBytes)),
+      ], encoding).toEqual([...allBytes])
     }
   })
 })
@@ -101,9 +103,16 @@ describe('collectStringBytes', () => {
     const record = {
       name: latin1Transcoder.decode(createTranscoder('windows-1252').encode('Käse')),
       nested: { title: 'Öl' },
-      list: [{ text: 'ab' }],
+      list: [
+        { text: 'ab' },
+      ],
       count: 7,
-      _unknown: [{ id: 1, bytes: new Uint8Array([0xFF]) }],
+      _unknown: [
+        {
+          id: 1,
+          bytes: new Uint8Array([0xFF]),
+        },
+      ],
     }
     const bytes = collectStringBytes(record)
     expect(latin1Transcoder.decode(bytes)).toContain('ab\n')

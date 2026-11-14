@@ -6,7 +6,9 @@ import { convertCommand } from './commands/convert.ts'
 import { extractCommand } from './commands/extract.ts'
 import { injectCommand } from './commands/inject.ts'
 
-export const cliOptions: RunMainOptions = { expectedErrors: [LcfError] }
+export const cliOptions: RunMainOptions = {
+  expectedErrors: [LcfError],
+}
 
 export const mainCommand: CommandDef = defineCommand({
   meta: {

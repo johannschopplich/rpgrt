@@ -46,7 +46,22 @@ export function isKnownEncoding(encoding: string): boolean {
   return iconv.encodingExists(encoding)
 }
 
-const WINDOWS_CODE_PAGE_NAMES = ['cp874', 'cp932', 'cp936', 'cp949', 'cp950', 'cp1250', 'cp1251', 'cp1252', 'cp1253', 'cp1254', 'cp1255', 'cp1256', 'cp1257', 'cp1258']
+const WINDOWS_CODE_PAGE_NAMES = [
+  'cp874',
+  'cp932',
+  'cp936',
+  'cp949',
+  'cp950',
+  'cp1250',
+  'cp1251',
+  'cp1252',
+  'cp1253',
+  'cp1254',
+  'cp1255',
+  'cp1256',
+  'cp1257',
+  'cp1258',
+]
 
 /** Maps a Windows code page to its `cp<N>` name, so `1252`, `windows-1252`, and `cp1252` record alike. */
 export function canonicalEncodingName(encoding: string): string {
@@ -96,7 +111,9 @@ export function createTranscoder(encoding: string): Transcoder {
 }
 
 function unrepresentableError(char: string | undefined, encoding: string): LcfError {
-  const subject = char === undefined ? 'Text' : `Character ${JSON.stringify(char)}`
+  const subject = char === undefined
+    ? 'Text'
+    : `Character ${JSON.stringify(char)}`
   return new LcfError(`${subject} is not representable in ${encoding}`)
 }
 
@@ -131,7 +148,9 @@ export function encodingFromIni(iniText: string): string | undefined {
 }
 
 function normalizeEncodingHint(hint: string): string {
-  return /^\d+$/.test(hint) ? `cp${hint}` : hint
+  return /^\d+$/.test(hint)
+    ? `cp${hint}`
+    : hint
 }
 
 /**

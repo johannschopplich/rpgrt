@@ -30,10 +30,26 @@ interface RawScalarCodec {
 }
 
 const RAW_SCALAR_CODECS: Record<RawScalarKind, RawScalarCodec> = {
-  uint8: { byteWidth: 1, read: reader => reader.readByte(), write: (writer, value) => writer.writeByte(value) },
-  int16: { byteWidth: 2, read: reader => reader.readInt16(), write: (writer, value) => writer.writeInt16(value) },
-  uint32: { byteWidth: 4, read: reader => reader.readUint32(), write: (writer, value) => writer.writeUint32(value) },
-  double: { byteWidth: 8, read: reader => reader.readDouble(), write: (writer, value) => writer.writeDouble(value) },
+  uint8: {
+    byteWidth: 1,
+    read: reader => reader.readByte(),
+    write: (writer, value) => writer.writeByte(value),
+  },
+  int16: {
+    byteWidth: 2,
+    read: reader => reader.readInt16(),
+    write: (writer, value) => writer.writeInt16(value),
+  },
+  uint32: {
+    byteWidth: 4,
+    read: reader => reader.readUint32(),
+    write: (writer, value) => writer.writeUint32(value),
+  },
+  double: {
+    byteWidth: 8,
+    read: reader => reader.readDouble(),
+    write: (writer, value) => writer.writeDouble(value),
+  },
 }
 
 interface VectorElementCodec {
@@ -43,11 +59,31 @@ interface VectorElementCodec {
 }
 
 const VECTOR_ELEMENT_CODECS: Record<VectorElementKind, VectorElementCodec> = {
-  boolean: { byteWidth: 1, read: reader => reader.readByte() > 0, write: (writer, value) => writer.writeByte(value ? 1 : 0) },
-  uint8: { byteWidth: 1, read: reader => reader.readByte(), write: (writer, value) => writer.writeByte((value as number) & 0xFF) },
-  int16: { byteWidth: 2, read: reader => reader.readInt16(), write: (writer, value) => writer.writeInt16(value as number) },
-  int32: { byteWidth: 4, read: reader => reader.readInt32(), write: (writer, value) => writer.writeUint32(value as number) },
-  uint32: { byteWidth: 4, read: reader => reader.readUint32(), write: (writer, value) => writer.writeUint32(value as number) },
+  boolean: {
+    byteWidth: 1,
+    read: reader => reader.readByte() > 0,
+    write: (writer, value) => writer.writeByte(value ? 1 : 0),
+  },
+  uint8: {
+    byteWidth: 1,
+    read: reader => reader.readByte(),
+    write: (writer, value) => writer.writeByte((value as number) & 0xFF),
+  },
+  int16: {
+    byteWidth: 2,
+    read: reader => reader.readInt16(),
+    write: (writer, value) => writer.writeInt16(value as number),
+  },
+  int32: {
+    byteWidth: 4,
+    read: reader => reader.readInt32(),
+    write: (writer, value) => writer.writeUint32(value as number),
+  },
+  uint32: {
+    byteWidth: 4,
+    read: reader => reader.readUint32(),
+    write: (writer, value) => writer.writeUint32(value as number),
+  },
 }
 
 interface ScalarRawLayout {
@@ -219,7 +255,9 @@ function decodeFieldPayload(field: FieldDescriptor, byteLength: number, reader: 
     case 'moveCommands':
       return decodeMoveCommands(byteLength, reader, context)
     case 'databaseVersion':
-      return byteLength === 0 ? 0 : reader.readBer()
+      return byteLength === 0
+        ? 0
+        : reader.readBer()
     case 'berIntList':
     case 'emptyBlock':
       break
@@ -263,7 +301,9 @@ function decodeFlags(flagSetName: string, bytes: Uint8Array): Record<string, boo
   const flags: Record<string, boolean> = {}
   FLAG_SETS[flagSetName]!.forEach((bit, index) => {
     const byte = bytes[index >> 3]
-    flags[bit.key] = byte === undefined ? false : ((byte >> (index & 7)) & 1) === 1
+    flags[bit.key] = byte === undefined
+      ? false
+      : ((byte >> (index & 7)) & 1) === 1
   })
   return flags
 }
@@ -273,7 +313,10 @@ export function decodeArray(recordName: string, reader: ByteReader, context: Cod
   const elements: LcfRecord[] = []
   for (let index = 0; index < elementCount; index++) {
     const id = reader.readBerUnsigned()
-    elements.push({ id, ...decodeChunkStream(recordName, reader, context, `${path}[${index}]`) })
+    elements.push({
+      id,
+      ...decodeChunkStream(recordName, reader, context, `${path}[${index}]`),
+    })
   }
   return elements
 }
@@ -309,7 +352,9 @@ function decodeEventCommands(byteLength: number, reader: ByteReader, context: Co
       code: reader.readBer(),
       indent: reader.readBer(),
       string: context.transcoder.decode(reader.readBytes(reader.readBerUnsigned())),
-      parameters: Array.from({ length: reader.readBerUnsigned() }, () => reader.readBer()),
+      parameters: Array.from({
+        length: reader.readBerUnsigned(),
+      }, () => reader.readBer()),
     })
   }
   for (let index = 0; index < 4; index++) {
@@ -349,7 +394,13 @@ function decodeMoveCommand(reader: ByteReader, context: CodecContext): LcfRecord
       parameterC = reader.readBer()
       break
   }
-  return { commandId, parameterString, parameterA, parameterB, parameterC }
+  return {
+    commandId,
+    parameterString,
+    parameterA,
+    parameterB,
+    parameterC,
+  }
 }
 
 export function decodeTreeMap(reader: ByteReader, context: CodecContext, path: string): LcfRecord {
@@ -377,7 +428,9 @@ export function encodeChunkStream(recordName: string, record: LcfRecord, writer:
   // ranks instead of anchor ids keeps a chunk from waiting on an anchor that
   // was edited back to its default and is no longer written.
   const anchorRank = (chunk: UnknownChunk): number =>
-    chunk.beforeId === undefined ? Number.POSITIVE_INFINITY : emissionRanks.get(chunk.beforeId) ?? Number.POSITIVE_INFINITY
+    chunk.beforeId === undefined
+      ? Number.POSITIVE_INFINITY
+      : emissionRanks.get(chunk.beforeId) ?? Number.POSITIVE_INFINITY
 
   const flushUnknownChunksThrough = (rank: number): void => {
     while (unknownIndex < unknownChunks.length && anchorRank(unknownChunks[unknownIndex]!) <= rank) {
@@ -435,7 +488,9 @@ export function encodeChunkStream(recordName: string, record: LcfRecord, writer:
     if (shouldWriteData || (shouldWriteSize && field.sizeKind === 'byteLength'))
       payload = inPath(fieldPath, () => encodeFieldPayload(field, value, fieldContext, fieldPath))
     if (shouldWriteSize) {
-      const sizeValue = field.sizeKind === 'elementCount' ? (value as unknown[]).length : payload!.length
+      const sizeValue = field.sizeKind === 'elementCount'
+        ? (value as unknown[]).length
+        : payload!.length
       const sizePayload = new ByteWriter()
       sizePayload.writeBer(sizeValue)
       writeChunk(field.sizeId!, sizePayload.toBytes())

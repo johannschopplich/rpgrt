@@ -6,5 +6,7 @@ export function toCamelCase(snakeCaseName: string): string {
 const IDENTIFIER_PATTERN = /^[a-z_$][\w$]*$/i
 
 export function toObjectKey(name: string): string {
-  return IDENTIFIER_PATTERN.test(name) ? name : `'${name.replaceAll('\\', '\\\\').replaceAll('\'', '\\\'')}'`
+  return IDENTIFIER_PATTERN.test(name)
+    ? name
+    : `'${name.replaceAll('\\', '\\\\').replaceAll('\'', '\\\'')}'`
 }

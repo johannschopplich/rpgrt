@@ -61,7 +61,10 @@ export function extractGame(directory: string, options: ExtractOptions = {}): Ex
   if (options.isSplit === true && options.isPo === true)
     throw new LcfError('--split and --po are mutually exclusive – PO output is always per file')
 
-  const game = loadGame(directory, { ...flagHints(options.engine, options.encoding), onWarning: options.onWarning })
+  const game = loadGame(directory, {
+    ...flagHints(options.engine, options.encoding),
+    onWarning: options.onWarning,
+  })
   const units = collectGameUnits(game)
   const outputPaths: string[] = []
 
@@ -69,7 +72,9 @@ export function extractGame(directory: string, options: ExtractOptions = {}): Ex
     const outputDirectory = options.output ?? 'po'
     const projectName = basename(directory)
     const catalogs = poCatalogs(units, toCatalogContext(game))
-    assertOutputsWritable([...catalogs.keys()].map(catalogFileName => join(outputDirectory, catalogFileName)), options.isForce)
+    assertOutputsWritable([
+      ...catalogs.keys(),
+    ].map(catalogFileName => join(outputDirectory, catalogFileName)), options.isForce)
     mkdirSync(outputDirectory, { recursive: true })
     for (const [catalogFileName, catalogUnits] of catalogs) {
       const outputPath = join(outputDirectory, catalogFileName)
@@ -79,7 +84,9 @@ export function extractGame(directory: string, options: ExtractOptions = {}): Ex
   }
   else if (options.isSplit === true) {
     const outputDirectory = options.output ?? 'strings'
-    const fileNames = [...new Set(units.map(unit => unit.fileName))]
+    const fileNames = [
+      ...new Set(units.map(unit => unit.fileName)),
+    ]
     assertOutputsWritable(fileNames.map(fileName => join(outputDirectory, `${fileName}.json`)), options.isForce)
     mkdirSync(outputDirectory, { recursive: true })
     for (const fileName of fileNames) {
@@ -111,7 +118,11 @@ const extractArgs = {
   output: { type: 'string', alias: 'o', description: 'Output path (strings.json, or a directory for --split/--po)' },
   split: { type: 'boolean', description: 'Write one JSON file per game file instead of a single strings.json' },
   po: { type: 'boolean', description: 'Write lcftrans-compatible PO catalogs instead of JSON' },
-  engine: { type: 'enum', options: ['2k', '2k3'], description: 'Engine version (overrides detection)' },
+  engine: {
+    type: 'enum',
+    options: ['2k', '2k3'],
+    description: 'Engine version (overrides detection)',
+  },
   encoding: { type: 'string', description: 'Text encoding, e.g. Shift_JIS or 1252 (overrides detection)' },
   force: { type: 'boolean', description: 'Overwrite existing output files' },
 } as const
@@ -132,7 +143,9 @@ export const extractCommand: CommandDef<typeof extractArgs> = defineCommand({
       isForce: args.force,
       onWarning: message => log.warn(message),
     })
-    console.error(`${result.unitCount} text units → ${result.outputPaths.length === 1 ? result.outputPaths[0] : `${result.outputPaths.length} files`}`)
+    console.error(`${result.unitCount} text units → ${result.outputPaths.length === 1
+      ? result.outputPaths[0]
+      : `${result.outputPaths.length} files`}`)
     console.error(`  ${describeFileContext(result)}`)
     for (const skippedFileName of result.skippedFileNames)
       console.error(`  skipped ${skippedFileName} – no MapNNNN name, so its units have no stable address`)

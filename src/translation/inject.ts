@@ -46,7 +46,9 @@ export function resolvePoDumps<T extends Pick<CollectedUnit, 'address' | 'source
 
     for (const entry of entries) {
       // A foreign catalog may write msgctxt "" where rpgrt units carry no context.
-      const context = entry.context === '' ? undefined : entry.context
+      const context = entry.context === ''
+        ? undefined
+        : entry.context
       if (entry.isFuzzy) {
         fuzzySkippedCount++
         continue
@@ -73,14 +75,29 @@ export function resolvePoDumps<T extends Pick<CollectedUnit, 'address' | 'source
       }
       for (const address of addresses) {
         const existingUnit = emittedByAddress.get(address)
-        if (existingUnit === undefined)
-          emittedByAddress.set(address, { address, source: entry.source, translation: entry.translation, context, info: [] })
-        else if (existingUnit.translation !== entry.translation)
+        if (existingUnit === undefined) {
+          emittedByAddress.set(address, {
+            address,
+            source: entry.source,
+            translation: entry.translation,
+            context,
+            info: [],
+          })
+        }
+        else if (existingUnit.translation !== entry.translation) {
           abortReasons.push(`${fileName}: address ${address} received conflicting translations`)
+        }
       }
     }
   }
-  return { units: [...emittedByAddress.values()], fuzzySkippedCount, untranslatedCount, abortReasons }
+  return {
+    units: [
+      ...emittedByAddress.values(),
+    ],
+    fuzzySkippedCount,
+    untranslatedCount,
+    abortReasons,
+  }
 }
 
 export interface InjectionContext {
@@ -123,8 +140,11 @@ function controlCodeDifference(gameSource: string, translation: string): string 
   if (remainingCodes.size === 0 && addedCodes.length === 0)
     return undefined
   const differenceDescriptions: string[] = []
-  if (remainingCodes.size > 0)
-    differenceDescriptions.push(`missing ${[...remainingCodes.keys()].join(' ')}`)
+  if (remainingCodes.size > 0) {
+    differenceDescriptions.push(`missing ${[
+      ...remainingCodes.keys(),
+    ].join(' ')}`)
+  }
   if (addedCodes.length > 0)
     differenceDescriptions.push(`added ${addedCodes.join(' ')}`)
   return differenceDescriptions.join(', ')
@@ -146,8 +166,12 @@ function validateTranslation(unit: DumpUnit, collectedUnit: CollectedUnit, conte
   if (collectedUnit.expectedLineCount !== undefined && lines.length !== collectedUnit.expectedLineCount) {
     // e.g. "Choice (2 options)" – a merged PO entry can fan out to occurrences
     // with different line-count rules; name the one that failed.
-    const unitKind = collectedUnit.info.length > 1 ? ` – ${collectedUnit.info[collectedUnit.info.length - 1]}` : ''
-    return { abortReason: `${unit.address}: translation has ${lines.length} ${lines.length === 1 ? 'line' : 'lines'} but exactly ${collectedUnit.expectedLineCount} required${unitKind}` }
+    const unitKind = collectedUnit.info.length > 1
+      ? ` – ${collectedUnit.info[collectedUnit.info.length - 1]}`
+      : ''
+    return { abortReason: `${unit.address}: translation has ${lines.length} ${lines.length === 1
+      ? 'line'
+      : 'lines'} but exactly ${collectedUnit.expectedLineCount} required${unitKind}` }
   }
   const codeDifference = controlCodeDifference(collectedUnit.source, unit.translation)
   if (codeDifference !== undefined)
@@ -194,10 +218,20 @@ export function planInjection(collectedUnits: CollectedUnit[], dumpUnits: DumpUn
     const validation = validateTranslation(unit, collectedUnit, context)
     if (validation.warning !== undefined)
       warnings.push(validation.warning)
-    if (validation.abortReason !== undefined)
+    if (validation.abortReason !== undefined) {
       abortReasons.push(validation.abortReason)
-    else
-      applications.push({ collectedUnit, lines: unit.translation.split('\n') })
+    }
+    else {
+      applications.push({
+        collectedUnit,
+        lines: unit.translation.split('\n'),
+      })
+    }
   }
-  return { applications, abortReasons, warnings, untranslatedCount }
+  return {
+    applications,
+    abortReasons,
+    warnings,
+    untranslatedCount,
+  }
 }

@@ -6,7 +6,9 @@ import { decodeDatabase, decodeMapUnit, decodeTreeMap, defaultRecord, encodeData
 const engines: EngineVersion[] = ['2k', '2k3']
 
 function chunkIds(payload: Uint8Array): number[] {
-  return [...readChunkStream(new ByteReader(payload), 'id-zero')].map(chunk => chunk.id)
+  return [
+    ...readChunkStream(new ByteReader(payload), 'id-zero'),
+  ].map(chunk => chunk.id)
 }
 
 function topLevelChunkLength(databaseBytes: Uint8Array, chunkId: number): number | undefined {
@@ -90,15 +92,24 @@ describe('2k3-only chunk write-back in a 2k file', () => {
     // `Terrain.specialFlags` holds only 2k3-only bits; a 2k encode would pack an
     // empty bit list and lose the chunk's value.
     const database = defaultRecord('Database', '2k') as unknown as Database
-    database.terrains = [{
-      ...defaultRecord('Terrain', '2k'),
-      id: 1,
-      specialFlags: { backParty: true, backEnemies: false, lateralParty: false, lateralEnemies: false },
-    }] as unknown as Database['terrains']
+    database.terrains = [
+      {
+        ...defaultRecord('Terrain', '2k'),
+        id: 1,
+        specialFlags: {
+          backParty: true,
+          backEnemies: false,
+          lateralParty: false,
+          lateralEnemies: false,
+        },
+      },
+    ] as unknown as Database['terrains']
     const bytes = encodeDatabase(database, { engine: '2k' })
     const decoded = decodeDatabase(bytes, { engine: '2k' })
     expect(decoded.terrains[0]!.specialFlags.backParty).toBe(true)
-    expect([...encodeDatabase(decoded, { engine: '2k' })]).toEqual([...bytes])
+    expect([
+      ...encodeDatabase(decoded, { engine: '2k' }),
+    ]).toEqual([...bytes])
   })
 })
 
@@ -109,16 +120,37 @@ describe('map unit wire bytes', () => {
     // A default record persists only its persist-if-default chunks, ascending by
     // id, each framed as [BER id][BER length][payload], then the stream's 0x00
     // terminator.
-    const header = [0x0A, 0x4C, 0x63, 0x66, 0x4D, 0x61, 0x70, 0x55, 0x6E, 0x69, 0x74]
+    const header = [
+      0x0A,
+      0x4C,
+      0x63,
+      0x66,
+      0x4D,
+      0x61,
+      0x70,
+      0x55,
+      0x6E,
+      0x69,
+      0x74,
+    ]
     const scrollType = [0x0B, 0x01, 0x00]
     const lowerLayer = [0x47, 0x00]
     const upperLayer = [0x48, 0x00]
     const events = [0x51, 0x01, 0x00]
     const terminator = [0x00]
-    const expectedBytes = [...header, ...scrollType, ...lowerLayer, ...upperLayer, ...events, ...terminator]
+    const expectedBytes = [
+      ...header,
+      ...scrollType,
+      ...lowerLayer,
+      ...upperLayer,
+      ...events,
+      ...terminator,
+    ]
     for (const engine of engines) {
       const mapUnit = defaultRecord('MapUnit', engine) as unknown as MapUnit
-      expect([...encodeMapUnit(mapUnit, { engine })]).toEqual(expectedBytes)
+      expect([
+        ...encodeMapUnit(mapUnit, { engine }),
+      ]).toEqual(expectedBytes)
     }
   })
 
@@ -128,7 +160,9 @@ describe('map unit wire bytes', () => {
     const mapUnit = defaultRecord('MapUnit', '2k') as unknown as MapUnit
     mapUnit.chipsetId = 7
     const bytes = encodeMapUnit(mapUnit, { engine: '2k' })
-    expect([...bytes.slice(MAP_UNIT_HEADER_LENGTH, MAP_UNIT_HEADER_LENGTH + 3)]).toEqual([0x01, 0x01, 0x07])
+    expect([
+      ...bytes.slice(MAP_UNIT_HEADER_LENGTH, MAP_UNIT_HEADER_LENGTH + 3),
+    ]).toEqual([0x01, 0x01, 0x07])
   })
 
   it('encodes a BER integer of 300 with a continuation byte', () => {
@@ -138,7 +172,9 @@ describe('map unit wire bytes', () => {
     const mapUnit = defaultRecord('MapUnit', '2k') as unknown as MapUnit
     mapUnit.height = 300
     const bytes = encodeMapUnit(mapUnit, { engine: '2k' })
-    expect([...bytes.slice(MAP_UNIT_HEADER_LENGTH, MAP_UNIT_HEADER_LENGTH + 4)]).toEqual([0x03, 0x02, 0x82, 0x2C])
+    expect([
+      ...bytes.slice(MAP_UNIT_HEADER_LENGTH, MAP_UNIT_HEADER_LENGTH + 4),
+    ]).toEqual([0x03, 0x02, 0x82, 0x2C])
   })
 })
 
@@ -159,7 +195,10 @@ describe.each(engines)('semantic round trip (%s)', (engine) => {
   })
 
   it('keeps non-default raw records through a round trip: parameters, equipment, area rect', () => {
-    const actor = { ...defaultRecord('Actor', engine), id: 1 } as unknown as Actor
+    const actor = {
+      ...defaultRecord('Actor', engine),
+      id: 1,
+    } as unknown as Actor
     actor.parameters = {
       maxhp: [10, 20, 30],
       maxsp: [5, 6, 7],
@@ -168,12 +207,21 @@ describe.each(engines)('semantic round trip (%s)', (engine) => {
       spirit: [7, 8, 9],
       agility: [2, 4, 6],
     }
-    actor.initialEquipment = { weaponId: 1, shieldId: 2, armorId: 3, helmetId: 4, accessoryId: 5 }
+    actor.initialEquipment = {
+      weaponId: 1,
+      shieldId: 2,
+      armorId: 3,
+      helmetId: 4,
+      accessoryId: 5,
+    }
     const database = defaultRecord('Database', engine) as unknown as Database
     database.actors = [actor]
     expect(decodeDatabase(encodeDatabase(database, { engine }), { engine })).toStrictEqual(database)
 
-    const mapInfo = { ...defaultRecord('MapInfo', engine), id: 1 } as unknown as MapInfo
+    const mapInfo = {
+      ...defaultRecord('MapInfo', engine),
+      id: 1,
+    } as unknown as MapInfo
     mapInfo.areaRect = { l: 16, t: 32, r: 48, b: 64 }
     const treeMap = defaultRecord('TreeMap', engine) as unknown as TreeMap
     treeMap.maps = [mapInfo]
@@ -187,19 +235,55 @@ describe.each(engines)('semantic round trip (%s)', (engine) => {
       ...defaultRecord('EventPage', engine),
     } as unknown as EventPage
     page.eventCommands = [
-      { code: 10110, indent: 0, string: 'Hello \\c[3]world', parameters: [0, 1, -1] },
-      { code: 12330, indent: 1, string: '', parameters: [] },
+      {
+        code: 10110,
+        indent: 0,
+        string: 'Hello \\c[3]world',
+        parameters: [0, 1, -1],
+      },
+      {
+        code: 12330,
+        indent: 1,
+        string: '',
+        parameters: [],
+      },
     ]
     page.moveRoute = {
       ...page.moveRoute,
       moveCommands: [
-        { commandId: 1, parameterString: '', parameterA: 0, parameterB: 0, parameterC: 0 },
-        { commandId: 34, parameterString: 'hero', parameterA: 2, parameterB: 0, parameterC: 0 },
-        { commandId: 35, parameterString: 'jingle', parameterA: 100, parameterB: 100, parameterC: 50 },
+        {
+          commandId: 1,
+          parameterString: '',
+          parameterA: 0,
+          parameterB: 0,
+          parameterC: 0,
+        },
+        {
+          commandId: 34,
+          parameterString: 'hero',
+          parameterA: 2,
+          parameterB: 0,
+          parameterC: 0,
+        },
+        {
+          commandId: 35,
+          parameterString: 'jingle',
+          parameterA: 100,
+          parameterB: 100,
+          parameterC: 50,
+        },
       ],
     }
     const mapUnit = defaultRecord('MapUnit', engine) as unknown as MapUnit
-    mapUnit.events = [{ id: 1, name: 'guard', x: 3, y: 4, pages: [page] }]
+    mapUnit.events = [
+      {
+        id: 1,
+        name: 'guard',
+        x: 3,
+        y: 4,
+        pages: [page],
+      },
+    ]
     expect(decodeMapUnit(encodeMapUnit(mapUnit, { engine }), { engine })).toStrictEqual(mapUnit)
   })
 })

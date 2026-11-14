@@ -28,7 +28,10 @@ export function parseDefaultCell(
     const parts = rawDefault.split('|')
     if (parts.length !== 2)
       throw new Error(`Bad split default: ${rawDefault}`)
-    return { '2k': parseLiteral(parts[0]!, codec, constants), '2k3': parseLiteral(parts[1]!, codec, constants) }
+    return {
+      '2k': parseLiteral(parts[0]!, codec, constants),
+      '2k3': parseLiteral(parts[1]!, codec, constants),
+    }
   }
   return parseLiteral(rawDefault, codec, constants)
 }
@@ -58,7 +61,7 @@ function parseLiteral(text: string, codec: FieldCodec, constants?: ReadonlyMap<s
     return parseLiteral(constantValue, codec, constants)
   const value = evaluateIntExpression(text) ?? Number(text)
   if (Number.isNaN(value))
-    throw new Error(`Bad default literal: ${text}`)
+    throw new TypeError(`Bad default literal: ${text}`)
   // Boolean defaults are sometimes written as plain integers.
   if (codec.kind === 'scalar' && codec.scalar === 'boolean')
     return value > 0
@@ -92,7 +95,9 @@ function parseListExpression(text: string): number[] {
     if (!match)
       throw new Error(`Bad list default: ${text}`)
     const value = Number(match.groups!.value)
-    const repeatCount = match.groups!.repeat === undefined ? 1 : Number(match.groups!.repeat)
+    const repeatCount = match.groups!.repeat === undefined
+      ? 1
+      : Number(match.groups!.repeat)
     for (let index = 0; index < repeatCount; index++)
       values.push(value)
   }
@@ -107,7 +112,7 @@ function parseListExpression(text: string): number[] {
  */
 export function expandFlagsDefault(value: FieldDefaultValue, bits: FlagBit[]): FlagsDefault {
   if (typeof value !== 'number')
-    throw new Error(`Flag-set default is not a bitmask: ${JSON.stringify(value)}`)
+    throw new TypeError(`Flag-set default is not a bitmask: ${JSON.stringify(value)}`)
   const flags: FlagsDefault = {}
   bits.forEach((bit, index) => {
     flags[toCamelCase(bit.fieldName)] = (value & (1 << index)) !== 0

@@ -107,7 +107,9 @@ export function decodeLcfFile<T>(bytes: Uint8Array, format: LcfFormat, options: 
 export function encodeLcfFile(record: object, format: LcfFormat, options: CodecOptions): Uint8Array {
   const lcfRecord = record as LcfRecord
   const writer = new ByteWriter()
-  writeHeader(writer, format.isHeaderPreserving ? (lcfRecord._header as string | undefined) ?? format.magic : format.magic)
+  writeHeader(writer, format.isHeaderPreserving
+    ? (lcfRecord._header as string | undefined) ?? format.magic
+    : format.magic)
   format.encodeBody(lcfRecord, writer, createContext(options))
   return writer.toBytes()
 }

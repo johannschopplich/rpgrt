@@ -33,9 +33,21 @@ function createGameDirectory(options: { hasDuplicateActorName?: boolean } = {}):
 
   const database = defaultRecord('Database', '2k') as unknown as Database
   database.actors = [
-    { ...defaultRecord('Actor', '2k'), id: 1, name: 'Käthe', title: 'Heldin' } as never,
+    {
+      ...defaultRecord('Actor', '2k'),
+      id: 1,
+      name: 'Käthe',
+      title: 'Heldin',
+    } as never,
     ...(options.hasDuplicateActorName === true
-      ? [{ ...defaultRecord('Actor', '2k'), id: 2, name: 'Käthe', title: 'Zweite' } as never]
+      ? [
+          {
+            ...defaultRecord('Actor', '2k'),
+            id: 2,
+            name: 'Käthe',
+            title: 'Zweite',
+          } as never,
+        ]
       : []),
   ]
   database.terms = { ...database.terms, victory: 'Sieg!' }
@@ -43,13 +55,26 @@ function createGameDirectory(options: { hasDuplicateActorName?: boolean } = {}):
 
   const treeMap = defaultRecord('TreeMap', '2k') as unknown as TreeMap
   treeMap.maps = [
-    { ...defaultRecord('MapInfo', '2k'), id: 0, name: 'Spiel', type: 0 } as never,
-    { ...defaultRecord('MapInfo', '2k'), id: 1, name: 'Dorf', type: 1 } as never,
+    {
+      ...defaultRecord('MapInfo', '2k'),
+      id: 0,
+      name: 'Spiel',
+      type: 0,
+    } as never,
+    {
+      ...defaultRecord('MapInfo', '2k'),
+      id: 1,
+      name: 'Dorf',
+      type: 1,
+    } as never,
   ]
   treeMap.treeOrder = [0, 1]
   writeFileSync(join(directory, 'RPG_RT.lmt'), encodeTreeMap(treeMap, codecOptions))
 
-  const page = { id: 1, ...defaultRecord('EventPage', '2k') } as never as { eventCommands: EventCommand[] }
+  const page = {
+    id: 1,
+    ...defaultRecord('EventPage', '2k'),
+  } as never as { eventCommands: EventCommand[] }
   page.eventCommands = [
     command(10110, 'Willkommen'),
     command(20110, 'im Dorf'),
@@ -61,7 +86,15 @@ function createGameDirectory(options: { hasDuplicateActorName?: boolean } = {}):
     command(10610, 'Käthe', 0, [1]),
   ]
   const mapUnit = defaultRecord('MapUnit', '2k') as unknown as MapUnit
-  mapUnit.events = [{ id: 1, name: 'npc', x: 2, y: 3, pages: [page as never] }]
+  mapUnit.events = [
+    {
+      id: 1,
+      name: 'npc',
+      x: 2,
+      y: 3,
+      pages: [page as never],
+    },
+  ]
   writeFileSync(join(directory, 'Map0001.lmu'), encodeMapUnit(mapUnit, codecOptions))
 
   writeFileSync(join(directory, 'RPG_RT.ini'), '[EasyRPG]\nEncoding=1252\n')
@@ -84,7 +117,11 @@ describe('extract', () => {
     const outputPath = join(createDirectory(), 'strings.json')
     const result = extractGame(gameDirectory, { output: outputPath })
 
-    expect(result).toMatchObject({ engine: '2k', encoding: 'cp1252', outputPaths: [outputPath] })
+    expect(result).toMatchObject({
+      engine: '2k',
+      encoding: 'cp1252',
+      outputPaths: [outputPath],
+    })
     const dump = readDump(outputPath)
     expect(dump.engine).toBe('2k')
     expect(dump.units.every(unit => unit.translation === '')).toBe(true)
@@ -111,7 +148,13 @@ describe('extract', () => {
     const poDirectory = join(createDirectory(), 'po')
     const poResult = extractGame(gameDirectory, { output: poDirectory, isPo: true })
     expect(poResult.outputPaths.map(path => path.split('/').pop()).sort()).toEqual(
-      ['Map0001.po', 'RPG_RT.ldb.battle.po', 'RPG_RT.ldb.common.po', 'RPG_RT.ldb.po', 'RPG_RT.lmt.po'],
+      [
+        'Map0001.po',
+        'RPG_RT.ldb.battle.po',
+        'RPG_RT.ldb.common.po',
+        'RPG_RT.ldb.po',
+        'RPG_RT.lmt.po',
+      ],
     )
     const termsCatalog = readFileSync(join(poDirectory, 'RPG_RT.ldb.po'), 'utf8')
     expect(termsCatalog).toContain('msgctxt "actors.name"\nmsgid "Käthe"')
@@ -192,7 +235,10 @@ describe('inject', () => {
 
     const result = injectDump(gameDirectory, splitDirectory)
     expect(result.writtenFileNames).toEqual(['RPG_RT.ldb'])
-    const followUp = extractGame(gameDirectory, { output: join(splitDirectory, 'after'), isSplit: true })
+    const followUp = extractGame(gameDirectory, {
+      output: join(splitDirectory, 'after'),
+      isSplit: true,
+    })
     expect(followUp.unitCount).toBeGreaterThan(0)
     const afterDump = readDump(join(splitDirectory, 'after', 'RPG_RT.ldb.json'))
     expect(afterDump.units.find(unit => unit.address === 'ldb/actors/1/name')?.source).toBe('Kate')
@@ -212,9 +258,24 @@ describe('inject', () => {
   })
 
   it.each([
-    ['unknown address', 'ldb/actors/99/name', 'Ghost', 'no such unit'],
-    ['unencodable text', 'ldb/actors/1/name', 'こんにちは', 'ldb/actors/1/name: translation is not representable'],
-    ['wrong choice line count', 'lmu/1/events/1/pages/1/commands/2', 'OnlyOne', 'exactly 2 required'],
+    [
+      'unknown address',
+      'ldb/actors/99/name',
+      'Ghost',
+      'no such unit',
+    ],
+    [
+      'unencodable text',
+      'ldb/actors/1/name',
+      'こんにちは',
+      'ldb/actors/1/name: translation is not representable',
+    ],
+    [
+      'wrong choice line count',
+      'lmu/1/events/1/pages/1/commands/2',
+      'OnlyOne',
+      'exactly 2 required',
+    ],
   ])('aborts without writing on %s', (_label, address, translation, expectedMessage) => {
     const gameDirectory = createGameDirectory()
     const dumpPath = join(createDirectory(), 'strings.json')
@@ -222,8 +283,14 @@ describe('inject', () => {
     const mapBytesBefore = readFileSync(join(gameDirectory, 'Map0001.lmu'))
 
     const dump = readDump(dumpPath)
-    if (dump.units.every(unit => unit.address !== address))
-      dump.units.push({ address, source: 'x', translation: '', info: [] })
+    if (dump.units.every(unit => unit.address !== address)) {
+      dump.units.push({
+        address,
+        source: 'x',
+        translation: '',
+        info: [],
+      })
+    }
     setTranslation(dump, address, translation)
     setTranslation(dump, 'lmu/1/events/1/pages/1/commands/0', 'Welcome')
     writeFileSync(dumpPath, JSON.stringify(dump))
@@ -256,7 +323,9 @@ describe('inject', () => {
     unit.translation = 'Kate'
     writeFileSync(dumpPath, JSON.stringify(dump))
     const result = injectDump(gameDirectory, dumpPath)
-    expect(result.warnings).toEqual([expect.stringContaining('source text differs')])
+    expect(result.warnings).toEqual([
+      expect.stringContaining('source text differs'),
+    ])
     expect(result.appliedCount).toBe(1)
   })
 })

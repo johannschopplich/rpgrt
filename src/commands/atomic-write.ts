@@ -78,8 +78,12 @@ export function writeFilesAtomically(writes: PendingWrite[], options: { shouldKe
       throw new LcfError(`Writing failed and rollback left ${unrestoredFileNames.join(', ')} unrestored – recover them from their .rpgrt-bak siblings. Original error: ${(error as Error).message}`)
     throw new LcfError(`Nothing was written – the write phase failed and every file was restored: ${(error as Error).message}`)
   }
-  if (options.shouldKeepBackups === true)
-    return { backupPaths: backedUpWrites.map(write => write.backupPath), warnings: [] }
+  if (options.shouldKeepBackups === true) {
+    return {
+      backupPaths: backedUpWrites.map(write => write.backupPath),
+      warnings: [],
+    }
+  }
   // Every rename is committed – leftover backups are cleanup, never rollback
   // state, so a failure here must not trigger the restore path above.
   const warnings: string[] = []

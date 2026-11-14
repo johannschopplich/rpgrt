@@ -47,10 +47,18 @@ function classifyDumpSource(dumpPath: string): DumpSource {
     throw new LcfError(`No such file or directory: ${dumpPath}`)
   if (!stats.isDirectory()) {
     const lowerName = dumpPath.toLowerCase()
-    if (lowerName.endsWith('.po'))
-      return { format: 'po', filePaths: [dumpPath] }
-    if (lowerName.endsWith('.json'))
-      return { format: 'json', filePaths: [dumpPath] }
+    if (lowerName.endsWith('.po')) {
+      return {
+        format: 'po',
+        filePaths: [dumpPath],
+      }
+    }
+    if (lowerName.endsWith('.json')) {
+      return {
+        format: 'json',
+        filePaths: [dumpPath],
+      }
+    }
     throw new LcfError(`${dumpPath} is neither a .po nor a .json dump`)
   }
   const entryNames = readdirSync(dumpPath).sort()
@@ -92,7 +100,10 @@ function readJsonDumps(filePaths: string[], dumpPath: string): Dump[] {
 function parsePoCatalogFile(filePath: string): ParsedCatalog {
   const fileName = basename(filePath)
   try {
-    return { fileName, entries: parsePoCatalog(readFileSync(filePath, 'utf8')) }
+    return {
+      fileName,
+      entries: parsePoCatalog(readFileSync(filePath, 'utf8')),
+    }
   }
   catch (error) {
     if (error instanceof LcfError)
@@ -115,7 +126,10 @@ function resolveDumpSource(directory: string, source: DumpSource, dumpPath: stri
   if (source.format === 'po') {
     // PO carries no engine/encoding, and fallback matching needs the collected
     // units, so the game must load before parsing.
-    const game = loadGame(directory, { ...flagHints(options.engine, options.encoding), onWarning: options.onWarning })
+    const game = loadGame(directory, {
+      ...flagHints(options.engine, options.encoding),
+      onWarning: options.onWarning,
+    })
     const collectedUnits = collectGameUnits(game)
     const parsedCatalogs = source.filePaths.map(parsePoCatalogFile)
     const resolution = resolvePoDumps(parsedCatalogs, collectedUnits, toCatalogContext(game))
@@ -157,7 +171,10 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
   })
   const untranslatedCount = poUntranslatedCount ?? plan.untranslatedCount
 
-  const abortReasons = [...sourceAbortReasons, ...plan.abortReasons]
+  const abortReasons = [
+    ...sourceAbortReasons,
+    ...plan.abortReasons,
+  ]
   if (abortReasons.length > 0) {
     const shownAbortReasons = abortReasons.slice(0, 20)
     if (abortReasons.length > shownAbortReasons.length)
@@ -168,7 +185,9 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
   for (const { collectedUnit, lines } of plan.applications)
     collectedUnit.applyTranslation(lines)
 
-  const dirtyFileNames = [...new Set(plan.applications.map(({ collectedUnit }) => collectedUnit.fileName))].sort()
+  const dirtyFileNames = [
+    ...new Set(plan.applications.map(({ collectedUnit }) => collectedUnit.fileName)),
+  ].sort()
   const codecOptions = { engine: game.engine, transcoder: game.transcoder }
   const pendingWrites = dirtyFileNames.map((fileName) => {
     const record = fileName === game.databaseFileName
@@ -177,10 +196,16 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
         ? game.treeMap!
         : game.maps.find(map => map.fileName === fileName)!.mapUnit
     const bytes = withFileContext(fileName, () => encodeLcfFile(record, lcfFormatFor(fileName)!, codecOptions))
-    return { filePath: join(directory, fileName), bytes }
+    return {
+      filePath: join(directory, fileName),
+      bytes,
+    }
   })
   const writeResult = writeFilesAtomically(pendingWrites)
-  const warnings = [...plan.warnings, ...writeResult.warnings]
+  const warnings = [
+    ...plan.warnings,
+    ...writeResult.warnings,
+  ]
 
   return {
     appliedCount: plan.applications.length,
@@ -198,7 +223,11 @@ export function injectDump(directory: string, dumpPath: string, options: InjectO
 const injectArgs = {
   game: { type: 'positional', description: 'Path to the game directory (contains RPG_RT.ldb)', required: true },
   dump: { type: 'positional', description: 'strings.json, a .po catalog, or a directory of split dumps', required: true },
-  engine: { type: 'enum', options: ['2k', '2k3'], description: 'Engine version (overrides the dump metadata)' },
+  engine: {
+    type: 'enum',
+    options: ['2k', '2k3'],
+    description: 'Engine version (overrides the dump metadata)',
+  },
   encoding: { type: 'string', description: 'Text encoding (overrides the dump metadata)' },
 } as const
 
@@ -216,7 +245,11 @@ export const injectCommand: CommandDef<typeof injectArgs> = defineCommand({
     })
     for (const warning of result.warnings)
       log.warn(warning)
-    const fuzzyNote = result.fuzzySkippedCount > 0 ? `, ${result.fuzzySkippedCount} fuzzy entr${result.fuzzySkippedCount === 1 ? 'y' : 'ies'} skipped` : ''
+    const fuzzyNote = result.fuzzySkippedCount > 0
+      ? `, ${result.fuzzySkippedCount} fuzzy entr${result.fuzzySkippedCount === 1
+        ? 'y'
+        : 'ies'} skipped`
+      : ''
     console.error(`${result.appliedCount} translation(s) applied, ${result.untranslatedCount} unit(s) still untranslated${fuzzyNote}`)
     console.error(`  ${describeFileContext(result)}`)
     console.error(result.writtenFileNames.length === 0

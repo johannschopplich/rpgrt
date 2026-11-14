@@ -11,11 +11,22 @@ function command(code: number, string = '', indent = 0, parameters: number[] = [
 }
 
 function mapUnitWithCommands(commands: EventCommand[]): Parameters<typeof collectMapUnits>[0] {
-  const page = { id: 1, ...defaultRecord('EventPage', '2k') } as never as { eventCommands: EventCommand[] }
+  const page = {
+    id: 1,
+    ...defaultRecord('EventPage', '2k'),
+  } as never as { eventCommands: EventCommand[] }
   page.eventCommands = commands
   return {
     ...defaultRecord('MapUnit', '2k'),
-    events: [{ id: 7, name: 'npc', x: 3, y: 4, pages: [page] }],
+    events: [
+      {
+        id: 7,
+        name: 'npc',
+        x: 3,
+        y: 4,
+        pages: [page],
+      },
+    ],
   } as never
 }
 
@@ -36,7 +47,9 @@ describe('map command units', () => {
   })
 
   it('strips raw control characters but keeps escape sequences verbatim', () => {
-    const commands = [command(10110, 'Say \\c[3]hi\x02 there')]
+    const commands = [
+      command(10110, 'Say \\c[3]hi\x02 there'),
+    ]
     const units = collectMapUnits(mapUnitWithCommands(commands), 1, 'Map0001.lmu')
     expect(units[0]!.source).toBe('Say \\c[3]hi there')
   })
@@ -119,11 +132,48 @@ describe('map command units', () => {
 describe('database units', () => {
   function databaseWithText(): Database {
     const database = defaultRecord('Database', '2k') as unknown as Database
-    database.actors = [{ ...defaultRecord('Actor', '2k'), id: 1, name: 'Alex', title: 'Held', skillName: 'Magie' } as never]
-    database.skills = [{ ...defaultRecord('Skill', '2k'), id: 3, name: 'Feuer', usingMessage1: 'wirkt Feuer' } as never]
+    database.actors = [
+      {
+        ...defaultRecord('Actor', '2k'),
+        id: 1,
+        name: 'Alex',
+        title: 'Held',
+        skillName: 'Magie',
+      } as never,
+    ]
+    database.skills = [
+      {
+        ...defaultRecord('Skill', '2k'),
+        id: 3,
+        name: 'Feuer',
+        usingMessage1: 'wirkt Feuer',
+      } as never,
+    ]
     database.terms = { ...database.terms, victory: 'Sieg!', innAGreeting1: 'Zimmer frei?' }
-    database.commonevents = [{ ...defaultRecord('CommonEvent', '2k'), id: 2, eventCommands: [command(10110, 'Gemeinsam')] } as never]
-    database.troops = [{ ...defaultRecord('Troop', '2k'), id: 4, pages: [{ id: 1, ...defaultRecord('TroopPage', '2k'), eventCommands: [command(10110, 'Kampf!')] }] } as never]
+    database.commonevents = [
+      {
+        ...defaultRecord('CommonEvent', '2k'),
+        id: 2,
+        eventCommands: [
+          command(10110, 'Gemeinsam'),
+        ],
+      } as never,
+    ]
+    database.troops = [
+      {
+        ...defaultRecord('Troop', '2k'),
+        id: 4,
+        pages: [
+          {
+            id: 1,
+            ...defaultRecord('TroopPage', '2k'),
+            eventCommands: [
+              command(10110, 'Kampf!'),
+            ],
+          },
+        ],
+      } as never,
+    ]
     return database
   }
 
@@ -144,25 +194,65 @@ describe('map tree units', () => {
   it('collects only named actual maps', () => {
     const treeMap = defaultRecord('TreeMap', '2k') as unknown as TreeMap
     const mapInfo = (id: number, name: string, type: number): TreeMap['maps'][0] =>
-      ({ ...defaultRecord('MapInfo', '2k'), id, name, type } as never)
-    treeMap.maps = [mapInfo(0, 'Game', 0), mapInfo(1, 'Stadt', 1), mapInfo(2, 'Zone', 2)]
+      ({
+        ...defaultRecord('MapInfo', '2k'),
+        id,
+        name,
+        type,
+      } as never)
+    treeMap.maps = [
+      mapInfo(0, 'Game', 0),
+      mapInfo(1, 'Stadt', 1),
+      mapInfo(2, 'Zone', 2),
+    ]
     const units = collectTreeMapUnits(treeMap, 'RPG_RT.lmt')
-    expect(units.map(unit => [unit.address, unit.source])).toEqual([['lmt/maps/1/name', 'Stadt']])
+    expect(units.map(unit => [unit.address, unit.source])).toEqual([
+      ['lmt/maps/1/name', 'Stadt'],
+    ])
   })
 })
 
 describe('injection planning', () => {
-  const context = { transcoder: createTranscoder('cp1252'), encoding: 'cp1252' }
+  const context = {
+    transcoder: createTranscoder('cp1252'),
+    encoding: 'cp1252',
+  }
 
   function collectedUnit(address: string, source: string): CollectedUnit {
-    return { address, source, info: [], fileName: 'RPG_RT.ldb', catalog: 'terms', expectedLineCount: 1, applyTranslation: () => {} }
+    return {
+      address,
+      source,
+      info: [],
+      fileName: 'RPG_RT.ldb',
+      catalog: 'terms',
+      expectedLineCount: 1,
+      applyTranslation: () => {},
+    }
   }
 
   it('pairs dump units to collected units and validates them', () => {
-    const plan = planInjection([collectedUnit('ldb/actors/1/name', 'Käthe'), collectedUnit('ldb/terms/victory', 'Sieg!')], [
-      { address: 'ldb/actors/1/name', source: 'Käthe', translation: 'Kate', info: [] },
-      { address: 'ldb/terms/victory', source: 'Sieg!', translation: '', info: [] },
-      { address: 'ldb/ghost/9/name', source: 'x', translation: 'y', info: [] },
+    const plan = planInjection([
+      collectedUnit('ldb/actors/1/name', 'Käthe'),
+      collectedUnit('ldb/terms/victory', 'Sieg!'),
+    ], [
+      {
+        address: 'ldb/actors/1/name',
+        source: 'Käthe',
+        translation: 'Kate',
+        info: [],
+      },
+      {
+        address: 'ldb/terms/victory',
+        source: 'Sieg!',
+        translation: '',
+        info: [],
+      },
+      {
+        address: 'ldb/ghost/9/name',
+        source: 'x',
+        translation: 'y',
+        info: [],
+      },
     ], context)
     expect(plan.untranslatedCount).toBe(1)
     expect(plan.applications.map(application => application.collectedUnit.address)).toEqual(['ldb/actors/1/name'])
@@ -170,8 +260,15 @@ describe('injection planning', () => {
   })
 
   it('rejects a magic page-manipulation token', () => {
-    const plan = planInjection([collectedUnit('ldb/actors/1/name', 'Käthe')], [
-      { address: 'ldb/actors/1/name', source: 'Käthe', translation: 'Kate<easyrpg:new_page>', info: [] },
+    const plan = planInjection([
+      collectedUnit('ldb/actors/1/name', 'Käthe'),
+    ], [
+      {
+        address: 'ldb/actors/1/name',
+        source: 'Käthe',
+        translation: 'Kate<easyrpg:new_page>',
+        info: [],
+      },
     ], context)
     expect(plan.applications).toEqual([])
     expect(plan.abortReasons).toHaveLength(1)
@@ -179,34 +276,71 @@ describe('injection planning', () => {
   })
 
   it('collects every abort reason instead of stopping at the first', () => {
-    const plan = planInjection([collectedUnit('ldb/actors/1/name', 'Käthe')], [
-      { address: 'ldb/actors/1/name', source: 'Käthe', translation: 'Kate\nII', info: [] },
-      { address: 'ldb/missing', source: 'x', translation: 'y', info: [] },
+    const plan = planInjection([
+      collectedUnit('ldb/actors/1/name', 'Käthe'),
+    ], [
+      {
+        address: 'ldb/actors/1/name',
+        source: 'Käthe',
+        translation: 'Kate\nII',
+        info: [],
+      },
+      {
+        address: 'ldb/missing',
+        source: 'x',
+        translation: 'y',
+        info: [],
+      },
     ], context)
     expect(plan.applications).toEqual([])
     expect(plan.abortReasons).toHaveLength(2)
   })
 
   it('warns about a drifted source but applies via the address', () => {
-    const plan = planInjection([collectedUnit('ldb/actors/1/name', 'Käthe')], [
-      { address: 'ldb/actors/1/name', source: 'Somebody', translation: 'Kate', info: [] },
+    const plan = planInjection([
+      collectedUnit('ldb/actors/1/name', 'Käthe'),
+    ], [
+      {
+        address: 'ldb/actors/1/name',
+        source: 'Somebody',
+        translation: 'Kate',
+        info: [],
+      },
     ], context)
     expect(plan.abortReasons).toEqual([])
-    expect(plan.warnings).toEqual([expect.stringContaining('source text differs')])
+    expect(plan.warnings).toEqual([
+      expect.stringContaining('source text differs'),
+    ])
     expect(plan.applications).toHaveLength(1)
   })
 
   it('rejects a translation that drops or adds control codes', () => {
-    const plan = planInjection([collectedUnit('ldb/actors/1/name', String.raw`\c[3]Käthe\n[1]`)], [
-      { address: 'ldb/actors/1/name', source: String.raw`\c[3]Käthe\n[1]`, translation: String.raw`\c[4]Kate`, info: [] },
+    const plan = planInjection([
+      collectedUnit('ldb/actors/1/name', String.raw`\c[3]Käthe\n[1]`),
+    ], [
+      {
+        address: 'ldb/actors/1/name',
+        source: String.raw`\c[3]Käthe\n[1]`,
+        translation: String.raw`\c[4]Kate`,
+        info: [],
+      },
     ], context)
     expect(plan.applications).toEqual([])
-    expect(plan.abortReasons).toEqual([expect.stringMatching(String.raw`missing \\c\[3\] \\n\[1\], added \\c\[4\]`)])
+    expect(plan.abortReasons).toEqual([
+      expect.stringMatching(String.raw`missing \\c\[3\] \\n\[1\], added \\c\[4\]`),
+    ])
   })
 
   it('accepts reordered control codes', () => {
-    const plan = planInjection([collectedUnit('ldb/actors/1/name', String.raw`\c[3]Käthe \n[1]`)], [
-      { address: 'ldb/actors/1/name', source: String.raw`\c[3]Käthe \n[1]`, translation: String.raw`\n[1] de \c[3]Kate`, info: [] },
+    const plan = planInjection([
+      collectedUnit('ldb/actors/1/name', String.raw`\c[3]Käthe \n[1]`),
+    ], [
+      {
+        address: 'ldb/actors/1/name',
+        source: String.raw`\c[3]Käthe \n[1]`,
+        translation: String.raw`\n[1] de \c[3]Kate`,
+        info: [],
+      },
     ], context)
     expect(plan.abortReasons).toEqual([])
     expect(plan.applications).toHaveLength(1)

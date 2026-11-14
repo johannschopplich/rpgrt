@@ -13,7 +13,9 @@ function makeSave(engine: EngineVersion): Save {
 function topLevelChunk(bytes: Uint8Array, id: number): Chunk {
   const reader = new ByteReader(bytes)
   reader.skip(reader.readBerUnsigned())
-  const chunk = [...readChunkStream(reader, 'end-of-data')].find(chunk => chunk.id === id)
+  const chunk = [
+    ...readChunkStream(reader, 'end-of-data'),
+  ].find(chunk => chunk.id === id)
   if (chunk === undefined)
     throw new Error(`No top-level chunk ${id} in the encoded save`)
   return chunk
@@ -24,7 +26,9 @@ function topLevelChunk(bytes: Uint8Array, id: number): Chunk {
 function topLevelChunkIds(bytes: Uint8Array): number[] {
   const reader = new ByteReader(bytes)
   reader.skip(reader.readBerUnsigned())
-  return [...readChunkStream(reader, 'end-of-data')].map(chunk => chunk.id)
+  return [
+    ...readChunkStream(reader, 'end-of-data'),
+  ].map(chunk => chunk.id)
 }
 
 describe.each(engines)('save round trip (%s)', (engine) => {
@@ -33,7 +37,12 @@ describe.each(engines)('save round trip (%s)', (engine) => {
     const bytes = encodeSave(save, { engine })
     // Independent wire anchor: BER length 11, then the magic – not derived from
     // the codec under test.
-    expect([...bytes.slice(0, 12)]).toEqual([0x0B, ...'LcfSaveData'.split('').map(character => character.charCodeAt(0))])
+    expect([
+      ...bytes.slice(0, 12),
+    ]).toEqual([
+      0x0B,
+      ...'LcfSaveData'.split('').map(character => character.charCodeAt(0)),
+    ])
     expect(decodeSave(bytes, { engine })).toStrictEqual(save)
   })
 
@@ -48,13 +57,15 @@ describe.each(engines)('save round trip (%s)', (engine) => {
     const subnormalValue = 5e-324
     const largeValue = 45000.123456789
     const save = makeSave(engine)
-    save.pictures = [{
-      ...defaultRecord('SavePicture', engine),
-      id: 1,
-      startX: subnormalValue,
-      currentX: -0,
-      currentY: largeValue,
-    }] as unknown as Save['pictures']
+    save.pictures = [
+      {
+        ...defaultRecord('SavePicture', engine),
+        id: 1,
+        startX: subnormalValue,
+        currentX: -0,
+        currentY: largeValue,
+      },
+    ] as unknown as Save['pictures']
 
     const decoded = decodeSave(encodeSave(save, { engine }), { engine })
     const picture = decoded.pictures[0]!
@@ -66,8 +77,14 @@ describe.each(engines)('save round trip (%s)', (engine) => {
   it('preserves a sparse id-indexed actor array', () => {
     const save = makeSave(engine)
     save.actors = [
-      { ...defaultRecord('SaveActor', engine), id: 2 },
-      { ...defaultRecord('SaveActor', engine), id: 7 },
+      {
+        ...defaultRecord('SaveActor', engine),
+        id: 2,
+      },
+      {
+        ...defaultRecord('SaveActor', engine),
+        id: 7,
+      },
     ] as unknown as Save['actors']
 
     const decoded = decodeSave(encodeSave(save, { engine }), { engine })
@@ -107,19 +124,35 @@ describe.each(engines)('save round trip (%s)', (engine) => {
 
     const reader = new ByteReader(bytes)
     reader.skip(reader.readBerUnsigned())
-    const systemChunk = [...readChunkStream(reader, 'end-of-data')].find(chunk => chunk.id === 0x65)!
-    const systemChunks = [...readChunkStream(new ByteReader(systemChunk.bytes), 'id-zero')]
+    const systemChunk = [
+      ...readChunkStream(reader, 'end-of-data'),
+    ].find(chunk => chunk.id === 0x65)!
+    const systemChunks = [
+      ...readChunkStream(new ByteReader(systemChunk.bytes), 'id-zero'),
+    ]
     const switchesChunk = systemChunks.find(chunk => chunk.id === 0x20)!
     const variablesChunk = systemChunks.find(chunk => chunk.id === 0x22)!
     expect([...switchesChunk.bytes]).toEqual([0x01, 0x00, 0x01])
     // int32 -2 and 100000, little-endian – signed in, unsigned out.
-    expect([...variablesChunk.bytes]).toEqual([0xFE, 0xFF, 0xFF, 0xFF, 0xA0, 0x86, 0x01, 0x00])
+    expect([...variablesChunk.bytes]).toEqual([
+      0xFE,
+      0xFF,
+      0xFF,
+      0xFF,
+      0xA0,
+      0x86,
+      0x01,
+      0x00,
+    ])
   })
 
   it('preserves an unknown top-level chunk through re-encode', () => {
     const save = makeSave(engine)
     ;(save as unknown as { _unknown: { id: number, bytes: Uint8Array }[] })._unknown = [
-      { id: 0xF0, bytes: new Uint8Array([1, 2, 3, 4]) },
+      {
+        id: 0xF0,
+        bytes: new Uint8Array([1, 2, 3, 4]),
+      },
     ]
 
     const bytes = encodeSave(save, { engine })
@@ -141,32 +174,79 @@ describe('save wire bytes', () => {
     const title = [0x02, 0x01, 0x01]
     const skillsSize = [0x33, 0x01, 0x00]
     const skillsData = [0x34, 0x00]
-    const equipped = [0x3D, 0x0A, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    const equipped = [
+      0x3D,
+      0x0A,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+    ]
     const statusData = [0x52, 0x00]
     const terminator = [0x00]
-    const actorChunkStream = [...name, ...title, ...skillsSize, ...skillsData, ...equipped, ...statusData, ...terminator]
+    const actorChunkStream = [
+      ...name,
+      ...title,
+      ...skillsSize,
+      ...skillsData,
+      ...equipped,
+      ...statusData,
+      ...terminator,
+    ]
     const count = [0x02]
-    const expectedBytes = [...count, 0x02, ...actorChunkStream, 0x07, ...actorChunkStream]
+    const expectedBytes = [
+      ...count,
+      0x02,
+      ...actorChunkStream,
+      0x07,
+      ...actorChunkStream,
+    ]
 
     const save = makeSave('2k')
     save.actors = [
-      { ...defaultRecord('SaveActor', '2k'), id: 2 },
-      { ...defaultRecord('SaveActor', '2k'), id: 7 },
+      {
+        ...defaultRecord('SaveActor', '2k'),
+        id: 2,
+      },
+      {
+        ...defaultRecord('SaveActor', '2k'),
+        id: 7,
+      },
     ] as unknown as Save['actors']
     // `actors` is top-level chunk id 0x6C.
-    expect([...topLevelChunk(encodeSave(save, { engine: '2k' }), 0x6C).bytes]).toEqual(expectedBytes)
+    expect([
+      ...topLevelChunk(encodeSave(save, { engine: '2k' }), 0x6C).bytes,
+    ]).toEqual(expectedBytes)
   })
 
   it('merges the SaveMapEventBase chunk ids into the party location, sorted', () => {
     // `SaveMapEventBase` is flattened into `SavePartyLocation`, its chunks merged
     // ahead of the derived struct's own and sorted by id. A default party
     // location writes exactly the base struct's persist-if-default chunks.
-    const expectedBaseIds = [0x0B, 0x0C, 0x0D, 0x15, 0x16, 0x21, 0x23, 0x25, 0x29]
+    const expectedBaseIds = [
+      0x0B,
+      0x0C,
+      0x0D,
+      0x15,
+      0x16,
+      0x21,
+      0x23,
+      0x25,
+      0x29,
+    ]
     for (const engine of engines) {
       const save = makeSave(engine)
       // `partyLocation` is top-level chunk id 0x68.
       const partyChunk = topLevelChunk(encodeSave(save, { engine }), 0x68)
-      const ids = [...readChunkStream(new ByteReader(partyChunk.bytes), 'id-zero')].map(chunk => chunk.id)
+      const ids = [
+        ...readChunkStream(new ByteReader(partyChunk.bytes), 'id-zero'),
+      ].map(chunk => chunk.id)
       expect(ids).toEqual(expectedBaseIds)
     }
   })
@@ -183,8 +263,19 @@ describe('save wire bytes', () => {
       } as unknown as Save['partyLocation']
 
       const partyChunk = topLevelChunk(encodeSave(save, { engine }), 0x68)
-      const doubleChunk = [...readChunkStream(new ByteReader(partyChunk.bytes), 'id-zero')].find(chunk => chunk.id === 0x54)!
-      expect([...doubleChunk.bytes]).toEqual([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0xC0])
+      const doubleChunk = [
+        ...readChunkStream(new ByteReader(partyChunk.bytes), 'id-zero'),
+      ].find(chunk => chunk.id === 0x54)!
+      expect([...doubleChunk.bytes]).toEqual([
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x04,
+        0xC0,
+      ])
     }
   })
 
@@ -195,10 +286,18 @@ describe('save wire bytes', () => {
     const save = makeSave('2k3')
     save.partyLocation = { ...save.partyLocation, boarding: true } as unknown as Save['partyLocation']
     const decodedSave = decodeSave(encodeSave(save, { engine: '2k3' }), { engine: '2k3' })
-    decodedSave.partyLocation._unknown = [{ id: 0xCD, bytes: Uint8Array.from([0xAA, 0xBB]), beforeId: 0x65 }]
+    decodedSave.partyLocation._unknown = [
+      {
+        id: 0xCD,
+        bytes: Uint8Array.from([0xAA, 0xBB]),
+        beforeId: 0x65,
+      },
+    ]
 
     const bytes = encodeSave(decodedSave, { engine: '2k3' })
-    const partyChunkIds = [...readChunkStream(new ByteReader(topLevelChunk(bytes, 0x68).bytes), 'id-zero')].map(chunk => chunk.id)
+    const partyChunkIds = [
+      ...readChunkStream(new ByteReader(topLevelChunk(bytes, 0x68).bytes), 'id-zero'),
+    ].map(chunk => chunk.id)
     expect(partyChunkIds.indexOf(0xCD)).toBe(partyChunkIds.indexOf(0x65) - 1)
 
     const again = decodeSave(bytes, { engine: '2k3' })
@@ -208,16 +307,23 @@ describe('save wire bytes', () => {
 
   it('compresses empty runs in the maniac string vector into gap markers', () => {
     const save = makeSave('2k3')
-    save.system = { ...save.system, maniacStrings: ['alpha', '', '', '', 'beta', '', ''] }
+    save.system = {
+      ...save.system,
+      maniacStrings: ['alpha', '', '', '', 'beta', '', ''],
+    }
     const bytes = encodeSave(save, { engine: '2k3' })
 
     // The `system` record is top-level chunk 0x65; `maniacStrings` is 0x24
     // inside it. The three-element gap encodes as BER 0x800000000 - 3 = wire
     // ff ff ff ff 7d.
     const systemChunk = topLevelChunk(bytes, 0x65)
-    const stringsChunk = [...readChunkStream(new ByteReader(systemChunk.bytes), 'id-zero')].find(chunk => chunk.id === 0x24)!
+    const stringsChunk = [
+      ...readChunkStream(new ByteReader(systemChunk.bytes), 'id-zero'),
+    ].find(chunk => chunk.id === 0x24)!
     const gapMarker = [0xFF, 0xFF, 0xFF, 0xFF, 0x7D]
-    const hasGapMarker = [...stringsChunk.bytes.keys()]
+    const hasGapMarker = [
+      ...stringsChunk.bytes.keys(),
+    ]
       .some(offset => bytesEqual(stringsChunk.bytes.slice(offset, offset + gapMarker.length), Uint8Array.from(gapMarker)))
     expect(hasGapMarker).toBe(true)
 

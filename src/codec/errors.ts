@@ -13,9 +13,13 @@ export class LcfError extends Error {
   constructor(message: string, context: LcfErrorContext = {}) {
     const location = [
       context.path,
-      context.offset === undefined ? undefined : `byte ${context.offset}`,
+      context.offset === undefined
+        ? undefined
+        : `byte ${context.offset}`,
     ].filter(part => part !== undefined).join(', ')
-    super(location === '' ? message : `${message} (${location})`)
+    super(location === ''
+      ? message
+      : `${message} (${location})`)
     this.name = 'LcfError'
     this.rawMessage = message
     this.path = context.path

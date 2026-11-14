@@ -23,7 +23,9 @@ afterEach(() => {
 
 function mapUnitWithEventName(name: string): MapUnit {
   const mapUnit = defaultRecord('MapUnit', '2k3') as unknown as MapUnit
-  mapUnit.events = [{ id: 1, name, x: 0, y: 0, pages: [] }]
+  mapUnit.events = [
+    { id: 1, name, x: 0, y: 0, pages: [] },
+  ]
   return mapUnit
 }
 
@@ -39,7 +41,14 @@ describe('convert lcf → json → lcf', () => {
     writeFileSync(join(directory, 'RPG_RT.ini'), '[EasyRPG]\nEncoding=1252\n')
 
     const toJson = convertFile(mapPath)
-    expect(toJson).toMatchObject({ format: 'lmu', engine: '2k3', engineSource: 'database', encoding: 'cp1252', encodingSource: 'ini', isByteIdentical: true })
+    expect(toJson).toMatchObject({
+      format: 'lmu',
+      engine: '2k3',
+      engineSource: 'database',
+      encoding: 'cp1252',
+      encodingSource: 'ini',
+      isByteIdentical: true,
+    })
     expect(toJson.outputPath).toBe(`${mapPath}.json`)
     const envelope = JSON.parse(readFileSync(toJson.outputPath, 'utf8'))
     expect(envelope.data.events[0].name).toBe('Käse')
@@ -55,13 +64,21 @@ describe('convert lcf → json → lcf', () => {
     const options = { engine: '2k3' } as const
     const savePath = join(directory, 'Save01.lsd')
     const save = defaultRecord('Save', '2k3') as unknown as Save
-    save.partyLocation = { ...defaultRecord('SavePartyLocation', '2k3'), mapId: 5 } as unknown as Save['partyLocation']
+    save.partyLocation = {
+      ...defaultRecord('SavePartyLocation', '2k3'),
+      mapId: 5,
+    } as unknown as Save['partyLocation']
     const sourceBytes = encodeSave(save, options)
     writeFileSync(savePath, sourceBytes)
     writeFileSync(join(directory, 'RPG_RT.ldb'), encodeDatabase(defaultRecord('Database', '2k3') as unknown as Database, options))
 
     const toJson = convertFile(savePath)
-    expect(toJson).toMatchObject({ format: 'lsd', engine: '2k3', engineSource: 'database', isByteIdentical: true })
+    expect(toJson).toMatchObject({
+      format: 'lsd',
+      engine: '2k3',
+      engineSource: 'database',
+      isByteIdentical: true,
+    })
     const envelope = JSON.parse(readFileSync(toJson.outputPath, 'utf8'))
     expect(envelope.format).toBe('lsd')
     expect(envelope.data.partyLocation.mapId).toBe(5)
@@ -80,7 +97,9 @@ describe('convert lcf → json → lcf', () => {
 
     const toJson = convertFile(mapPath)
     expect(toJson).toMatchObject({ engine: '2k', engineSource: 'roundTrip' })
-    const toLcf = convertFile(toJson.outputPath, { output: join(directory, 'rebuilt.lmu') })
+    const toLcf = convertFile(toJson.outputPath, {
+      output: join(directory, 'rebuilt.lmu'),
+    })
     expect(new Uint8Array(readFileSync(toLcf.outputPath))).toEqual(sourceBytes)
   })
 
@@ -88,13 +107,20 @@ describe('convert lcf → json → lcf', () => {
     const directory = createGameDirectory()
     const mapPath = join(directory, 'Map0001.lmu')
     const mapUnit = defaultRecord('MapUnit', '2k') as unknown as MapUnit
-    mapUnit._unknown = [{ id: 0x63, bytes: new Uint8Array([1, 2, 3]) }]
+    mapUnit._unknown = [
+      {
+        id: 0x63,
+        bytes: new Uint8Array([1, 2, 3]),
+      },
+    ]
     const sourceBytes = encodeMapUnit(mapUnit, { engine: '2k' })
     writeFileSync(mapPath, sourceBytes)
 
     const toJson = convertFile(mapPath, { engine: '2k' })
     expect(readFileSync(toJson.outputPath, 'utf8')).toContain('"AQID"')
-    const toLcf = convertFile(toJson.outputPath, { output: join(directory, 'rebuilt.lmu') })
+    const toLcf = convertFile(toJson.outputPath, {
+      output: join(directory, 'rebuilt.lmu'),
+    })
     expect(new Uint8Array(readFileSync(toLcf.outputPath))).toEqual(sourceBytes)
   })
 
@@ -125,7 +151,11 @@ describe('convert lcf → json → lcf', () => {
     writeFileSync(mapPath, encodeMapUnit(defaultRecord('MapUnit', '2k') as unknown as MapUnit, { engine: '2k' }))
     const toJson = convertFile(mapPath, { engine: '2k', encoding: 'cp932' })
     expect(toJson).toMatchObject({ engineSource: 'flag', encoding: 'cp932', encodingSource: 'flag' })
-    const toLcf = convertFile(toJson.outputPath, { engine: '2k', encoding: 'windows-1252', output: join(directory, 'rebuilt.lmu') })
+    const toLcf = convertFile(toJson.outputPath, {
+      engine: '2k',
+      encoding: 'windows-1252',
+      output: join(directory, 'rebuilt.lmu'),
+    })
     expect(toLcf).toMatchObject({ engineSource: 'flag', encoding: 'cp1252', encodingSource: 'flag' })
   })
 })
@@ -137,7 +167,10 @@ describe('engine detection from the database', () => {
   })
 
   it('scans a 2k database carrying the version chunk as 2k', () => {
-    const database = { ...defaultRecord('Database', '2k'), version: 1 } as unknown as Database
+    const database = {
+      ...defaultRecord('Database', '2k'),
+      version: 1,
+    } as unknown as Database
     expect(scanDatabaseEngine(encodeDatabase(database, { engine: '2k' }))).toBe('2k')
   })
 })

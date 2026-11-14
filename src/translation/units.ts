@@ -100,12 +100,42 @@ function toLiblcfName(fieldKey: string): string {
 }
 
 const DATABASE_TEXT_FIELDS: [arrayKey: string, fieldKeys: string[]][] = [
-  ['actors', ['name', 'title', 'skillName']],
-  ['classes', ['name']],
-  ['skills', ['name', 'description', 'usingMessage1', 'usingMessage2']],
-  ['items', ['name', 'description']],
-  ['enemies', ['name']],
-  ['states', ['name', 'messageActor', 'messageEnemy', 'messageAlready', 'messageAffected', 'messageRecovery']],
+  [
+    'actors',
+    ['name', 'title', 'skillName'],
+  ],
+  [
+    'classes',
+    ['name'],
+  ],
+  [
+    'skills',
+    [
+      'name',
+      'description',
+      'usingMessage1',
+      'usingMessage2',
+    ],
+  ],
+  [
+    'items',
+    ['name', 'description'],
+  ],
+  [
+    'enemies',
+    ['name'],
+  ],
+  [
+    'states',
+    [
+      'name',
+      'messageActor',
+      'messageEnemy',
+      'messageAlready',
+      'messageAffected',
+      'messageRecovery',
+    ],
+  ],
 ]
 
 const TERMS_STRING_KEYS = RECORD_DESCRIPTORS.Terms!.fields
@@ -245,7 +275,10 @@ function collectCommandUnits(
       units.push({
         address: `${addressPrefix}/commands/${startIndex}`,
         source: lines.join('\n'),
-        info: [lineInfo(startIndex), ...message.info],
+        info: [
+          lineInfo(startIndex),
+          ...message.info,
+        ],
         fileName,
         catalog,
         applyTranslation: (translatedLines) => {
@@ -253,7 +286,12 @@ function collectCommandUnits(
           for (let offset = 0; offset < Math.min(lineCount, translatedLines.length); offset++)
             commands[anchorIndex + offset]!.string = translatedLines[offset]!
           if (translatedLines.length > lineCount) {
-            const addedCommands = translatedLines.slice(lineCount).map(line => ({ code: SHOW_MESSAGE_CONTINUATION, indent, string: line, parameters: [] }))
+            const addedCommands = translatedLines.slice(lineCount).map(line => ({
+              code: SHOW_MESSAGE_CONTINUATION,
+              indent,
+              string: line,
+              parameters: [],
+            }))
             commands.splice(anchorIndex + lineCount, 0, ...addedCommands)
           }
           else if (translatedLines.length < lineCount) {
@@ -273,7 +311,10 @@ function collectCommandUnits(
       address: `${addressPrefix}/commands/${index}`,
       source,
       context,
-      info: [lineInfo(index), extraInfo],
+      info: [
+        lineInfo(index),
+        extraInfo,
+      ],
       fileName,
       catalog,
       expectedLineCount: 1,
@@ -286,7 +327,14 @@ function collectCommandUnits(
     switch (command.code) {
       case SHOW_MESSAGE: {
         flushMessage()
-        message = { startIndex: index, indent: command.indent, lines: [removeControlChars(command.string)], info: [] }
+        message = {
+          startIndex: index,
+          indent: command.indent,
+          lines: [
+            removeControlChars(command.string),
+          ],
+          info: [],
+        }
         break
       }
       case SHOW_MESSAGE_CONTINUATION: {
@@ -309,7 +357,12 @@ function collectCommandUnits(
           units.push({
             address: `${addressPrefix}/commands/${index}`,
             source: options.join('\n'),
-            info: [lineInfo(index), isEmbedded ? `Choice (${options.length} options, embedded in a message)` : `Choice (${options.length} options)`],
+            info: [
+              lineInfo(index),
+              isEmbedded
+                ? `Choice (${options.length} options, embedded in a message)`
+                : `Choice (${options.length} options)`,
+            ],
             fileName,
             catalog,
             expectedLineCount: options.length,
@@ -352,7 +405,10 @@ function collectCommandUnits(
               address: `${addressPrefix}/commands/${index}`,
               source: lines.join('\n'),
               context: 'strpic',
-              info: [lineInfo(index), 'Show String Picture'],
+              info: [
+                lineInfo(index),
+                'Show String Picture',
+              ],
               fileName,
               catalog,
               applyTranslation: (translatedLines) => {

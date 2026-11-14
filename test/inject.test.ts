@@ -11,7 +11,12 @@ const catalogContext: CatalogContext = {
 }
 
 function entry(overrides: Partial<ParsedPoEntry> & Pick<ParsedPoEntry, 'source'>): ParsedPoEntry {
-  return { translation: '', addresses: [], isFuzzy: false, ...overrides }
+  return {
+    translation: '',
+    addresses: [],
+    isFuzzy: false,
+    ...overrides,
+  }
 }
 
 function catalog(fileName: string, ...entries: ParsedPoEntry[]): ParsedCatalog {
@@ -31,7 +36,13 @@ function unit(overrides: Partial<CollectedUnit> & Pick<CollectedUnit, 'address' 
 describe('resolvePoDumps', () => {
   it('fans a merged entry out to every #: address it carries', () => {
     const resolution = resolvePoDumps(
-      [catalog('RPG_RT.ldb.po', entry({ source: 'Alex', translation: 'Kate', addresses: ['ldb/actors/1/name', 'ldb/actors/2/name'] }))],
+      [
+        catalog('RPG_RT.ldb.po', entry({
+          source: 'Alex',
+          translation: 'Kate',
+          addresses: ['ldb/actors/1/name', 'ldb/actors/2/name'],
+        })),
+      ],
       [],
       catalogContext,
     )
@@ -41,11 +52,21 @@ describe('resolvePoDumps', () => {
 
   it('collapses identical (address, translation) duplicates into one unit', () => {
     const resolution = resolvePoDumps(
-      [catalog(
-        'RPG_RT.ldb.po',
-        entry({ source: 'Alex', translation: 'Kate', addresses: ['ldb/actors/1/name'] }),
-        entry({ source: 'Alex', translation: 'Kate', addresses: ['ldb/actors/1/name'] }),
-      )],
+      [
+        catalog(
+          'RPG_RT.ldb.po',
+          entry({
+            source: 'Alex',
+            translation: 'Kate',
+            addresses: ['ldb/actors/1/name'],
+          }),
+          entry({
+            source: 'Alex',
+            translation: 'Kate',
+            addresses: ['ldb/actors/1/name'],
+          }),
+        ),
+      ],
       [],
       catalogContext,
     )
@@ -55,11 +76,21 @@ describe('resolvePoDumps', () => {
 
   it('aborts when one address receives conflicting translations', () => {
     const resolution = resolvePoDumps(
-      [catalog(
-        'RPG_RT.ldb.po',
-        entry({ source: 'Alex', translation: 'Kate', addresses: ['ldb/actors/1/name'] }),
-        entry({ source: 'Alex', translation: 'Kathy', addresses: ['ldb/actors/1/name'] }),
-      )],
+      [
+        catalog(
+          'RPG_RT.ldb.po',
+          entry({
+            source: 'Alex',
+            translation: 'Kate',
+            addresses: ['ldb/actors/1/name'],
+          }),
+          entry({
+            source: 'Alex',
+            translation: 'Kathy',
+            addresses: ['ldb/actors/1/name'],
+          }),
+        ),
+      ],
       [],
       catalogContext,
     )
@@ -68,7 +99,14 @@ describe('resolvePoDumps', () => {
 
   it('skips fuzzy entries without applying them', () => {
     const resolution = resolvePoDumps(
-      [catalog('RPG_RT.ldb.po', entry({ source: 'Alex', translation: 'Kate', addresses: ['ldb/actors/1/name'], isFuzzy: true }))],
+      [
+        catalog('RPG_RT.ldb.po', entry({
+          source: 'Alex',
+          translation: 'Kate',
+          addresses: ['ldb/actors/1/name'],
+          isFuzzy: true,
+        })),
+      ],
       [],
       catalogContext,
     )
@@ -78,7 +116,13 @@ describe('resolvePoDumps', () => {
 
   it('counts a fuzzy entry with an empty msgstr as skipped, not untranslated', () => {
     const resolution = resolvePoDumps(
-      [catalog('RPG_RT.ldb.po', entry({ source: 'Alex', addresses: ['ldb/actors/1/name'], isFuzzy: true }))],
+      [
+        catalog('RPG_RT.ldb.po', entry({
+          source: 'Alex',
+          addresses: ['ldb/actors/1/name'],
+          isFuzzy: true,
+        })),
+      ],
       [],
       catalogContext,
     )
@@ -93,7 +137,9 @@ describe('resolvePoDumps', () => {
       unit({ address: 'ldb/actors/2/name', source: 'Alex', context: 'actors.name' }),
     ]
     const resolution = resolvePoDumps(
-      [catalog('RPG_RT.ldb.po', entry({ context: 'actors.name', source: 'Alex', translation: '' }))],
+      [
+        catalog('RPG_RT.ldb.po', entry({ context: 'actors.name', source: 'Alex', translation: '' })),
+      ],
       collectedUnits,
       catalogContext,
     )
@@ -103,7 +149,13 @@ describe('resolvePoDumps', () => {
 
   it('defers a magic-token translation to planInjection', () => {
     const resolution = resolvePoDumps(
-      [catalog('RPG_RT.ldb.po', entry({ source: 'Alex', translation: 'Kate<easyrpg:new_page>', addresses: ['ldb/actors/1/name'] }))],
+      [
+        catalog('RPG_RT.ldb.po', entry({
+          source: 'Alex',
+          translation: 'Kate<easyrpg:new_page>',
+          addresses: ['ldb/actors/1/name'],
+        })),
+      ],
       [],
       catalogContext,
     )
@@ -114,7 +166,14 @@ describe('resolvePoDumps', () => {
 
   it('skips a fuzzy magic-token translation like any other fuzzy entry', () => {
     const resolution = resolvePoDumps(
-      [catalog('RPG_RT.ldb.po', entry({ source: 'Alex', translation: 'Kate<easyrpg:new_page>', addresses: ['ldb/actors/1/name'], isFuzzy: true }))],
+      [
+        catalog('RPG_RT.ldb.po', entry({
+          source: 'Alex',
+          translation: 'Kate<easyrpg:new_page>',
+          addresses: ['ldb/actors/1/name'],
+          isFuzzy: true,
+        })),
+      ],
       [],
       catalogContext,
     )
@@ -123,9 +182,13 @@ describe('resolvePoDumps', () => {
   })
 
   it('matches a foreign entry with no #: by (msgctxt, source) scoped to the filename', () => {
-    const collectedUnits = [unit({ address: 'ldb/actors/1/name', source: 'Alex', context: 'actors.name' })]
+    const collectedUnits = [
+      unit({ address: 'ldb/actors/1/name', source: 'Alex', context: 'actors.name' }),
+    ]
     const resolution = resolvePoDumps(
-      [catalog('RPG_RT.ldb.po', entry({ context: 'actors.name', source: 'Alex', translation: 'Kate' }))],
+      [
+        catalog('RPG_RT.ldb.po', entry({ context: 'actors.name', source: 'Alex', translation: 'Kate' })),
+      ],
       collectedUnits,
       catalogContext,
     )
@@ -133,9 +196,13 @@ describe('resolvePoDumps', () => {
   })
 
   it('does not reach across catalog files for a fallback match', () => {
-    const collectedUnits = [unit({ address: 'ldb/actors/1/name', source: 'Alex', context: 'actors.name' })]
+    const collectedUnits = [
+      unit({ address: 'ldb/actors/1/name', source: 'Alex', context: 'actors.name' }),
+    ]
     const resolution = resolvePoDumps(
-      [catalog('Map0001.po', entry({ context: 'actors.name', source: 'Alex', translation: 'Kate' }))],
+      [
+        catalog('Map0001.po', entry({ context: 'actors.name', source: 'Alex', translation: 'Kate' })),
+      ],
       collectedUnits,
       catalogContext,
     )
@@ -144,14 +211,18 @@ describe('resolvePoDumps', () => {
   })
 
   it('normalizes a foreign msgctxt "" to no-context so it still matches', () => {
-    const collectedUnits = [unit({
-      address: 'lmu/1/events/1/pages/1/commands/0',
-      source: 'Willkommen',
-      fileName: 'Map0001.lmu',
-      catalog: 'map',
-    })]
+    const collectedUnits = [
+      unit({
+        address: 'lmu/1/events/1/pages/1/commands/0',
+        source: 'Willkommen',
+        fileName: 'Map0001.lmu',
+        catalog: 'map',
+      }),
+    ]
     const resolution = resolvePoDumps(
-      [catalog('Map0001.po', entry({ context: '', source: 'Willkommen', translation: 'Welcome' }))],
+      [
+        catalog('Map0001.po', entry({ context: '', source: 'Willkommen', translation: 'Welcome' })),
+      ],
       collectedUnits,
       catalogContext,
     )

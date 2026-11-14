@@ -19,9 +19,18 @@ export interface CatalogContext {
 /** PO catalogs follow lcftrans's naming so its tooling and EasyRPG Player match up. */
 export function poCatalogs<T extends Pick<CollectedUnit, 'catalog' | 'fileName'>>(units: T[], context: CatalogContext): Map<string, T[]> {
   const catalogs = new Map<string, T[]>([
-    [`${context.databaseFileName}.po`, units.filter(unit => unit.catalog === 'terms')],
-    [`${context.databaseFileName}.common.po`, units.filter(unit => unit.catalog === 'common')],
-    [`${context.databaseFileName}.battle.po`, units.filter(unit => unit.catalog === 'battle')],
+    [
+      `${context.databaseFileName}.po`,
+      units.filter(unit => unit.catalog === 'terms'),
+    ],
+    [
+      `${context.databaseFileName}.common.po`,
+      units.filter(unit => unit.catalog === 'common'),
+    ],
+    [
+      `${context.databaseFileName}.battle.po`,
+      units.filter(unit => unit.catalog === 'battle'),
+    ],
   ])
   const treeMapUnits = units.filter(unit => unit.catalog === 'lmt')
   if (context.treeMapFileName !== undefined && treeMapUnits.length > 0)
@@ -49,7 +58,9 @@ function formatPoString(keyword: string, lines: string[]): string {
     return `${keyword} "${escapePoText(lines[0] ?? '')}"\n`
   let text = `${keyword} ""\n`
   lines.forEach((line, index) => {
-    text += `"${escapePoText(line)}${index < lines.length - 1 ? '\\n' : ''}"\n`
+    text += `"${escapePoText(line)}${index < lines.length - 1
+      ? '\\n'
+      : ''}"\n`
   })
   return text
 }
@@ -181,7 +192,9 @@ export function parsePoCatalog(text: string): ParsedPoEntry[] {
           throw new LcfError(`malformed PO entry: msgid without msgstr near ${source}`)
         const translation = unescapePoText(translationSegments.join(''))
         entries.push({
-          context: contextSegments === undefined ? undefined : unescapePoText(contextSegments.join('')),
+          context: contextSegments === undefined
+            ? undefined
+            : unescapePoText(contextSegments.join('')),
           source,
           translation,
           addresses,
@@ -232,19 +245,25 @@ export function parsePoCatalog(text: string): ParsedPoEntry[] {
     if (line.startsWith('msgctxt')) {
       if (contextSegments !== undefined || sourceSegments !== undefined)
         commitEntry()
-      contextSegments = [extractQuotedSegment(line)]
+      contextSegments = [
+        extractQuotedSegment(line),
+      ]
       activeKeyword = 'msgctxt'
     }
     else if (line.startsWith('msgid')) {
       if (sourceSegments !== undefined)
         commitEntry()
-      sourceSegments = [extractQuotedSegment(line)]
+      sourceSegments = [
+        extractQuotedSegment(line),
+      ]
       activeKeyword = 'msgid'
     }
     else if (line.startsWith('msgstr')) {
       if (sourceSegments === undefined)
         throw new LcfError(`msgstr without a preceding msgid: ${line}`)
-      translationSegments = [extractQuotedSegment(line)]
+      translationSegments = [
+        extractQuotedSegment(line),
+      ]
       activeKeyword = 'msgstr'
     }
     else {

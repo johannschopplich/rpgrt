@@ -12,18 +12,45 @@ export interface Fixture {
 
 function minimalDatabase2k(): Uint8Array {
   const database = defaultRecord('Database', '2k') as unknown as Database
-  database.actors = [{ ...defaultRecord('Actor', '2k'), id: 1, name: 'Alex', title: 'Held' } as never]
+  database.actors = [
+    {
+      ...defaultRecord('Actor', '2k'),
+      id: 1,
+      name: 'Alex',
+      title: 'Held',
+    } as never,
+  ]
   // The `party` value `[1]` is the field default: the data chunk persists, the 0x15
   // size chunk is omitted – as liblcf writes it and TestGame-2000 pins it.
-  database.system = { ...database.system, party: [1], titleName: 'Titel' }
-  database.terms = { ...database.terms, victory: 'Sieg!', yes: 'Ja', no: 'Nein' }
+  database.system = {
+    ...database.system,
+    party: [1],
+    titleName: 'Titel',
+  }
+  database.terms = {
+    ...database.terms,
+    victory: 'Sieg!',
+    yes: 'Ja',
+    no: 'Nein',
+  }
   return encodeDatabase(database, { engine: '2k' })
 }
 
 function minimalDatabase2k3(): Uint8Array {
   const database = defaultRecord('Database', '2k3') as unknown as Database
-  database.actors = [{ ...defaultRecord('Actor', '2k3'), id: 2, name: 'Zack', class: 1 } as never]
-  database.system = { ...database.system, party: [2], menuCommands: [1, 2] }
+  database.actors = [
+    {
+      ...defaultRecord('Actor', '2k3'),
+      id: 2,
+      name: 'Zack',
+      class: 1,
+    } as never,
+  ]
+  database.system = {
+    ...database.system,
+    party: [2],
+    menuCommands: [1, 2],
+  }
   database.version = 1
   return encodeDatabase(database, { engine: '2k3' })
 }
@@ -44,29 +71,69 @@ function villageMap(): Uint8Array {
       command(20141, 0, '', [4]),
     ],
   }
-  mapUnit.events = [{ ...defaultRecord('Event', '2k'), id: 1, name: 'EV0001', x: 3, y: 4, pages: [page] } as never]
+  mapUnit.events = [
+    {
+      ...defaultRecord('Event', '2k'),
+      id: 1,
+      name: 'EV0001',
+      x: 3,
+      y: 4,
+      pages: [page],
+    } as never,
+  ]
   return encodeMapUnit(mapUnit, { engine: '2k' })
 }
 
 function worldTreeMap(): Uint8Array {
   const treeMap = defaultRecord('TreeMap', '2k') as unknown as TreeMap
   const mapInfo = (id: number, name: string, type: number, parentMapId: number): TreeMap['maps'][0] =>
-    ({ ...defaultRecord('MapInfo', '2k'), id, name, type, parentMap: parentMapId } as never)
-  treeMap.maps = [mapInfo(0, 'Fixture', 0, 0), mapInfo(1, 'Dorf', 1, 0), mapInfo(2, 'Höhle', 1, 1)]
+    ({
+      ...defaultRecord('MapInfo', '2k'),
+      id,
+      name,
+      type,
+      parentMap: parentMapId,
+    } as never)
+  treeMap.maps = [
+    mapInfo(0, 'Fixture', 0, 0),
+    mapInfo(1, 'Dorf', 1, 0),
+    mapInfo(2, 'Höhle', 1, 1),
+  ]
   treeMap.treeOrder = [0, 1, 2]
-  treeMap.start = { ...treeMap.start, partyMapId: 1, partyX: 5, partyY: 6 }
+  treeMap.start = {
+    ...treeMap.start,
+    partyMapId: 1,
+    partyX: 5,
+    partyY: 6,
+  }
   return encodeTreeMap(treeMap, { engine: '2k' })
 }
 
 function pictureSave(currentX: number): Uint8Array {
   const save = defaultRecord('Save', '2k3') as unknown as Save
   save.title = { ...save.title, heroName: 'Zack', heroLevel: 7 }
-  save.pictures = [{ ...defaultRecord('SavePicture', '2k3'), id: 1, name: 'Fog', currentX } as never]
+  save.pictures = [
+    {
+      ...defaultRecord('SavePicture', '2k3'),
+      id: 1,
+      name: 'Fog',
+      currentX,
+    } as never,
+  ]
   return encodeSave(save, { engine: '2k3' })
 }
 
 /** JS canonicalizes every NaN on write; LE bytes of the canonical quiet NaN. */
-const CANONICAL_NAN_BYTES = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0x7F]
+const CANONICAL_NAN_BYTES = [
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0xF8,
+  0x7F,
+]
 
 function findNanOffset(bytes: Uint8Array): number {
   let foundOffset = -1
@@ -98,12 +165,40 @@ function editedHeaderDatabase(): Uint8Array {
 
 export function buildFixtures(): Fixture[] {
   return [
-    { fileName: 'minimal-2k.ldb', engine: '2k', bytes: minimalDatabase2k() },
-    { fileName: 'minimal-2k3.ldb', engine: '2k3', bytes: minimalDatabase2k3() },
-    { fileName: 'village.lmu', engine: '2k', bytes: villageMap() },
-    { fileName: 'world.lmt', engine: '2k', bytes: worldTreeMap() },
-    { fileName: 'slot1.lsd', engine: '2k3', bytes: pictureSave(160) },
-    { fileName: 'nan.lsd', engine: '2k3', bytes: nonCanonicalNanSave() },
-    { fileName: 'edited-header.ldb', engine: '2k', bytes: editedHeaderDatabase() },
+    {
+      fileName: 'minimal-2k.ldb',
+      engine: '2k',
+      bytes: minimalDatabase2k(),
+    },
+    {
+      fileName: 'minimal-2k3.ldb',
+      engine: '2k3',
+      bytes: minimalDatabase2k3(),
+    },
+    {
+      fileName: 'village.lmu',
+      engine: '2k',
+      bytes: villageMap(),
+    },
+    {
+      fileName: 'world.lmt',
+      engine: '2k',
+      bytes: worldTreeMap(),
+    },
+    {
+      fileName: 'slot1.lsd',
+      engine: '2k3',
+      bytes: pictureSave(160),
+    },
+    {
+      fileName: 'nan.lsd',
+      engine: '2k3',
+      bytes: nonCanonicalNanSave(),
+    },
+    {
+      fileName: 'edited-header.ldb',
+      engine: '2k',
+      bytes: editedHeaderDatabase(),
+    },
   ]
 }

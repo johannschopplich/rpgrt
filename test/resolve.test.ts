@@ -20,8 +20,16 @@ function map2kBytes(): Uint8Array {
 function japaneseDatabaseBytes(): Uint8Array {
   const database = defaultRecord('Database', '2k') as unknown as Database
   database.system = { ...database.system, titleName: 'こんにちは、日本語のテキストサンプルです' }
-  database.terms = { ...database.terms, attack: '攻撃', defense: '防御', level: 'レベル' }
-  return encodeDatabase(database, { engine: '2k', transcoder: createTranscoder('cp932') })
+  database.terms = {
+    ...database.terms,
+    attack: '攻撃',
+    defense: '防御',
+    level: 'レベル',
+  }
+  return encodeDatabase(database, {
+    engine: '2k',
+    transcoder: createTranscoder('cp932'),
+  })
 }
 
 function saveBytesWithCodepage(codepage: number): Uint8Array {
@@ -89,7 +97,9 @@ describe('encoding resolution', () => {
     // A default map carries no strings at all, so the detection sample is empty.
     const directory = createDirectory()
     const warnings: string[] = []
-    const context = resolveFileContext(join(directory, 'Map0001.lmu'), map2kBytes(), 'lmu', { onWarning: message => warnings.push(message) })
+    const context = resolveFileContext(join(directory, 'Map0001.lmu'), map2kBytes(), 'lmu', {
+      onWarning: message => warnings.push(message),
+    })
     expect(context).toMatchObject({ encoding: 'cp1252', encodingSource: 'fallback' })
     expect(warnings).toContainEqual(expect.stringContaining('cp1252'))
   })
@@ -105,7 +115,9 @@ describe('encoding resolution', () => {
     const directory = createDirectory()
     writeFileSync(join(directory, 'RPG_RT.ini'), '[EasyRPG]\nEncoding=1252\n')
     const warnings: string[] = []
-    const context = resolveFileContext(join(directory, 'Save01.lsd'), saveBytesWithCodepage(65533), 'lsd', { onWarning: message => warnings.push(message) })
+    const context = resolveFileContext(join(directory, 'Save01.lsd'), saveBytesWithCodepage(65533), 'lsd', {
+      onWarning: message => warnings.push(message),
+    })
     expect(context).toMatchObject({ encoding: 'cp1252', encodingSource: 'ini' })
     expect(warnings).toContainEqual(expect.stringContaining('unknown codepage 65533'))
   })

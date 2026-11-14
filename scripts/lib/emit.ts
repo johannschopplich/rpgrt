@@ -101,23 +101,35 @@ export function buildModel(tables: LcfTables, selected: StructDef[]): GeneratedM
         sizeId: field.sizeChunkId,
         sizeKind: field.sizeChunkId === undefined
           ? undefined
-          : field.sizeFieldRawType!.startsWith('Count<') ? 'elementCount' : 'byteLength',
+          : field.sizeFieldRawType!.startsWith('Count<')
+            ? 'elementCount'
+            : 'byteLength',
         isSizePersistedIfDefault: field.sizeIsPersistedIfDefault,
         codec,
         enumRef,
-        refRecord: field.type.kind === 'ref' ? toRecordName(field.type.targetStruct) : undefined,
+        refRecord: field.type.kind === 'ref'
+          ? toRecordName(field.type.targetStruct)
+          : undefined,
         default: defaultValue,
         isPersistedIfDefault: field.isPersistedIfDefault,
         is2k3Only: field.is2k3Only,
       }
     })
-    return { name: toRecordName(struct.name), framing: struct.framing, fields }
+    return {
+      name: toRecordName(struct.name),
+      framing: struct.framing,
+      fields,
+    }
   })
 
   return {
     structs,
-    flagSets: [...usedFlagSets.values()],
-    enums: [...usedEnums.values()],
+    flagSets: [
+      ...usedFlagSets.values(),
+    ],
+    enums: [
+      ...usedEnums.values(),
+    ],
   }
 }
 
@@ -134,7 +146,10 @@ function resolvedFields(tables: LcfTables, struct: StructDef): FieldDef[] {
   const baseStruct = tables.structByName.get(struct.base)
   if (baseStruct === undefined)
     throw new Error(`${struct.name} inherits unknown base struct ${struct.base}`)
-  return [...resolvedFields(tables, baseStruct), ...ownFields]
+  return [
+    ...resolvedFields(tables, baseStruct),
+    ...ownFields,
+  ]
 }
 
 function groupConstants(tables: LcfTables): Map<string, Map<string, string>> {
@@ -156,22 +171,37 @@ function resolveFieldCodec(tables: LcfTables, type: TypeExpression): FieldCodec 
       const namedTypeClass = classifyNamedType(tables, type.name)
       if (namedTypeClass === 'primitive')
         return SCALAR_BY_PRIMITIVE[type.name]!
-      if (namedTypeClass === 'flags')
-        return { kind: 'flags', flagSet: type.name.slice(0, -'_Flags'.length) }
+      if (namedTypeClass === 'flags') {
+        return {
+          kind: 'flags',
+          flagSet: type.name.slice(0, -'_Flags'.length),
+        }
+      }
       const struct = tables.structByName.get(type.name)!
       if (struct.framing === 'raw') {
         if (!EMBEDDABLE_RAW_STRUCTS.has(type.name))
           throw new Error(`Raw struct ${type.name} is not expected as a chunk payload`)
         return { kind: 'rawField', record: type.name }
       }
-      return { kind: 'record', record: toRecordName(type.name) }
+      return {
+        kind: 'record',
+        record: toRecordName(type.name),
+      }
     }
     case 'enum':
       return { kind: 'scalar', scalar: 'berInt' }
     case 'ref':
-      return { kind: 'scalar', scalar: type.storage === 'Int16' ? 'int16' : 'berInt' }
+      return {
+        kind: 'scalar',
+        scalar: type.storage === 'Int16'
+          ? 'int16'
+          : 'berInt',
+      }
     case 'array':
-      return { kind: 'array', record: toRecordName(type.elementStruct) }
+      return {
+        kind: 'array',
+        record: toRecordName(type.elementStruct),
+      }
     case 'vector':
       return resolveVectorCodec(tables, type.element)
     case 'dbArray':
@@ -197,8 +227,14 @@ function resolveVectorCodec(tables: LcfTables, element: TypeExpression): FieldCo
     throw new Error(`Unsupported vector element: ${element.name}`)
   }
   // Refs in vectors are stored fixed-width, matching their storage type.
-  if (element.kind === 'ref')
-    return { kind: 'vector', element: element.storage === 'Int16' ? 'int16' : 'int32' }
+  if (element.kind === 'ref') {
+    return {
+      kind: 'vector',
+      element: element.storage === 'Int16'
+        ? 'int16'
+        : 'int32',
+    }
+  }
   throw new Error(`Unsupported vector element kind: ${element.kind}`)
 }
 
@@ -238,11 +274,15 @@ export function emitStructs(model: GeneratedModel): string {
 function fieldTsType(codec: FieldCodec): string {
   switch (codec.kind) {
     case 'scalar':
-      return codec.scalar === 'boolean' ? 'boolean' : 'number'
+      return codec.scalar === 'boolean'
+        ? 'boolean'
+        : 'number'
     case 'string':
       return 'string'
     case 'vector':
-      return codec.element === 'boolean' ? 'boolean[]' : 'number[]'
+      return codec.element === 'boolean'
+        ? 'boolean[]'
+        : 'number[]'
     case 'stringVector':
       return 'string[]'
     case 'berIntList':

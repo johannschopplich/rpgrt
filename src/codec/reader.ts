@@ -138,6 +138,9 @@ export function* readChunkStream(reader: ByteReader, terminator: ChunkStreamTerm
       throw new LcfError('Unexpected chunk terminator in an end-of-data stream', { offset: reader.offset })
     }
     const length = reader.readBerUnsigned()
-    yield { id, bytes: reader.readBytes(length) }
+    yield {
+      id,
+      bytes: reader.readBytes(length),
+    }
   }
 }

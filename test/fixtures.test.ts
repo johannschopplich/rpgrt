@@ -52,9 +52,14 @@ describe('fixture behavior', () => {
   it('preserves a non-canonical header through decode, warning, and re-encode', () => {
     const bytes = committedBytes('edited-header.ldb')
     const warnings: string[] = []
-    const database = decodeDatabase(bytes, { engine: '2k', onWarning: message => warnings.push(message) }) as Database
+    const database = decodeDatabase(bytes, {
+      engine: '2k',
+      onWarning: message => warnings.push(message),
+    }) as Database
     expect(database._header).toBe('LcfDataBasE')
-    expect(warnings).toEqual([expect.stringContaining('LcfDataBasE')])
+    expect(warnings).toEqual([
+      expect.stringContaining('LcfDataBasE'),
+    ])
     expect(encodeDatabase(database, { engine: '2k' })).toEqual(bytes)
   })
 

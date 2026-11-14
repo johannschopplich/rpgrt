@@ -131,15 +131,24 @@ export function parseTypeExpression(rawType: string): TypeExpression {
     }
     case 'Vector': {
       expectParts(rawType, parts, 1)
-      return { kind: 'vector', element: parseTypeExpression(parts[0]!) }
+      return {
+        kind: 'vector',
+        element: parseTypeExpression(parts[0]!),
+      }
     }
     case 'Count': {
       expectParts(rawType, parts, 1)
-      return { kind: 'count', sized: parseTypeExpression(parts[0]!) }
+      return {
+        kind: 'count',
+        sized: parseTypeExpression(parts[0]!),
+      }
     }
     case 'DBArray': {
       expectParts(rawType, parts, 1)
-      return { kind: 'dbArray', element: parseTypeExpression(parts[0]!) }
+      return {
+        kind: 'dbArray',
+        element: parseTypeExpression(parts[0]!),
+      }
     }
     default:
       throw new Error(`Unknown generic type head: ${rawType}`)
@@ -185,7 +194,14 @@ export function loadTables(csvDirectory: string): LcfTables {
   const enums = loadEnums(paths('enums.csv', 'enums_easyrpg.csv'))
   const flagSetByStruct = loadFlagSets(paths('flags.csv', 'flags_easyrpg.csv'))
   const constants = loadConstants(join(csvDirectory, 'constants.csv'))
-  return { structs, structByName, fieldsByStruct, enums, flagSetByStruct, constants }
+  return {
+    structs,
+    structByName,
+    fieldsByStruct,
+    enums,
+    flagSetByStruct,
+    constants,
+  }
 }
 
 function loadRows(filePath: string, expectedHeader: string[]): string[][] {
@@ -197,18 +213,44 @@ function loadRows(filePath: string, expectedHeader: string[]): string[][] {
 }
 
 function loadStructs(filePaths: string[]): StructDef[] {
-  return filePaths.flatMap(filePath => loadRows(filePath, ['Type', 'Structure', 'Base', 'Index available?'])).map((row) => {
+  return filePaths.flatMap(filePath => loadRows(filePath, [
+    'Type',
+    'Structure',
+    'Base',
+    'Index available?',
+  ])).map((row) => {
     const [format, name, base, indexAvailable] = row as [string, string, string, string]
     if (base !== '' && format !== 'lsd')
       throw new Error(`Unexpected base struct outside lsd: ${name}`)
     const framing: StructFraming
-      = indexAvailable === '' ? 'raw' : indexAvailable === '1' ? 'chunkedIdIndexed' : 'chunked'
-    return { format: format as LcfFormat, name, framing, base: base === '' ? undefined : base }
+      = indexAvailable === ''
+        ? 'raw'
+        : indexAvailable === '1'
+          ? 'chunkedIdIndexed'
+          : 'chunked'
+    return {
+      format: format as LcfFormat,
+      name,
+      framing,
+      base: base === ''
+        ? undefined
+        : base,
+    }
   })
 }
 
 function loadFields(filePaths: string[], structByName: Map<string, StructDef>): Map<string, FieldDef[]> {
-  const header = ['Structure', 'Field', 'Size Field?', 'Type', 'Index', 'Default Value', 'PersistIfDefault', 'Is2k3', 'Comment']
+  const header = [
+    'Structure',
+    'Field',
+    'Size Field?',
+    'Type',
+    'Index',
+    'Default Value',
+    'PersistIfDefault',
+    'Is2k3',
+    'Comment',
+  ]
   const fieldsByStruct = new Map<string, FieldDef[]>()
   let pendingSizeRow: { structName: string, fieldName: string, chunkId: number, rawType: string, isPersistedIfDefault: boolean } | undefined
 
@@ -218,14 +260,22 @@ function loadFields(filePaths: string[], structByName: Map<string, StructDef>): 
     if (!structByName.has(structName))
       throw new Error(`fields.csv references unknown struct: ${structName}`)
 
-    const chunkId = chunkIdRaw === '' ? undefined : Number.parseInt(chunkIdRaw, 16)
+    const chunkId = chunkIdRaw === ''
+      ? undefined
+      : Number.parseInt(chunkIdRaw, 16)
     if (chunkIdRaw !== '' && Number.isNaN(chunkId))
       throw new Error(`Bad chunk ID for ${structName}.${fieldName}: ${chunkIdRaw}`)
 
     if (sizeMarker === 't') {
       if (pendingSizeRow !== undefined || chunkId === undefined)
         throw new Error(`Orphaned size row: ${structName}.${fieldName}`)
-      pendingSizeRow = { structName, fieldName, chunkId, rawType, isPersistedIfDefault: persistRaw === '1' }
+      pendingSizeRow = {
+        structName,
+        fieldName,
+        chunkId,
+        rawType,
+        isPersistedIfDefault: persistRaw === '1',
+      }
       continue
     }
 
@@ -272,7 +322,7 @@ function loadEnums(filePaths: string[]): EnumDef[] {
     const [structName, enumName, label, valueRaw] = row as [string, string, string, string]
     const value = Number.parseInt(valueRaw, 10)
     if (Number.isNaN(value))
-      throw new Error(`Bad enum value for ${structName}.${enumName}.${label}: ${valueRaw}`)
+      throw new TypeError(`Bad enum value for ${structName}.${enumName}.${label}: ${valueRaw}`)
     const key = `${structName}\u0000${enumName}`
     let enumDef = enumDefByKey.get(key)
     if (!enumDef) {
@@ -327,7 +377,13 @@ function loadFlagSets(filePaths: string[]): Map<string, FlagSetDef> {
 }
 
 function loadConstants(filePath: string): ConstantDef[] {
-  return loadRows(filePath, ['Structure', 'name', 'type', 'value', 'comment']).map((row) => {
+  return loadRows(filePath, [
+    'Structure',
+    'name',
+    'type',
+    'value',
+    'comment',
+  ]).map((row) => {
     const [structName, name, , rawValue] = row as [string, string, string, string]
     return { structName, name, rawValue }
   })
@@ -373,7 +429,9 @@ export function selectStructs(tables: LcfTables, formats: LcfFormat[]): StructDe
 function referencedStructs(tables: LcfTables, type: TypeExpression): string[] {
   switch (type.kind) {
     case 'named':
-      return classifyNamedType(tables, type.name) === 'struct' ? [type.name] : []
+      return classifyNamedType(tables, type.name) === 'struct'
+        ? [type.name]
+        : []
     case 'array':
       return [type.elementStruct]
     case 'vector':

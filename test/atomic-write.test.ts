@@ -11,8 +11,15 @@ describe('writeFilesAtomically', () => {
     const directory = createDirectory()
     const filePath = join(directory, 'a.bin')
     writeFileSync(filePath, 'old')
-    const result = writeFilesAtomically([{ filePath, bytes: Uint8Array.from([1, 2]) }])
-    expect([...new Uint8Array(readFileSync(filePath))]).toEqual([1, 2])
+    const result = writeFilesAtomically([
+      {
+        filePath,
+        bytes: Uint8Array.from([1, 2]),
+      },
+    ])
+    expect([
+      ...new Uint8Array(readFileSync(filePath)),
+    ]).toEqual([1, 2])
     expect(result).toEqual({ backupPaths: [], warnings: [] })
     expect(readdirSync(directory)).toEqual(['a.bin'])
   })
@@ -21,7 +28,12 @@ describe('writeFilesAtomically', () => {
     const directory = createDirectory()
     const filePath = join(directory, 'a.bin')
     writeFileSync(filePath, 'old')
-    const result = writeFilesAtomically([{ filePath, bytes: Uint8Array.from([1]) }], { shouldKeepBackups: true })
+    const result = writeFilesAtomically([
+      {
+        filePath,
+        bytes: Uint8Array.from([1]),
+      },
+    ], { shouldKeepBackups: true })
     expect(result.backupPaths).toEqual([`${filePath}.rpgrt-bak`])
     expect(readFileSync(`${filePath}.rpgrt-bak`, 'utf8')).toBe('old')
   })
@@ -29,9 +41,16 @@ describe('writeFilesAtomically', () => {
   it('writes a new file without creating a backup', () => {
     const directory = createDirectory()
     const filePath = join(directory, 'new.bin')
-    const result = writeFilesAtomically([{ filePath, bytes: Uint8Array.from([7]) }], { shouldKeepBackups: true })
+    const result = writeFilesAtomically([
+      {
+        filePath,
+        bytes: Uint8Array.from([7]),
+      },
+    ], { shouldKeepBackups: true })
     expect(result.backupPaths).toEqual([])
-    expect([...new Uint8Array(readFileSync(filePath))]).toEqual([7])
+    expect([
+      ...new Uint8Array(readFileSync(filePath)),
+    ]).toEqual([7])
   })
 
   it('leaves every target untouched when staging a temp fails', () => {
@@ -43,8 +62,14 @@ describe('writeFilesAtomically', () => {
     // A directory on the temp path makes the staging write fail before any rename.
     mkdirSync(`${badPath}.rpgrt-tmp`)
     expect(() => writeFilesAtomically([
-      { filePath: goodPath, bytes: Uint8Array.from([1]) },
-      { filePath: badPath, bytes: Uint8Array.from([2]) },
+      {
+        filePath: goodPath,
+        bytes: Uint8Array.from([1]),
+      },
+      {
+        filePath: badPath,
+        bytes: Uint8Array.from([2]),
+      },
     ])).toThrow('Nothing was written')
     expect(readFileSync(goodPath, 'utf8')).toBe('a-old')
     expect(readFileSync(badPath, 'utf8')).toBe('b-old')
@@ -60,8 +85,14 @@ describe('writeFilesAtomically', () => {
     // after the first file has already been replaced.
     mkdirSync(`${secondPath}.rpgrt-bak`)
     expect(() => writeFilesAtomically([
-      { filePath: firstPath, bytes: Uint8Array.from([1]) },
-      { filePath: secondPath, bytes: Uint8Array.from([2]) },
+      {
+        filePath: firstPath,
+        bytes: Uint8Array.from([1]),
+      },
+      {
+        filePath: secondPath,
+        bytes: Uint8Array.from([2]),
+      },
     ])).toThrow('every file was restored')
     expect(readFileSync(firstPath, 'utf8')).toBe('a-old')
     expect(readFileSync(secondPath, 'utf8')).toBe('b-old')
@@ -76,8 +107,14 @@ describe('writeFilesAtomically', () => {
     writeFileSync(failingPath, 'b-old')
     mkdirSync(`${failingPath}.rpgrt-bak`)
     expect(() => writeFilesAtomically([
-      { filePath: newPath, bytes: Uint8Array.from([1]) },
-      { filePath: failingPath, bytes: Uint8Array.from([2]) },
+      {
+        filePath: newPath,
+        bytes: Uint8Array.from([1]),
+      },
+      {
+        filePath: failingPath,
+        bytes: Uint8Array.from([2]),
+      },
     ])).toThrow('every file was restored')
     // The new file has no backup to restore – a full rollback means deleting it.
     expect(existsSync(newPath)).toBe(false)

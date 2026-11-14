@@ -35,43 +35,74 @@ function collectedUnit(overrides: Partial<CollectedUnit> & Pick<CollectedUnit, '
 }
 
 describe('poCatalogs', () => {
-  const context = { databaseFileName: 'RPG_RT.ldb', treeMapFileName: 'RPG_RT.lmt', mapFileNames: ['Map0001.lmu'] }
+  const context = {
+    databaseFileName: 'RPG_RT.ldb',
+    treeMapFileName: 'RPG_RT.lmt',
+    mapFileNames: ['Map0001.lmu'],
+  }
 
   it('names the fixed database catalogs after lcftrans', () => {
-    const catalogs = poCatalogs([collectedUnit({ catalog: 'terms', fileName: 'RPG_RT.ldb' })], context)
-    expect([...catalogs.keys()]).toEqual(['RPG_RT.ldb.po', 'RPG_RT.ldb.common.po', 'RPG_RT.ldb.battle.po'])
+    const catalogs = poCatalogs([
+      collectedUnit({ catalog: 'terms', fileName: 'RPG_RT.ldb' }),
+    ], context)
+    expect([
+      ...catalogs.keys(),
+    ]).toEqual(['RPG_RT.ldb.po', 'RPG_RT.ldb.common.po', 'RPG_RT.ldb.battle.po'])
   })
 
   it('omits the tree-map catalog when no lmt units exist', () => {
-    const catalogs = poCatalogs([collectedUnit({ catalog: 'terms', fileName: 'RPG_RT.ldb' })], context)
+    const catalogs = poCatalogs([
+      collectedUnit({ catalog: 'terms', fileName: 'RPG_RT.ldb' }),
+    ], context)
     expect(catalogs.has('RPG_RT.lmt.po')).toBe(false)
   })
 
   it('adds the tree-map catalog when lmt units exist', () => {
-    const catalogs = poCatalogs([collectedUnit({ catalog: 'lmt', fileName: 'RPG_RT.lmt' })], context)
+    const catalogs = poCatalogs([
+      collectedUnit({ catalog: 'lmt', fileName: 'RPG_RT.lmt' }),
+    ], context)
     expect(catalogs.get('RPG_RT.lmt.po')).toHaveLength(1)
   })
 
   it('adds a map catalog keyed by filename without the .lmu suffix, only when it has units', () => {
-    const emptyCatalogs = poCatalogs([collectedUnit({ catalog: 'terms', fileName: 'RPG_RT.ldb' })], context)
+    const emptyCatalogs = poCatalogs([
+      collectedUnit({ catalog: 'terms', fileName: 'RPG_RT.ldb' }),
+    ], context)
     expect(emptyCatalogs.has('Map0001.po')).toBe(false)
-    const catalogs = poCatalogs([collectedUnit({ catalog: 'map', fileName: 'Map0001.lmu' })], context)
+    const catalogs = poCatalogs([
+      collectedUnit({ catalog: 'map', fileName: 'Map0001.lmu' }),
+    ], context)
     expect(catalogs.get('Map0001.po')).toHaveLength(1)
   })
 })
 
 describe('formatPoCatalog', () => {
   it('writes a header with the game title and utf-8 charset', () => {
-    const catalog = formatPoCatalog([{ address: 'a', source: 'Alex', info: [] }], 'TestGame')
+    const catalog = formatPoCatalog([
+      { address: 'a', source: 'Alex', info: [] },
+    ], 'TestGame')
     expect(catalog).toContain('"Project-Id-Version: TestGame 1.0\\n"')
     expect(catalog).toContain('"Content-Type: text/plain; charset=UTF-8\\n"')
   })
 
   it('formats multiline entries and merges duplicates', () => {
     const units = [
-      { address: 'a', source: 'Say "hi"\\c[3]\nLine two', info: ['ID 1, Line 1'] },
-      { address: 'b', source: 'Say "hi"\\c[3]\nLine two', info: ['ID 2, Line 5'] },
-      { address: 'c', source: 'Alex', context: 'actors.name', info: ['ID 1'] },
+      {
+        address: 'a',
+        source: 'Say "hi"\\c[3]\nLine two',
+        info: ['ID 1, Line 1'],
+      },
+      {
+        address: 'b',
+        source: 'Say "hi"\\c[3]\nLine two',
+        info: ['ID 2, Line 5'],
+      },
+      {
+        address: 'c',
+        source: 'Alex',
+        context: 'actors.name',
+        info: ['ID 1'],
+      },
     ]
     const catalog = formatPoCatalog(units, 'TestGame')
     expect(catalog).toContain('#. ID 1, Line 1\n#: a\n#. ID 2, Line 5\n#: b\nmsgid ""\n"Say \\"hi\\"\\\\c[3]\\n"\n"Line two"\nmsgstr ""\n')
@@ -110,7 +141,13 @@ describe('parsePoCatalog', () => {
       '"Welt"',
     ))
     expect(entries).toEqual([
-      { context: undefined, source: 'Hello World', translation: 'Hallo Welt', addresses: [], isFuzzy: false },
+      {
+        context: undefined,
+        source: 'Hello World',
+        translation: 'Hallo Welt',
+        addresses: [],
+        isFuzzy: false,
+      },
     ])
   })
 
@@ -149,8 +186,20 @@ describe('parsePoCatalog', () => {
   it('tolerates CRLF, CR and a missing final newline', () => {
     const entries = parsePoCatalog(`${header}msgid "Hi"\r\nmsgstr "Moin"\r\rmsgid "Bye"\rmsgstr "Tschüss"`)
     expect(entries).toEqual([
-      { context: undefined, source: 'Hi', translation: 'Moin', addresses: [], isFuzzy: false },
-      { context: undefined, source: 'Bye', translation: 'Tschüss', addresses: [], isFuzzy: false },
+      {
+        context: undefined,
+        source: 'Hi',
+        translation: 'Moin',
+        addresses: [],
+        isFuzzy: false,
+      },
+      {
+        context: undefined,
+        source: 'Bye',
+        translation: 'Tschüss',
+        addresses: [],
+        isFuzzy: false,
+      },
     ])
   })
 
@@ -173,7 +222,13 @@ describe('parsePoCatalog', () => {
       '#~ msgstr "weg"',
     ))
     expect(entries).toEqual([
-      { context: undefined, source: 'Alex', translation: 'Kate', addresses: [], isFuzzy: false },
+      {
+        context: undefined,
+        source: 'Alex',
+        translation: 'Kate',
+        addresses: [],
+        isFuzzy: false,
+      },
     ])
   })
 

@@ -21,7 +21,9 @@ function firstDifference(expectedBytes: Uint8Array, actualBytes: Uint8Array): nu
     if (expectedBytes[index] !== actualBytes[index])
       return index
   }
-  return expectedBytes.length === actualBytes.length ? -1 : shorter
+  return expectedBytes.length === actualBytes.length
+    ? -1
+    : shorter
 }
 
 // Corpus games that name their engine are held to it – trying both would let

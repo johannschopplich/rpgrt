@@ -55,7 +55,9 @@ function findSibling(filePath: string, siblingName: string): string | undefined 
   const directory = dirname(filePath)
   try {
     const entryName = readdirSync(directory).find(name => name.toLowerCase() === siblingName)
-    return entryName === undefined ? undefined : join(directory, entryName)
+    return entryName === undefined
+      ? undefined
+      : join(directory, entryName)
   }
   catch {
     return undefined
@@ -112,8 +114,12 @@ export interface ResolveInputs {
 /** The common case: hints from optional --engine/--encoding flag values. */
 export function flagHints(engineFlag?: EngineVersion, encodingFlag?: string): Pick<ResolveInputs, 'engineHint' | 'encodingHint'> {
   return {
-    engineHint: engineFlag === undefined ? undefined : { engine: engineFlag, source: 'flag' },
-    encodingHint: encodingFlag === undefined ? undefined : { encoding: encodingFlag, source: 'flag' },
+    engineHint: engineFlag === undefined
+      ? undefined
+      : { engine: engineFlag, source: 'flag' },
+    encodingHint: encodingFlag === undefined
+      ? undefined
+      : { encoding: encodingFlag, source: 'flag' },
   }
 }
 
@@ -131,10 +137,15 @@ function decideEngine(inputs: { engineHint?: EngineHint, kind: LcfFileKind, byte
   if (databaseBytes !== undefined) {
     // A corrupt sibling database must not take down the file it sits next to.
     try {
-      return { engine: scanDatabaseEngine(databaseBytes), engineSource: 'database' }
+      return {
+        engine: scanDatabaseEngine(databaseBytes),
+        engineSource: 'database',
+      }
     }
     catch (error) {
-      onWarning?.(`Ignoring the unreadable sibling RPG_RT.ldb for engine detection (${error instanceof Error ? error.message : String(error)})`)
+      onWarning?.(`Ignoring the unreadable sibling RPG_RT.ldb for engine detection (${error instanceof Error
+        ? error.message
+        : String(error)})`)
     }
   }
   if (reencodesIdentically(bytes, kind, '2k'))
@@ -174,7 +185,9 @@ function decideEncoding(inputs: { encodingHint?: EncodingHint, getSaveCodepage?:
   }
   // Deferred so a flag or ini hint never pays for the sample's whole-database decode.
   const sampleBytes = getSampleBytes?.()
-  const detectedEncoding = sampleBytes === undefined ? undefined : detectEncoding(sampleBytes)
+  const detectedEncoding = sampleBytes === undefined
+    ? undefined
+    : detectEncoding(sampleBytes)
   if (detectedEncoding !== undefined)
     return { encoding: detectedEncoding, encodingSource: 'detected' }
   onWarning?.(`No encoding could be determined – assuming ${FALLBACK_ENCODING}`)
@@ -190,19 +203,35 @@ export function resolveFileContext(filePath: string, bytes: Uint8Array, kind: Lc
     ? bytes
     : (() => {
         const databasePath = findSibling(filePath, 'rpg_rt.ldb')
-        return databasePath === undefined ? undefined : new Uint8Array(readFileSync(databasePath))
+        return databasePath === undefined
+          ? undefined
+          : new Uint8Array(readFileSync(databasePath))
       })()
-  const resolvedEngine = decideEngine({ engineHint: inputs.engineHint, kind, bytes, databaseBytes, onWarning: inputs.onWarning })
+  const resolvedEngine = decideEngine({
+    engineHint: inputs.engineHint,
+    kind,
+    bytes,
+    databaseBytes,
+    onWarning: inputs.onWarning,
+  })
   const iniPath = findSibling(filePath, 'rpg_rt.ini')
-  const iniText = iniPath === undefined ? undefined : readFileSync(iniPath, 'latin1')
+  const iniText = iniPath === undefined
+    ? undefined
+    : readFileSync(iniPath, 'latin1')
   const resolvedEncoding = decideEncoding({
     encodingHint: inputs.encodingHint,
-    getSaveCodepage: kind === 'lsd' ? () => saveCodepage(bytes, resolvedEngine.engine) : undefined,
+    getSaveCodepage: kind === 'lsd'
+      ? () => saveCodepage(bytes, resolvedEngine.engine)
+      : undefined,
     iniText,
     getSampleBytes: () => collectDetectionSample(bytes, kind, resolvedEngine.engine, databaseBytes),
     onWarning: inputs.onWarning,
   })
-  return { ...resolvedEngine, encoding: canonicalEncodingName(resolvedEncoding.encoding), encodingSource: resolvedEncoding.encodingSource }
+  return {
+    ...resolvedEngine,
+    encoding: canonicalEncodingName(resolvedEncoding.encoding),
+    encodingSource: resolvedEncoding.encodingSource,
+  }
 }
 
 /** EasyRPG Player records the codepage its save text was written with. */
@@ -210,7 +239,9 @@ function saveCodepage(bytes: Uint8Array, engine: EngineVersion): number | undefi
   try {
     const save = decodeSave(bytes, { engine })
     const codepage = save.easyrpgData.codepage
-    return codepage > 0 ? codepage : undefined
+    return codepage > 0
+      ? codepage
+      : undefined
   }
   catch {
     return undefined
@@ -222,8 +253,11 @@ function collectDetectionSample(bytes: Uint8Array, kind: LcfFileKind, engine: En
   try {
     if (kind === 'ldb')
       return collectDatabaseSampleBytes(decodeDatabase(bytes, { engine }))
-    if (databaseBytes !== undefined)
-      return collectDatabaseSampleBytes(decodeDatabase(databaseBytes, { engine: scanDatabaseEngine(databaseBytes) }))
+    if (databaseBytes !== undefined) {
+      return collectDatabaseSampleBytes(decodeDatabase(databaseBytes, {
+        engine: scanDatabaseEngine(databaseBytes),
+      }))
+    }
     return collectStringBytes(decodeLcfFile<LcfRecord>(bytes, LCF_FORMATS[kind], { engine }))
   }
   catch {

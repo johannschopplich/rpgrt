@@ -15,13 +15,19 @@ export function resolveDefault(field: FieldDescriptor, engine: EngineVersion): u
       if (!('2k' in declaredDefault))
         return { ...declaredDefault }
       const value = (declaredDefault as EngineSplitDefault)[engine]
-      return Array.isArray(value) ? [...value] : value
+      return Array.isArray(value)
+        ? [...value]
+        : value
     }
-    return Array.isArray(declaredDefault) ? [...declaredDefault] : declaredDefault
+    return Array.isArray(declaredDefault)
+      ? [...declaredDefault]
+      : declaredDefault
   }
   switch (field.codec.kind) {
     case 'scalar':
-      return field.codec.scalar === 'boolean' ? false : 0
+      return field.codec.scalar === 'boolean'
+        ? false
+        : 0
     case 'string':
       return ''
     case 'vector':
@@ -82,7 +88,10 @@ export function deepEquals(left: unknown, right: unknown): boolean {
       && left.every((element, index) => deepEquals(element, right[index]))
   }
   if (typeof left === 'object' && typeof right === 'object' && left !== null && right !== null) {
-    const keys = new Set([...Object.keys(left), ...Object.keys(right)])
+    const keys = new Set([
+      ...Object.keys(left),
+      ...Object.keys(right),
+    ])
     for (const key of keys) {
       if (!deepEquals((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key]))
         return false

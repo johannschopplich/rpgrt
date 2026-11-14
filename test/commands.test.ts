@@ -40,7 +40,9 @@ describe('convert overwrite guards', () => {
     const directory = createDirectory()
     const mapPath = writeMap(directory)
     convertFile(mapPath)
-    const result = convertFile(`${mapPath}.json`, { output: join(directory, 'fresh.lmu') })
+    const result = convertFile(`${mapPath}.json`, {
+      output: join(directory, 'fresh.lmu'),
+    })
     expect(result.backupPath).toBeUndefined()
   })
 })
@@ -51,7 +53,9 @@ describe('convert json validation', () => {
     const mapPath = writeMap(directory)
     convertFile(mapPath)
     const envelope = JSON.parse(readFileSync(`${mapPath}.json`, 'utf8')) as { data: Record<string, unknown> }
-    envelope.data._unknown = [{ id: 'not-a-number', bytes: 42 }]
+    envelope.data._unknown = [
+      { id: 'not-a-number', bytes: 42 },
+    ]
     writeFileSync(`${mapPath}.json`, JSON.stringify(envelope))
     expect(() => convertFile(`${mapPath}.json`)).toThrow('Malformed _unknown chunk')
   })
@@ -61,7 +65,9 @@ describe('convert json validation', () => {
     const mapPath = writeMap(directory)
     convertFile(mapPath)
     const envelope = JSON.parse(readFileSync(`${mapPath}.json`, 'utf8')) as { data: Record<string, unknown> }
-    envelope.data._unknown = [{ id: 0x63, bytes: 'AQI=', beforeId: 'x' }]
+    envelope.data._unknown = [
+      { id: 0x63, bytes: 'AQI=', beforeId: 'x' },
+    ]
     writeFileSync(`${mapPath}.json`, JSON.stringify(envelope))
     expect(() => convertFile(`${mapPath}.json`)).toThrow('Malformed _unknown chunk')
   })
